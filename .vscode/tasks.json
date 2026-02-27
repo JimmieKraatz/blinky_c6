@@ -1,0 +1,104 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "IDF: Build (app)",
+            "type": "shell",
+            "command": "idf.py",
+            "args": ["-D", "CCACHE_ENABLE=1", "build"],
+            "problemMatcher": [],
+            "group": "build"
+        },
+        {
+            "label": "IDF: Menuconfig (app)",
+            "type": "shell",
+            "command": "idf.py",
+            "args": ["menuconfig"],
+            "problemMatcher": []
+        },
+        {
+            "label": "IDF: Build (tests)",
+            "type": "shell",
+            "command": "idf.py",
+            "args": [
+                "-C",
+                "${env:IDF_PATH}/tools/unit-test-app",
+                "-B",
+                "${workspaceFolder}/build/unit-test-app",
+                "-D",
+                "EXTRA_COMPONENT_DIRS=${workspaceFolder}/components",
+                "-D",
+                "SDKCONFIG=${workspaceFolder}/build/unit-test-app/sdkconfig",
+                "-D",
+                "CCACHE_ENABLE=1",
+                "-T",
+                "blinky",
+                "build"
+            ],
+            "problemMatcher": [],
+            "group": "build"
+        },
+        {
+            "label": "IDF: Flash+Monitor (app)",
+            "type": "shell",
+            "command": "idf.py",
+            "args": ["-p", "${config:idf.port}", "flash", "monitor"],
+            "problemMatcher": []
+        },
+        {
+            "label": "IDF: Flash+Monitor (tests)",
+            "type": "shell",
+            "command": "idf.py",
+            "args": [
+                "-C",
+                "${env:IDF_PATH}/tools/unit-test-app",
+                "-B",
+                "${workspaceFolder}/build/unit-test-app",
+                "-D",
+                "SDKCONFIG=${workspaceFolder}/build/unit-test-app/sdkconfig",
+                "-T",
+                "blinky",
+                "-p",
+                "${config:idf.port}",
+                "flash",
+                "monitor"
+            ],
+            "problemMatcher": []
+        },
+        {
+            "label": "IDF: Menuconfig (tests)",
+            "type": "shell",
+            "command": "idf.py",
+            "args": [
+                "-C",
+                "${env:IDF_PATH}/tools/unit-test-app",
+                "-B",
+                "${workspaceFolder}/build/unit-test-app",
+                "-D",
+                "EXTRA_COMPONENT_DIRS=${workspaceFolder}/components",
+                "-D",
+                "SDKCONFIG=${workspaceFolder}/build/unit-test-app/sdkconfig",
+                "menuconfig"
+            ],
+            "problemMatcher": []
+        },
+        {
+            "label": "IDF: Set Target (tests)",
+            "type": "shell",
+            "command": "idf.py",
+            "args": [
+                "-C",
+                "${env:IDF_PATH}/tools/unit-test-app",
+                "-B",
+                "${workspaceFolder}/build/unit-test-app",
+                "-D",
+                "EXTRA_COMPONENT_DIRS=${workspaceFolder}/components",
+                "-D",
+                "SDKCONFIG=${workspaceFolder}/build/unit-test-app/sdkconfig",
+                "set-target",
+                "${config:idf.target}"
+            ],
+            "problemMatcher": []
+        }
+    ]
+}

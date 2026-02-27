@@ -1,0 +1,95 @@
+menu "Blinky"
+
+    config BLINKY_LED_GPIO
+        int "LED GPIO"
+        default 14
+        help
+            GPIO used for the LED PWM output (active-low).
+
+    config BLINKY_BTN_GPIO
+        int "Button GPIO"
+        default 9
+        help
+            GPIO used for the button input.
+
+    config BLINKY_BTN_ACTIVE_LOW
+        bool "Button active-low"
+        default y
+        help
+            Enable if the button pulls the GPIO low when pressed.
+
+    config BLINKY_POLL_MS
+        int "Button/LED poll interval (ms)"
+        default 10
+        help
+            Poll interval for the LED state machine.
+
+    config BLINKY_DEBOUNCE_COUNT
+        int "Button debounce count"
+        default 3
+        help
+            Number of consecutive samples required to change button state.
+
+    config BLINKY_LONG_PRESS_MS
+        int "Long-press duration (ms)"
+        default 3000
+        help
+            Time the button must be held to trigger a long-press event.
+
+    config BLINKY_WAVE_PERIOD_MS
+        int "Wave period (ms)"
+        default 1000
+        help
+            Target period for one full waveform cycle.
+
+    choice BLINKY_START_WAVE
+        prompt "Startup waveform"
+        default BLINKY_START_WAVE_SINE
+        help
+            Initial waveform used on boot.
+
+        config BLINKY_START_WAVE_SQUARE
+            bool "Square"
+
+        config BLINKY_START_WAVE_SAW_UP
+            bool "Saw up"
+
+        config BLINKY_START_WAVE_SAW_DOWN
+            bool "Saw down"
+
+        config BLINKY_START_WAVE_TRIANGLE
+            bool "Triangle"
+
+        config BLINKY_START_WAVE_SINE
+            bool "Sine"
+    endchoice
+
+    config BLINKY_SINE_STEPS_MAX
+        int "Sine LUT max steps"
+        default 256
+        range 8 1024
+        help
+            Maximum LUT size used for the sine wave. The actual number of
+            steps is derived from BLINKY_WAVE_PERIOD_MS / BLINKY_POLL_MS,
+            clamped to a minimum of 8 and this maximum.
+
+    config BLINKY_BOOT_PATTERN
+        bool "Show boot pattern"
+        default y
+        help
+            Flash the LED N times at boot to indicate the startup waveform.
+
+    config BLINKY_BOOT_PATTERN_MS
+        int "Boot pattern on/off time (ms)"
+        default 120
+        depends on BLINKY_BOOT_PATTERN
+        help
+            Duration for each on/off pulse in the boot pattern.
+
+    config BLINKY_LOG_INTENSITY
+        bool "Log intensity updates"
+        default y
+        help
+            Print LED intensity updates to the serial console while running.
+
+endmenu

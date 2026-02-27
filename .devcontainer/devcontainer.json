@@ -1,0 +1,36 @@
+{
+  "name": "ESP-IDF Project",
+
+  "dockerComposeFile": [
+    "${localWorkspaceFolder}/../../scaffold/esp-idf-lab/docker-compose.yml"
+  ],
+
+  "service": "idf",
+  "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
+
+  "remoteUser": "esp",
+
+  "shutdownAction": "none",
+
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "bash",
+	      "terminal.integrated.profiles.linux": {
+          "bash": {
+            "path": "/bin/bash",
+	          "args": [ "-l" ]
+	        }
+	      }
+      },
+      "extensions": [
+        "espressif.esp-idf-extension",
+        "ms-vscode.cpptools-extension-pack",
+        "ms-vscode.cmake-tools",
+        "ms-python.python",
+        "llvm-vs-code-extensions.vscode-clangd",
+        "vscodevim.vim"
+      ]
+    }
+  }
+}

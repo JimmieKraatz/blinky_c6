@@ -1,0 +1,17 @@
+# Build outputs
+build/
+
+# ESP-IDF build artifacts
+sdkconfig.old
+sdkconfig.defaults
+sdkconfig.backup
+
+# VS Code
+.vscode/*.log
+
+# Python
+__pycache__/
+*.pyc
+
+# OS
+.DS_Store

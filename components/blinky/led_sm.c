@@ -1,0 +1,258 @@
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdio.h>
+
+#include "driver/ledc.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "sdkconfig.h"
+
+#include "menu_logic.h"
+#include "led_sm.h"
+
+#define LED_GPIO ((gpio_num_t)CONFIG_BLINKY_LED_GPIO)
+#define BTN_GPIO ((gpio_num_t)CONFIG_BLINKY_BTN_GPIO)
+
+#define POLL_MS CONFIG_BLINKY_POLL_MS
+#define DEBOUNCE_COUNT CONFIG_BLINKY_DEBOUNCE_COUNT
+#define LONG_PRESS_MS CONFIG_BLINKY_LONG_PRESS_MS
+
+static led_wave_t led_start_wave_from_config(void)
+{
+#if CONFIG_BLINKY_START_WAVE_SQUARE
+    return LED_WAVE_SQUARE;
+#elif CONFIG_BLINKY_START_WAVE_SAW_UP
+    return LED_WAVE_SAW_UP;
+#elif CONFIG_BLINKY_START_WAVE_SAW_DOWN
+    return LED_WAVE_SAW_DOWN;
+#elif CONFIG_BLINKY_START_WAVE_TRIANGLE
+    return LED_WAVE_TRIANGLE;
+#else
+    return LED_WAVE_SINE;
+#endif
+}
+
+#define LEDC_TIMER_NUM   LEDC_TIMER_0
+#define LEDC_SPEED_MODE  LEDC_LOW_SPEED_MODE
+#define LEDC_CHANNEL_NUM LEDC_CHANNEL_0
+#define LEDC_DUTY_RES    LEDC_TIMER_13_BIT
+#define LEDC_FREQ_HZ     5000
+
+/* Local run/pause FSM for LED behavior. */
+typedef enum {
+    ST_LED_RUNNING = 0,
+    ST_LED_PAUSED,
+    ST_LED_MENU,
+    ST_LED_COUNT
+} sm_led_state_t;
+
+static inline uint32_t ledc_max_duty(void)
+{
+    return (1U << LEDC_DUTY_RES) - 1U;
+}
+
+static inline uint32_t duty_from_brightness(led_brightness_t brightness)
+{
+    /* Map normalized brightness to hardware PWM duty with rounding. */
+    return ((((uint32_t)brightness) * ledc_max_duty()) + (LED_BRIGHTNESS_MAX / 2U)) / LED_BRIGHTNESS_MAX;
+}
+
+static void pwm_init(void)
+{
+    /* PWM output is inverted because the on-board LED is active-low. */
+    ledc_timer_config_t tcfg = {
+        .speed_mode      = LEDC_SPEED_MODE,
+        .timer_num       = LEDC_TIMER_NUM,
+        .duty_resolution = LEDC_DUTY_RES,
+        .freq_hz         = LEDC_FREQ_HZ,
+        .clk_cfg         = LEDC_AUTO_CLK,
+    };
+    ledc_timer_config(&tcfg);
+
+    ledc_channel_config_t ccfg = {
+        .gpio_num   = LED_GPIO,
+        .speed_mode = LEDC_SPEED_MODE,
+        .channel    = LEDC_CHANNEL_NUM,
+        .intr_type  = LEDC_INTR_DISABLE,
+        .timer_sel  = LEDC_TIMER_NUM,
+        .duty       = 0,
+        .hpoint     = 0,
+        .flags.output_invert = 1,
+    };
+    ledc_channel_config(&ccfg);
+
+    ledc_set_duty(LEDC_SPEED_MODE, LEDC_CHANNEL_NUM, 0);
+    ledc_update_duty(LEDC_SPEED_MODE, LEDC_CHANNEL_NUM);
+}
+
+static inline void pwm_set_percent(uint8_t pct)
+{
+    led_brightness_t brightness = led_brightness_from_percent(pct);
+    uint32_t duty = duty_from_brightness(brightness);
+    ledc_set_duty(LEDC_SPEED_MODE, LEDC_CHANNEL_NUM, duty);
+    ledc_update_duty(LEDC_SPEED_MODE, LEDC_CHANNEL_NUM);
+}
+
+static inline void pwm_set_brightness(led_brightness_t brightness)
+{
+    uint32_t duty = duty_from_brightness(brightness);
+    ledc_set_duty(LEDC_SPEED_MODE, LEDC_CHANNEL_NUM, duty);
+    ledc_update_duty(LEDC_SPEED_MODE, LEDC_CHANNEL_NUM);
+}
+
+static inline void led_write(bool on)
+{
+    pwm_set_percent(on ? 100 : 0);
+}
+
+static void led_show_startup_pattern(led_wave_t wave)
+{
+#if CONFIG_BLINKY_BOOT_PATTERN
+    int count = (int)wave + 1;
+    for (int i = 0; i < count; ++i) {
+        led_write(true);
+        vTaskDelay(pdMS_TO_TICKS(CONFIG_BLINKY_BOOT_PATTERN_MS));
+        led_write(false);
+        vTaskDelay(pdMS_TO_TICKS(CONFIG_BLINKY_BOOT_PATTERN_MS));
+    }
+#else
+    (void)wave;
+#endif
+}
+
+static const char *wave_name(led_wave_t wave)
+{
+    switch (wave) {
+    case LED_WAVE_SQUARE:
+        return "SQUARE";
+    case LED_WAVE_SAW_UP:
+        return "SAW_UP";
+    case LED_WAVE_SAW_DOWN:
+        return "SAW_DOWN";
+    case LED_WAVE_TRIANGLE:
+        return "TRIANGLE";
+    case LED_WAVE_SINE:
+        return "SINE";
+    default:
+        return "UNKNOWN";
+    }
+}
+
+static void enter_running(void *ctx)
+{
+    sm_led_ctx_t *led_ctx = (sm_led_ctx_t *)ctx;
+    printf("STATE: RUNNING\n");
+    printf("SINE_STEPS_MAX=%d\n", CONFIG_BLINKY_SINE_STEPS_MAX);
+    printf("SINE_STEPS_USED=%u\n", (unsigned)led_model_sine_steps());
+    led_model_set_wave(&led_ctx->model,
+                       led_ctx->model.wave,
+                       xTaskGetTickCount());
+    led_write(false);
+}
+
+static fsm_state_t next_running(void *ctx)
+{
+    sm_led_ctx_t *led_ctx = (sm_led_ctx_t *)ctx;
+    led_brightness_t brightness = 0;
+    button_event_t ev = button_poll_event(&led_ctx->button, xTaskGetTickCount());
+    if (led_model_tick_raw(&led_ctx->model,
+                           xTaskGetTickCount(),
+                           &brightness)) {
+        pwm_set_brightness(brightness);
+#if CONFIG_BLINKY_LOG_INTENSITY
+        printf("LED %u%%\n", (unsigned)led_percent_from_brightness(brightness));
+#endif
+    }
+
+    if (ev == BUTTON_EVENT_SHORT_PRESS) {
+        return ST_LED_PAUSED;
+    }
+    if (ev == BUTTON_EVENT_LONG_PRESS) {
+        led_ctx->menu_return_state = ST_LED_RUNNING;
+        return ST_LED_MENU;
+    }
+    return ST_LED_RUNNING;
+}
+
+static void enter_paused(void *ctx)
+{
+    sm_led_ctx_t *led_ctx = (sm_led_ctx_t *)ctx;
+    printf("STATE: PAUSED\n");
+    printf("MODEL: %s\n", wave_name(led_ctx->model.wave));
+    led_write(false);
+}
+
+static fsm_state_t next_paused(void *ctx)
+{
+    sm_led_ctx_t *led_ctx = (sm_led_ctx_t *)ctx;
+    button_event_t ev = button_poll_event(&led_ctx->button, xTaskGetTickCount());
+    if (ev == BUTTON_EVENT_SHORT_PRESS) {
+        return ST_LED_RUNNING;
+    }
+    if (ev == BUTTON_EVENT_LONG_PRESS) {
+        led_ctx->menu_return_state = ST_LED_PAUSED;
+        return ST_LED_MENU;
+    }
+    return ST_LED_PAUSED;
+}
+
+static void enter_menu(void *ctx)
+{
+    sm_led_ctx_t *led_ctx = (sm_led_ctx_t *)ctx;
+    led_ctx->menu_wave = led_ctx->model.wave;
+    printf("STATE: MENU\n");
+    printf("MENU: WAVE %s\n", wave_name(led_ctx->menu_wave));
+    led_model_set_wave(&led_ctx->model,
+                       led_ctx->menu_wave,
+                       xTaskGetTickCount());
+}
+
+static fsm_state_t next_menu(void *ctx)
+{
+    sm_led_ctx_t *led_ctx = (sm_led_ctx_t *)ctx;
+    button_event_t ev = button_poll_event(&led_ctx->button, xTaskGetTickCount());
+    led_brightness_t brightness = 0;
+    if (led_model_tick_raw(&led_ctx->model,
+                           xTaskGetTickCount(),
+                           &brightness)) {
+        pwm_set_brightness(brightness);
+    }
+    led_menu_action_t action = led_menu_handle_event(&led_ctx->menu_wave, ev);
+    if (action == LED_MENU_ACTION_WAVE_CHANGED) {
+        led_model_set_wave(&led_ctx->model,
+                           led_ctx->menu_wave,
+                           xTaskGetTickCount());
+        printf("MENU: WAVE %s\n", wave_name(led_ctx->menu_wave));
+    } else if (action == LED_MENU_ACTION_EXIT) {
+        printf("MENU: EXIT\n");
+        return (fsm_state_t)led_ctx->menu_return_state;
+    }
+    return ST_LED_MENU;
+}
+
+static const fsm_state_def_t STATE[ST_LED_COUNT] = {
+    [ST_LED_RUNNING] = { .enter = enter_running, .next = next_running },
+    [ST_LED_PAUSED] = { .enter = enter_paused, .next = next_paused },
+    [ST_LED_MENU] = { .enter = enter_menu, .next = next_menu },
+};
+
+void led_sm_init(sm_led_ctx_t *ctx)
+{
+    /* Keep LED and button setup local to this module for now. */
+    pwm_init();
+    button_init(&ctx->button,
+                BTN_GPIO,
+                CONFIG_BLINKY_BTN_ACTIVE_LOW,
+                DEBOUNCE_COUNT,
+                LONG_PRESS_MS);
+    led_model_init(&ctx->model);
+    led_model_set_wave(&ctx->model, led_start_wave_from_config(), xTaskGetTickCount());
+    led_show_startup_pattern(ctx->model.wave);
+    fsm_enter(ctx, STATE, ST_LED_COUNT, ST_LED_RUNNING, true);
+}
+
+void led_sm_step(sm_led_ctx_t *ctx)
+{
+    vTaskDelay(pdMS_TO_TICKS(POLL_MS));
+    fsm_step(ctx, STATE, ST_LED_COUNT, false);
+}

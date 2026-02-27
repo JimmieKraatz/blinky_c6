@@ -1,0 +1,34 @@
+{
+    "idf.flashType": "UART",
+    "idf.port": "/dev/ttyACM0",
+    "idf.target": "esp32c6",
+    "C_Cpp.default.compileCommands": "${workspaceFolder}/build/compile_commands.json",
+    "C_Cpp.default.includePath": [
+        "${workspaceFolder}/**",
+        "${workspaceFolder}/build/config",
+        "${workspaceFolder}/test/build/config",
+        "${env:IDF_PATH}/components/**"
+    ],
+    "clangd.arguments": [
+        "--compile-commands-dir=${workspaceFolder}/build"
+    ],
+    "vim.useSystemClipboard": true,
+    "vim.useCtrlKeys": true,
+    "vim.smartRelativeLine": true,
+    "vim.hlsearch": true,
+    "vim.incsearch": true,
+    "vim.ignorecase": true,
+    "vim.smartcase": true,
+    "vim.leader": "<space>",
+    "vim.handleKeys": {
+        "<C-p>": false,
+        "<C-f>": false
+    },
+    "idf.openOcdConfigs": [
+        "board/esp32c6-builtin.cfg"
+    ],
+    "idf.customExtraVars": {
+        "IDF_TARGET": "esp32c6"
+    },
+    "idf.monitorPort": "/dev/ttyACM0"
+}

@@ -1,0 +1,30 @@
+{
+  "configurations": [
+    {
+      "name": "ESP-IDF",
+      "compileCommands": "${workspaceFolder}/build/compile_commands.json",
+      "intelliSenseMode": "linux-gcc-x64",
+      "includePath": [
+        "${workspaceFolder}/**",
+        "${workspaceFolder}/build/config",
+        "${workspaceFolder}/test/build/config",
+        "${env:IDF_PATH}/components/**"
+      ],
+      "defines": [],
+      "compilerPath": "/opt/esp/tools/tools/riscv32-esp-elf/esp-14.2.0_20251107/riscv32-esp-elf/bin/riscv32-esp-elf-gcc"
+    },
+    {
+      "name": "ESP-IDF Test",
+      "compileCommands": "${workspaceFolder}/test/build/compile_commands.json",
+      "intelliSenseMode": "linux-gcc-x64",
+      "includePath": [
+        "${workspaceFolder}/**",
+        "${workspaceFolder}/build/config",
+        "${workspaceFolder}/test/build/config",
+        "${env:IDF_PATH}/components/**"
+      ],
+      "defines": []
+    }
+  ],
+  "version": 4
+}
