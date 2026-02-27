@@ -6,7 +6,7 @@
 TEST_CASE("square toggles 0 and 100", "[led_model]")
 {
     led_model_t m = {0};
-    uint8_t pct = 0;
+    led_percent_t pct = 0;
 
     led_model_set_wave(&m, LED_WAVE_SQUARE, 0);
 
@@ -20,7 +20,7 @@ TEST_CASE("square toggles 0 and 100", "[led_model]")
 TEST_CASE("saw up wraps after 100", "[led_model]")
 {
     led_model_t m = {0};
-    uint8_t pct = 0;
+    led_percent_t pct = 0;
 
     led_model_set_wave(&m, LED_WAVE_SAW_UP, 0);
 
@@ -36,7 +36,7 @@ TEST_CASE("saw up wraps after 100", "[led_model]")
 TEST_CASE("triangle reaches endpoints", "[led_model]")
 {
     led_model_t m = {0};
-    uint8_t pct = 0;
+    led_percent_t pct = 0;
 
     led_model_set_wave(&m, LED_WAVE_TRIANGLE, 0);
 
@@ -54,7 +54,7 @@ TEST_CASE("triangle reaches endpoints", "[led_model]")
 TEST_CASE("sine stays in range", "[led_model]")
 {
     led_model_t m = {0};
-    uint8_t pct = 0;
+    led_percent_t pct = 0;
 
     led_model_init(&m);
     led_model_set_wave(&m, LED_WAVE_SINE, 0);

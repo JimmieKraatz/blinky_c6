@@ -15,8 +15,8 @@ static inline bool button_raw_pressed(const button_t *btn)
 void button_init(button_t *btn,
                  gpio_num_t gpio,
                  bool active_low,
-                 uint8_t debounce_count,
-                 uint32_t long_press_ms)
+                 button_debounce_t debounce_count,
+                 button_ms_t long_press_ms)
 {
     gpio_config_t cfg = {
         .pin_bit_mask = 1ULL << gpio,

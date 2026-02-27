@@ -12,12 +12,15 @@ typedef enum {
     BUTTON_EVENT_LONG_PRESS
 } button_event_t;
 
+typedef uint8_t button_debounce_t;
+typedef uint32_t button_ms_t;
+
 typedef struct {
     gpio_num_t gpio;
     bool active_low;
     bool stable;
-    uint8_t debounce;
-    uint8_t debounce_count;
+    button_debounce_t debounce;
+    button_debounce_t debounce_count;
     TickType_t pressed_at;
     TickType_t long_press_ticks;
     bool long_reported;
@@ -27,8 +30,8 @@ typedef struct {
 void button_init(button_t *btn,
                  gpio_num_t gpio,
                  bool active_low,
-                 uint8_t debounce_count,
-                 uint32_t long_press_ms);
+                 button_debounce_t debounce_count,
+                 button_ms_t long_press_ms);
 
 /* Return button events based on debounced edges and hold duration. */
 button_event_t button_poll_event(button_t *btn, TickType_t now);

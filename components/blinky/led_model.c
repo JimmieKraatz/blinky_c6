@@ -56,7 +56,7 @@ uint32_t led_model_sine_steps(void)
     return (uint32_t)LED_MODEL_SINE_STEPS;
 }
 
-led_brightness_t led_brightness_from_percent(uint8_t pct)
+led_brightness_t led_brightness_from_percent(led_percent_t pct)
 {
     if (pct > 100) {
         pct = 100;
@@ -110,12 +110,12 @@ void led_model_set_wave(led_model_t *model,
 
 bool led_model_tick(led_model_t *model,
                     TickType_t now,
-                    uint8_t *pct_out)
+                    led_percent_t *pct_out)
 {
     switch (model->wave) {
         case LED_WAVE_SAW_UP:
             if (now >= model->next_update) {
-                uint8_t next = model->pct + LED_MODEL_SAW_STEP_PCT;
+                led_percent_t next = (led_percent_t)(model->pct + LED_MODEL_SAW_STEP_PCT);
                 if (next > 100) {
                     next = 0;
                 }
@@ -127,7 +127,7 @@ bool led_model_tick(led_model_t *model,
             break;
         case LED_WAVE_SAW_DOWN:
             if (now >= model->next_update) {
-                uint8_t next = (model->pct < LED_MODEL_SAW_STEP_PCT)
+                led_percent_t next = (model->pct < LED_MODEL_SAW_STEP_PCT)
                                    ? 100
                                    : (uint8_t)(model->pct - LED_MODEL_SAW_STEP_PCT);
                 model->pct = next;
@@ -139,7 +139,7 @@ bool led_model_tick(led_model_t *model,
         case LED_WAVE_TRIANGLE:
             if (now >= model->next_update) {
                 if (model->rising) {
-                    uint8_t next = (uint8_t)(model->pct + LED_MODEL_SAW_STEP_PCT);
+                    led_percent_t next = (led_percent_t)(model->pct + LED_MODEL_SAW_STEP_PCT);
                     if (next >= 100) {
                         model->pct = 100;
                         model->rising = false;
@@ -188,7 +188,7 @@ bool led_model_tick_raw(led_model_t *model,
                         TickType_t now,
                         led_brightness_t *brightness_out)
 {
-    uint8_t pct = 0;
+    led_percent_t pct = 0;
     if (!led_model_tick(model, now, &pct)) {
         return false;
     }

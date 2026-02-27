@@ -21,6 +21,7 @@ typedef enum {
 
 typedef uint16_t led_brightness_t;
 #define LED_BRIGHTNESS_MAX ((led_brightness_t)65535U)
+typedef uint8_t led_percent_t;
 
 typedef struct {
     led_wave_t wave;
@@ -35,7 +36,7 @@ typedef struct {
 void led_model_init(led_model_t *model);
 
 /* Conversion helpers between UI percent and normalized raw brightness. */
-led_brightness_t led_brightness_from_percent(uint8_t pct);
+led_brightness_t led_brightness_from_percent(led_percent_t pct);
 uint8_t led_percent_from_brightness(led_brightness_t brightness);
 
 /* Number of sine steps derived from config (build-time constant). */
@@ -49,7 +50,7 @@ void led_model_set_wave(led_model_t *model,
 /* Advance model state in percent. Returns true when a new value is produced. */
 bool led_model_tick(led_model_t *model,
                     TickType_t now,
-                    uint8_t *pct_out);
+                    led_percent_t *pct_out);
 
 /* Same model step, but returns normalized raw brightness. */
 bool led_model_tick_raw(led_model_t *model,

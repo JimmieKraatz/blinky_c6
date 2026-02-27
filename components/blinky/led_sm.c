@@ -85,7 +85,7 @@ static void pwm_init(void)
     ledc_update_duty(LEDC_SPEED_MODE, LEDC_CHANNEL_NUM);
 }
 
-static inline void pwm_set_percent(uint8_t pct)
+static inline void pwm_set_percent(led_percent_t pct)
 {
     led_brightness_t brightness = led_brightness_from_percent(pct);
     uint32_t duty = duty_from_brightness(brightness);
