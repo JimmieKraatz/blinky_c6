@@ -3,7 +3,7 @@
 #include <math.h>
 
 /* Per-wave timing and step controls. */
-#define LED_MODEL_SAW_STEP_PCT        5
+#define LED_MODEL_SAW_STEP_PCT        CONFIG_BLINKY_SAW_STEP_PCT
 #define LED_MODEL_PERIOD_MS           CONFIG_BLINKY_WAVE_PERIOD_MS
 #define LED_MODEL_SINE_STEPS_RAW      (CONFIG_BLINKY_WAVE_PERIOD_MS / CONFIG_BLINKY_POLL_MS)
 #define LED_MODEL_SINE_STEPS_MIN      8U
@@ -32,6 +32,7 @@ static void led_model_build_sine_lut(void)
     const float two_pi = 6.28318530717958647692f;
     for (uint32_t i = 0; i < LED_MODEL_SINE_STEPS; ++i) {
         float phase = (two_pi * (float)i) / (float)LED_MODEL_SINE_STEPS;
+        /* Scale sine from [-1,1] to [0,100] percent. */
         float pct = (sinf(phase) + 1.0f) * 50.0f;
         if (pct < 0.0f) {
             pct = 0.0f;

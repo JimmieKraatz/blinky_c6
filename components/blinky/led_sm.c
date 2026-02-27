@@ -36,7 +36,7 @@ static led_wave_t led_start_wave_from_config(void)
 #define LEDC_SPEED_MODE  LEDC_LOW_SPEED_MODE
 #define LEDC_CHANNEL_NUM LEDC_CHANNEL_0
 #define LEDC_DUTY_RES    LEDC_TIMER_13_BIT
-#define LEDC_FREQ_HZ     5000
+#define LEDC_FREQ_HZ     CONFIG_BLINKY_PWM_FREQ_HZ
 
 /* Local run/pause FSM for LED behavior. */
 typedef enum {

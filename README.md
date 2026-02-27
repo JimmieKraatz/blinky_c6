@@ -30,6 +30,7 @@ The blinky component exposes config options under `Component config → Blinky`:
 - Poll interval, debounce count, long-press duration
 - Wave period (target cycle time)
 - Sine LUT size is derived at build time from period/poll (minimum 8, capped by `BLINKY_SINE_STEPS_MAX`)
+- Saw/triangle step size and PWM frequency
 
 Note: Very long periods combined with very short poll intervals increase the
 LUT size and memory usage up to `BLINKY_SINE_STEPS_MAX`.

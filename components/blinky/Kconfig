@@ -5,12 +5,14 @@ menu "Blinky"
         default 14
         help
             GPIO used for the LED PWM output (active-low).
+            Ensure this pin supports LEDC output on your target.
 
     config BLINKY_BTN_GPIO
         int "Button GPIO"
         default 9
         help
             GPIO used for the button input.
+            Configure this to match your board's button wiring.
 
     config BLINKY_BTN_ACTIVE_LOW
         bool "Button active-low"
@@ -23,12 +25,14 @@ menu "Blinky"
         default 10
         help
             Poll interval for the LED state machine.
+            Smaller values increase responsiveness but cost more CPU.
 
     config BLINKY_DEBOUNCE_COUNT
         int "Button debounce count"
         default 3
         help
             Number of consecutive samples required to change button state.
+            Effective debounce time is POLL_MS * DEBOUNCE_COUNT.
 
     config BLINKY_LONG_PRESS_MS
         int "Long-press duration (ms)"
@@ -50,18 +54,28 @@ menu "Blinky"
 
         config BLINKY_START_WAVE_SQUARE
             bool "Square"
+            help
+                Square wave (hard on/off).
 
         config BLINKY_START_WAVE_SAW_UP
             bool "Saw up"
+            help
+                Sawtooth ramp from 0% to 100%.
 
         config BLINKY_START_WAVE_SAW_DOWN
             bool "Saw down"
+            help
+                Sawtooth ramp from 100% to 0%.
 
         config BLINKY_START_WAVE_TRIANGLE
             bool "Triangle"
+            help
+                Triangle ramp up then down.
 
         config BLINKY_START_WAVE_SINE
             bool "Sine"
+            help
+                Smooth sine wave based on a LUT.
     endchoice
 
     config BLINKY_SINE_STEPS_MAX
@@ -72,6 +86,23 @@ menu "Blinky"
             Maximum LUT size used for the sine wave. The actual number of
             steps is derived from BLINKY_WAVE_PERIOD_MS / BLINKY_POLL_MS,
             clamped to a minimum of 8 and this maximum.
+            Larger values use more memory but allow smoother long periods.
+
+    config BLINKY_SAW_STEP_PCT
+        int "Saw step size (%)"
+        default 5
+        range 1 20
+        help
+            Percent change per update for saw and triangle waves.
+            Smaller values give smoother transitions but require more steps.
+
+    config BLINKY_PWM_FREQ_HZ
+        int "LED PWM frequency (Hz)"
+        default 5000
+        range 100 20000
+        help
+            LEDC PWM frequency for the LED output.
+            Higher values reduce flicker but can reduce duty resolution.
 
     config BLINKY_BOOT_PATTERN
         bool "Show boot pattern"
