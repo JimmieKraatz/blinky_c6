@@ -1,13 +1,25 @@
 # Build outputs
 build/
+build*/
+**/build/
 
 # ESP-IDF build artifacts
 sdkconfig.old
 sdkconfig.defaults
 sdkconfig.backup
+sdkconfig.old.*
+sdkconfig.defaults.*
+sdkconfig.backup.*
+sdkconfig.*.old
 
 # VS Code
 .vscode/*.log
+
+# IDE / tools
+.idea/
+.vscode/.browse.*
+compile_commands.json
+.ccls-cache/
 
 # Python
 __pycache__/

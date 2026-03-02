@@ -20,6 +20,28 @@ menu "Blinky"
         help
             Enable if the button pulls the GPIO low when pressed.
 
+    choice BLINKY_BTN_PULL_MODE
+        prompt "Button internal pull"
+        default BLINKY_BTN_PULL_UP
+        help
+            Internal pull resistor selection for the button input.
+
+        config BLINKY_BTN_PULL_NONE
+            bool "None"
+            help
+                No internal pull resistor.
+
+        config BLINKY_BTN_PULL_UP
+            bool "Pull-up"
+            help
+                Enable the internal pull-up resistor.
+
+        config BLINKY_BTN_PULL_DOWN
+            bool "Pull-down"
+            help
+                Enable the internal pull-down resistor.
+    endchoice
+
     config BLINKY_POLL_MS
         int "Button/LED poll interval (ms)"
         default 10
@@ -109,6 +131,8 @@ menu "Blinky"
         default y
         help
             Flash the LED N times at boot to indicate the startup waveform.
+            N is (wave index + 1): Square=1, Saw Up=2, Saw Down=3,
+            Triangle=4, Sine=5.
 
     config BLINKY_BOOT_PATTERN_MS
         int "Boot pattern on/off time (ms)"

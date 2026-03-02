@@ -2,6 +2,7 @@
 
 #include "menu_logic.h"
 
+/* Short press should advance the wave selection. */
 TEST_CASE("menu short press cycles wave", "[menu]")
 {
     led_wave_t wave = LED_WAVE_SQUARE;
@@ -11,6 +12,7 @@ TEST_CASE("menu short press cycles wave", "[menu]")
     TEST_ASSERT_EQUAL(LED_WAVE_SAW_UP, wave);
 }
 
+/* Short press should wrap from last wave to first. */
 TEST_CASE("menu short press wraps to start", "[menu]")
 {
     led_wave_t wave = (led_wave_t)(LED_WAVE_COUNT - 1);
@@ -20,6 +22,7 @@ TEST_CASE("menu short press wraps to start", "[menu]")
     TEST_ASSERT_EQUAL(LED_WAVE_SQUARE, wave);
 }
 
+/* Long press should exit the menu without changing wave. */
 TEST_CASE("menu long press exits", "[menu]")
 {
     led_wave_t wave = LED_WAVE_TRIANGLE;
@@ -29,6 +32,7 @@ TEST_CASE("menu long press exits", "[menu]")
     TEST_ASSERT_EQUAL(LED_WAVE_TRIANGLE, wave);
 }
 
+/* No-event input should be ignored. */
 TEST_CASE("menu ignores no-event", "[menu]")
 {
     led_wave_t wave = LED_WAVE_SINE;

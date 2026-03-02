@@ -240,9 +240,16 @@ void led_sm_init(sm_led_ctx_t *ctx)
 {
     /* Keep LED and button setup local to this module for now. */
     pwm_init();
+    button_pull_t pull = BUTTON_PULL_NONE;
+#if CONFIG_BLINKY_BTN_PULL_UP
+    pull = BUTTON_PULL_UP;
+#elif CONFIG_BLINKY_BTN_PULL_DOWN
+    pull = BUTTON_PULL_DOWN;
+#endif
     button_init(&ctx->button,
                 BTN_GPIO,
                 CONFIG_BLINKY_BTN_ACTIVE_LOW,
+                pull,
                 DEBOUNCE_COUNT,
                 LONG_PRESS_MS);
     led_model_init(&ctx->model);

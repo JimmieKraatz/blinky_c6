@@ -15,14 +15,23 @@ static inline bool button_raw_pressed(const button_t *btn)
 void button_init(button_t *btn,
                  gpio_num_t gpio,
                  bool active_low,
+                 button_pull_t pull,
                  button_debounce_t debounce_count,
                  button_ms_t long_press_ms)
 {
+    gpio_pullup_t pull_up = GPIO_PULLUP_DISABLE;
+    gpio_pulldown_t pull_down = GPIO_PULLDOWN_DISABLE;
+    if (pull == BUTTON_PULL_UP) {
+        pull_up = GPIO_PULLUP_ENABLE;
+    } else if (pull == BUTTON_PULL_DOWN) {
+        pull_down = GPIO_PULLDOWN_ENABLE;
+    }
+
     gpio_config_t cfg = {
         .pin_bit_mask = 1ULL << gpio,
         .mode = GPIO_MODE_INPUT,
-        .pull_up_en = active_low ? GPIO_PULLUP_ENABLE : GPIO_PULLUP_DISABLE,
-        .pull_down_en = active_low ? GPIO_PULLDOWN_DISABLE : GPIO_PULLDOWN_ENABLE,
+        .pull_up_en = pull_up,
+        .pull_down_en = pull_down,
         .intr_type = GPIO_INTR_DISABLE,
     };
     gpio_config(&cfg);

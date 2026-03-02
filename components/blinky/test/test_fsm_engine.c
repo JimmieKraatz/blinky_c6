@@ -44,6 +44,7 @@ static const fsm_state_def_t STATE[ST_COUNT] = {
     [ST_B] = { .enter = enter_b, .next = next_b },
 };
 
+/* Ensure enter hook runs and initial state is recorded. */
 TEST_CASE("fsm_enter sets initial state and calls enter", "[fsm]")
 {
     test_ctx_t c = {0};
@@ -55,6 +56,7 @@ TEST_CASE("fsm_enter sets initial state and calls enter", "[fsm]")
     TEST_ASSERT_EQUAL(0, c.enters_b);
 }
 
+/* Verify transition occurs when next state differs. */
 TEST_CASE("fsm_step transitions when next changes", "[fsm]")
 {
     test_ctx_t c = {0};
@@ -68,6 +70,7 @@ TEST_CASE("fsm_step transitions when next changes", "[fsm]")
     TEST_ASSERT_EQUAL(1, c.enters_b);
 }
 
+/* Default behavior: no reentry when next state is unchanged. */
 TEST_CASE("fsm_step does not reenter same state by default", "[fsm]")
 {
     test_ctx_t c = {0};
@@ -79,6 +82,7 @@ TEST_CASE("fsm_step does not reenter same state by default", "[fsm]")
     TEST_ASSERT_EQUAL(1, c.enters_a);
 }
 
+/* Optional behavior: reenter same state when explicitly enabled. */
 TEST_CASE("fsm_step can reenter same state when enabled", "[fsm]")
 {
     test_ctx_t c = {0};

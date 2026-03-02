@@ -3,6 +3,7 @@
 #include "sdkconfig.h"
 #include "led_model.h"
 
+/* Square wave should alternate between 0% and 100%. */
 TEST_CASE("square toggles 0 and 100", "[led_model]")
 {
     led_model_t m = {0};
@@ -17,6 +18,7 @@ TEST_CASE("square toggles 0 and 100", "[led_model]")
     TEST_ASSERT_EQUAL_UINT8(0, pct);
 }
 
+/* Saw up should wrap to 0% after reaching 100%. */
 TEST_CASE("saw up wraps after 100", "[led_model]")
 {
     led_model_t m = {0};
@@ -33,6 +35,7 @@ TEST_CASE("saw up wraps after 100", "[led_model]")
     TEST_ASSERT_EQUAL_UINT8(0, pct);
 }
 
+/* Triangle should hit both endpoints before reversing. */
 TEST_CASE("triangle reaches endpoints", "[led_model]")
 {
     led_model_t m = {0};
@@ -51,6 +54,7 @@ TEST_CASE("triangle reaches endpoints", "[led_model]")
     TEST_ASSERT_EQUAL_UINT8(0, pct);
 }
 
+/* Sine LUT should stay within [0,100]% bounds. */
 TEST_CASE("sine stays in range", "[led_model]")
 {
     led_model_t m = {0};
@@ -65,6 +69,7 @@ TEST_CASE("sine stays in range", "[led_model]")
     }
 }
 
+/* Percent <-> raw conversions should round-trip within tolerance. */
 TEST_CASE("percent raw conversion round trip", "[led_model]")
 {
     for (uint8_t pct = 0; pct <= 100; pct += 5) {

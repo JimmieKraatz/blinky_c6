@@ -14,6 +14,7 @@ static button_event_t feed(button_t *btn, bool raw_pressed, TickType_t now)
     return button_poll_event_raw(btn, raw_pressed, now);
 }
 
+/* Verify debounce and release path yields a short-press event. */
 TEST_CASE("button short press requires debounce then release", "[button]")
 {
     button_t btn = make_button(3000);
@@ -32,6 +33,7 @@ TEST_CASE("button short press requires debounce then release", "[button]")
     TEST_ASSERT_EQUAL(BUTTON_EVENT_SHORT_PRESS, feed(&btn, false, t++));
 }
 
+/* Verify long-press fires once and suppresses short-press on release. */
 TEST_CASE("button long press fires once and suppresses short press", "[button]")
 {
     button_t btn = make_button(10);

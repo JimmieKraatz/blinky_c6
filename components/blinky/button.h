@@ -12,6 +12,12 @@ typedef enum {
     BUTTON_EVENT_LONG_PRESS
 } button_event_t;
 
+typedef enum {
+    BUTTON_PULL_NONE = 0,
+    BUTTON_PULL_UP,
+    BUTTON_PULL_DOWN
+} button_pull_t;
+
 typedef uint8_t button_debounce_t;
 typedef uint32_t button_ms_t;
 
@@ -30,6 +36,7 @@ typedef struct {
 void button_init(button_t *btn,
                  gpio_num_t gpio,
                  bool active_low,
+                 button_pull_t pull,
                  button_debounce_t debounce_count,
                  button_ms_t long_press_ms);
 
