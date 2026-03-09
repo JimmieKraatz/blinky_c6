@@ -57,6 +57,9 @@ MIT. See `LICENSE`.
 - `components/blinky_idf/` ESP-IDF integration + tests
 - `build/` generated build output
 
+**Repo Hygiene**
+- `unity-app/` is treated as local scratch/test harness and is intentionally git-ignored.
+
 **Requirements**
 - ESP-IDF installed and activated (e.g. `export.sh` on Linux/macOS)
 - A configured target for ESP32-C6
