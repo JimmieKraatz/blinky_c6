@@ -6,6 +6,7 @@
 #include "fsm_engine.h"
 #include "button.h"
 #include "led_model.h"
+#include "led_policy.h"
 #include "led_output_adapter.h"
 #include "led_output_adapter_idf.h"
 
@@ -15,8 +16,7 @@
 typedef struct {
     fsm_state_t state;
     button_t button;
-    uint8_t menu_return_state;
-    led_wave_t menu_wave;
+    led_policy_ctx_t policy;
 
     led_output_adapter_t led_output;
     led_output_adapter_idf_t led_output_idf;
