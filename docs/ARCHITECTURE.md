@@ -56,3 +56,13 @@ Unit tests run via ESP-IDF Unit Test App with this repo injected through `EXTRA_
 
 ## Repo Hygiene
 - `unity-app/` is local scratch/test harness and intentionally git-ignored.
+
+## Next Intention: Event-Driven Transition
+The next architectural step is moving from the current polling/step-loop orchestration
+to an event-driven model.
+
+Planned direction:
+- Use the HSM in `core_sm` as the primary orchestration mechanism.
+- Define explicit event contracts at module boundaries (button, timer tick, menu actions, control events).
+- Route events through a queue/dispatcher layer in `blinky_idf`, while keeping core logic portable.
+- Preserve current behavior parity while migrating (existing tests remain the guardrail).

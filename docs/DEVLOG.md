@@ -23,3 +23,16 @@ This file captures the implementation journey: decisions, tradeoffs, and refacto
 ## Known follow-ups
 - Optional: add a hardware-in-the-loop CI job that flashes unit-test-app and drives Unity menu input automatically.
 - Optional: add diagrams for event/data flow between `blinky_idf` and `core_*` modules.
+
+## Current Plan
+Next intended milestone: transition to an event-driven runtime model.
+
+Why:
+- It aligns with the introduction of HSM support (`core_sm/hsm_engine.h`).
+- It separates event production (hardware/time) from event handling (state orchestration).
+- It should make behavior easier to reason about than ad-hoc polling transitions as complexity grows.
+
+Execution intent:
+1. Define event types and ownership boundaries.
+2. Introduce queue/dispatch in `blinky_idf`.
+3. Move orchestration paths onto HSM while preserving behavior covered by current tests.
