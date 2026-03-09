@@ -7,7 +7,7 @@
 #include "freertos/task.h"
 #include "sdkconfig.h"
 
-#include "led_sm.h"
+#include "led_sm_idf.h"
 
 #define LED_GPIO ((gpio_num_t)CONFIG_BLINKY_LED_GPIO)
 #define BTN_GPIO ((gpio_num_t)CONFIG_BLINKY_BTN_GPIO)
