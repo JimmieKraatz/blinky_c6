@@ -1,38 +1,73 @@
 # Development Log
 
 ## Why this exists
-This file captures the implementation journey: decisions, tradeoffs, and refactor rationale.
+This file is a diary of development progress: what changed, why, and what is next.
+For the stable technical view, see `docs/ARCHITECTURE.md`.
 
-## Milestones
-1. Initial monolithic component (`components/blinky`) with app logic, hardware integration, and tests together.
-2. Decoupling refactor into three modules:
-   - `core_sm` for reusable state machine engines
-   - `core_blinky` for reusable blinky domain logic
-   - `blinky_idf` for ESP-IDF/hardware glue
-3. Test workflow stabilization:
-   - Explicit unit-test-app commands documented
-   - VS Code tasks aligned with terminal commands
-   - Unit-test `SDKCONFIG_DEFAULTS` layering fixed for reliable Unity runner behavior
-   - Serial console defaults tuned for interactive Unity menu input
+## 2026-03-09 - Repository structure and testing flow
+### Context
+The codebase started with a monolithic `components/blinky` module and local/manual
+unit test execution through ESP-IDF unit-test-app.
 
-## Design notes
-- Core logic moved out of IDF-dependent code first, then tests were moved with ownership.
-- This keeps portability and testability high while retaining a thin IDF integration layer.
-- Unity on target is interactive by design (menu-based over serial). CI/HIL automation should drive menu input (`*`, specific case numbers, or tags).
+### Changes
+- Refactored into three modules:
+  - `core_sm` for reusable state machine engines
+  - `core_blinky` for reusable blinky domain logic
+  - `blinky_idf` for ESP-IDF/hardware glue
+- Moved tests to module ownership:
+  - `core_sm/test/*`
+  - `core_blinky/test/*`
+  - `blinky_idf/test/*`
+- Aligned README + VS Code tasks for unit-test-app build/flash/monitor workflow.
+- Fixed unit-test `SDKCONFIG_DEFAULTS` layering and shell escaping in tasks.
 
-## Known follow-ups
-- Optional: add a hardware-in-the-loop CI job that flashes unit-test-app and drives Unity menu input automatically.
-- Optional: add diagrams for event/data flow between `blinky_idf` and `core_*` modules.
+### Notes
+- Unity on target is menu-driven by design over serial (`*` to run all).
+- CI without hardware should only build; CI with hardware can drive menu input.
 
-## Current Plan
-Next intended milestone: transition to an event-driven runtime model.
+## 2026-03-09 - Documentation split
+### Context
+`README.md` had both usage and architecture/process history mixed together.
 
-Why:
-- It aligns with the introduction of HSM support (`core_sm/hsm_engine.h`).
-- It separates event production (hardware/time) from event handling (state orchestration).
-- It should make behavior easier to reason about than ad-hoc polling transitions as complexity grows.
+### Changes
+- Kept `README.md` focused on usage and commands.
+- Added `docs/ARCHITECTURE.md` for stable technical structure.
+- Converted this file into a dated process log.
 
-Execution intent:
-1. Define event types and ownership boundaries.
-2. Introduce queue/dispatch in `blinky_idf`.
-3. Move orchestration paths onto HSM while preserving behavior covered by current tests.
+## 2026-03-09 - Next milestone draft (event-driven transition)
+### Intent
+Transition runtime orchestration from polling/step-loop style to event-driven HSM.
+
+### Why
+- Align with `core_sm/hsm_engine.h` introduction.
+- Separate event production (hardware/time) from state orchestration.
+- Improve clarity and maintainability as behavior grows.
+
+### Guardrails
+- Preserve current user-visible behavior during migration.
+- No dynamic allocation in runtime dispatch path (static queue only).
+- Keep framework-specific primitives in `blinky_idf`.
+- Keep `core_sm` and `core_blinky` framework-agnostic.
+
+### Draft plan
+1. Introduce adapter boundaries first (preparatory step, no behavior change):
+   - input adapters (button now, others later)
+   - output adapters (LED/render now, others later)
+2. Route existing runtime calls through adapters while keeping current loop semantics.
+3. Define event contract and ownership boundaries.
+4. Add app-specific static queue + dispatcher in `blinky_idf` (no behavior change).
+5. Route button/tick inputs through events.
+6. Move orchestration transitions onto HSM.
+7. Extend tests for event sequencing and transition behavior.
+8. Remove old polling orchestration paths once parity is proven.
+
+### Draft decisions
+- One app-level dispatcher loop in `blinky_idf`.
+- Static ring queue for `app_event_t` with overflow accounting.
+- Adapterization is explicitly preparatory for event-driven HSM migration.
+- `MENU` currently intended as child of `ACTIVE`.
+- Menu exit target should return to prior state (`RUNNING` or `PAUSED`) via stored context.
+
+### Open items
+- Add HIL CI path for Unity execution (optional).
+- Add diagrams for event/data flow (optional).

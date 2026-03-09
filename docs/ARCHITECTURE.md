@@ -62,6 +62,9 @@ The next architectural step is moving from the current polling/step-loop orchest
 to an event-driven model.
 
 Planned direction:
+- Introduce input/output adapter boundaries first (preparatory phase):
+  - input adapters produce semantic app events
+  - output adapters apply domain outputs to hardware
 - Use the HSM in `core_sm` as the primary orchestration mechanism.
 - Define explicit event contracts at module boundaries (button, timer tick, menu actions, control events).
 - Route events through a queue/dispatcher layer in `blinky_idf`, while keeping core logic portable.
