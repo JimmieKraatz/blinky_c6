@@ -11,6 +11,7 @@ sdkconfig.old.*
 sdkconfig.defaults.*
 sdkconfig.backup.*
 sdkconfig.*.old
+unity-app/sdkconfig
 
 # VS Code
 .vscode/*.log
