@@ -55,3 +55,19 @@ TEST_CASE("runtime menu returns to previous paused state", "[led_runtime]")
     led_runtime_step(&rt, 30, BLINKY_EVENT_LONG_PRESS, &out); /* exit menu */
     TEST_ASSERT_EQUAL(LED_POLICY_PAUSED, rt.state);
 }
+
+TEST_CASE("runtime menu short press changes selected wave", "[led_runtime]")
+{
+    led_runtime_t rt = {0};
+    led_runtime_output_t out = {0};
+    led_model_config_t cfg = test_cfg();
+
+    led_runtime_init(&rt, &cfg, LED_WAVE_SQUARE, 0, &out);
+    led_runtime_step(&rt, 10, BLINKY_EVENT_LONG_PRESS, &out); /* enter menu */
+    TEST_ASSERT_EQUAL(LED_POLICY_MENU, rt.state);
+    TEST_ASSERT_EQUAL(LED_WAVE_SQUARE, rt.model.wave);
+
+    led_runtime_step(&rt, 20, BLINKY_EVENT_SHORT_PRESS, &out); /* cycle wave */
+    TEST_ASSERT_EQUAL(LED_POLICY_MENU, rt.state);
+    TEST_ASSERT_EQUAL(LED_WAVE_SAW_UP, rt.model.wave);
+}
