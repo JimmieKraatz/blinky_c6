@@ -12,8 +12,8 @@ typedef struct {
     gpio_num_t gpio;
     bool active_low;
     button_pull_t pull;
-    button_debounce_t debounce_count;
-    button_ms_t long_press_ms;
+    button_logic_debounce_t debounce_count;
+    blinky_time_ms_t long_press_ms;
 } button_input_adapter_idf_config_t;
 
 typedef struct {

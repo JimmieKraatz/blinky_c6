@@ -16,8 +16,8 @@ void button_init(button_t *btn,
                  gpio_num_t gpio,
                  bool active_low,
                  button_pull_t pull,
-                 button_debounce_t debounce_count,
-                 button_ms_t long_press_ms)
+                 button_logic_debounce_t debounce_count,
+                 blinky_time_ms_t long_press_ms)
 {
     gpio_pullup_t pull_up = GPIO_PULLUP_DISABLE;
     gpio_pulldown_t pull_down = GPIO_PULLDOWN_DISABLE;

@@ -19,9 +19,6 @@ typedef enum {
     BUTTON_PULL_DOWN
 } button_pull_t;
 
-typedef button_logic_debounce_t button_debounce_t;
-typedef blinky_time_ms_t button_ms_t;
-
 typedef struct {
     gpio_num_t gpio;
     bool active_low;
@@ -33,8 +30,8 @@ void button_init(button_t *btn,
                  gpio_num_t gpio,
                  bool active_low,
                  button_pull_t pull,
-                 button_debounce_t debounce_count,
-                 button_ms_t long_press_ms);
+                 button_logic_debounce_t debounce_count,
+                 blinky_time_ms_t long_press_ms);
 
 /* Return button events based on debounced edges and hold duration. */
 button_event_t button_poll_event(button_t *btn, TickType_t now);
