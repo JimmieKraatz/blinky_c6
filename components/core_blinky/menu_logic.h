@@ -1,6 +1,6 @@
 #pragma once
 
-#include "button.h"
+#include "blinky_events.h"
 #include "led_model.h"
 
 typedef enum {
@@ -9,4 +9,4 @@ typedef enum {
     LED_MENU_ACTION_EXIT
 } led_menu_action_t;
 
-led_menu_action_t led_menu_handle_event(led_wave_t *wave, button_event_t ev);
+led_menu_action_t led_menu_handle_event(led_wave_t *wave, blinky_event_t ev);

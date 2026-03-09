@@ -1,7 +1,13 @@
 #include "unity.h"
 
-#include "sdkconfig.h"
 #include "led_model.h"
+
+static const led_model_config_t TEST_CFG = {
+    .wave_period_ms = 1000,
+    .poll_ms = 10,
+    .sine_steps_max = 256,
+    .saw_step_pct = 5,
+};
 
 /* Square wave should alternate between 0% and 100%. */
 TEST_CASE("square toggles 0 and 100", "[led_model]")
@@ -9,6 +15,7 @@ TEST_CASE("square toggles 0 and 100", "[led_model]")
     led_model_t m = {0};
     led_percent_t pct = 0;
 
+    led_model_init(&m, &TEST_CFG);
     led_model_set_wave(&m, LED_WAVE_SQUARE, 0);
 
     TEST_ASSERT_TRUE(led_model_tick(&m, m.next_update, &pct));
@@ -24,6 +31,7 @@ TEST_CASE("saw up wraps after 100", "[led_model]")
     led_model_t m = {0};
     led_percent_t pct = 0;
 
+    led_model_init(&m, &TEST_CFG);
     led_model_set_wave(&m, LED_WAVE_SAW_UP, 0);
 
     for (int i = 0; i < 20; ++i) {
@@ -41,6 +49,7 @@ TEST_CASE("triangle reaches endpoints", "[led_model]")
     led_model_t m = {0};
     led_percent_t pct = 0;
 
+    led_model_init(&m, &TEST_CFG);
     led_model_set_wave(&m, LED_WAVE_TRIANGLE, 0);
 
     for (int i = 0; i < 20; ++i) {
@@ -60,10 +69,10 @@ TEST_CASE("sine stays in range", "[led_model]")
     led_model_t m = {0};
     led_percent_t pct = 0;
 
-    led_model_init(&m);
+    led_model_init(&m, &TEST_CFG);
     led_model_set_wave(&m, LED_WAVE_SINE, 0);
 
-    for (int i = 0; i < ((int)led_model_sine_steps() + 16); ++i) {
+    for (int i = 0; i < ((int)led_model_sine_steps(&m) + 16); ++i) {
         TEST_ASSERT_TRUE(led_model_tick(&m, m.next_update, &pct));
         TEST_ASSERT_LESS_OR_EQUAL_UINT8(100, pct);
     }

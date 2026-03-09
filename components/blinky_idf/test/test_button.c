@@ -5,7 +5,7 @@
 static button_t make_button(uint32_t long_press_ms)
 {
     button_t btn = {0};
-    button_init(&btn, GPIO_NUM_9, true, 3, long_press_ms);
+    button_init(&btn, GPIO_NUM_9, true, BUTTON_PULL_NONE, 3, long_press_ms);
     return btn;
 }
 

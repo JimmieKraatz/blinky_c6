@@ -3,7 +3,6 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#include "freertos/FreeRTOS.h"
 #include "fsm_engine.h"
 #include "button.h"
 #include "led_model.h"

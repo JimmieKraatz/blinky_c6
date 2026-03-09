@@ -17,6 +17,24 @@
 #define DEBOUNCE_COUNT CONFIG_BLINKY_DEBOUNCE_COUNT
 #define LONG_PRESS_MS CONFIG_BLINKY_LONG_PRESS_MS
 
+static inline blinky_time_ms_t now_ms(void)
+{
+    return (blinky_time_ms_t)(xTaskGetTickCount() * portTICK_PERIOD_MS);
+}
+
+static blinky_event_t to_blinky_event(button_event_t ev)
+{
+    switch (ev) {
+    case BUTTON_EVENT_SHORT_PRESS:
+        return BLINKY_EVENT_SHORT_PRESS;
+    case BUTTON_EVENT_LONG_PRESS:
+        return BLINKY_EVENT_LONG_PRESS;
+    case BUTTON_EVENT_NONE:
+    default:
+        return BLINKY_EVENT_NONE;
+    }
+}
+
 static led_wave_t led_start_wave_from_config(void)
 {
 #if CONFIG_BLINKY_START_WAVE_SQUARE
@@ -143,10 +161,10 @@ static void enter_running(void *ctx)
     sm_led_ctx_t *led_ctx = (sm_led_ctx_t *)ctx;
     printf("STATE: RUNNING\n");
     printf("SINE_STEPS_MAX=%d\n", CONFIG_BLINKY_SINE_STEPS_MAX);
-    printf("SINE_STEPS_USED=%u\n", (unsigned)led_model_sine_steps());
+    printf("SINE_STEPS_USED=%u\n", (unsigned)led_model_sine_steps(&led_ctx->model));
     led_model_set_wave(&led_ctx->model,
                        led_ctx->model.wave,
-                       xTaskGetTickCount());
+                       now_ms());
     led_write(false);
 }
 
@@ -155,8 +173,9 @@ static fsm_state_t next_running(void *ctx)
     sm_led_ctx_t *led_ctx = (sm_led_ctx_t *)ctx;
     led_brightness_t brightness = 0;
     button_event_t ev = button_poll_event(&led_ctx->button, xTaskGetTickCount());
+    blinky_event_t bev = to_blinky_event(ev);
     if (led_model_tick_raw(&led_ctx->model,
-                           xTaskGetTickCount(),
+                           now_ms(),
                            &brightness)) {
         pwm_set_brightness(brightness);
 #if CONFIG_BLINKY_LOG_INTENSITY
@@ -164,10 +183,10 @@ static fsm_state_t next_running(void *ctx)
 #endif
     }
 
-    if (ev == BUTTON_EVENT_SHORT_PRESS) {
+    if (bev == BLINKY_EVENT_SHORT_PRESS) {
         return ST_LED_PAUSED;
     }
-    if (ev == BUTTON_EVENT_LONG_PRESS) {
+    if (bev == BLINKY_EVENT_LONG_PRESS) {
         led_ctx->menu_return_state = ST_LED_RUNNING;
         return ST_LED_MENU;
     }
@@ -186,10 +205,11 @@ static fsm_state_t next_paused(void *ctx)
 {
     sm_led_ctx_t *led_ctx = (sm_led_ctx_t *)ctx;
     button_event_t ev = button_poll_event(&led_ctx->button, xTaskGetTickCount());
-    if (ev == BUTTON_EVENT_SHORT_PRESS) {
+    blinky_event_t bev = to_blinky_event(ev);
+    if (bev == BLINKY_EVENT_SHORT_PRESS) {
         return ST_LED_RUNNING;
     }
-    if (ev == BUTTON_EVENT_LONG_PRESS) {
+    if (bev == BLINKY_EVENT_LONG_PRESS) {
         led_ctx->menu_return_state = ST_LED_PAUSED;
         return ST_LED_MENU;
     }
@@ -204,24 +224,25 @@ static void enter_menu(void *ctx)
     printf("MENU: WAVE %s\n", wave_name(led_ctx->menu_wave));
     led_model_set_wave(&led_ctx->model,
                        led_ctx->menu_wave,
-                       xTaskGetTickCount());
+                       now_ms());
 }
 
 static fsm_state_t next_menu(void *ctx)
 {
     sm_led_ctx_t *led_ctx = (sm_led_ctx_t *)ctx;
     button_event_t ev = button_poll_event(&led_ctx->button, xTaskGetTickCount());
+    blinky_event_t bev = to_blinky_event(ev);
     led_brightness_t brightness = 0;
     if (led_model_tick_raw(&led_ctx->model,
-                           xTaskGetTickCount(),
+                           now_ms(),
                            &brightness)) {
         pwm_set_brightness(brightness);
     }
-    led_menu_action_t action = led_menu_handle_event(&led_ctx->menu_wave, ev);
+    led_menu_action_t action = led_menu_handle_event(&led_ctx->menu_wave, bev);
     if (action == LED_MENU_ACTION_WAVE_CHANGED) {
         led_model_set_wave(&led_ctx->model,
                            led_ctx->menu_wave,
-                           xTaskGetTickCount());
+                           now_ms());
         printf("MENU: WAVE %s\n", wave_name(led_ctx->menu_wave));
     } else if (action == LED_MENU_ACTION_EXIT) {
         printf("MENU: EXIT\n");
@@ -252,8 +273,14 @@ void led_sm_init(sm_led_ctx_t *ctx)
                 pull,
                 DEBOUNCE_COUNT,
                 LONG_PRESS_MS);
-    led_model_init(&ctx->model);
-    led_model_set_wave(&ctx->model, led_start_wave_from_config(), xTaskGetTickCount());
+    led_model_init(&ctx->model,
+                   &(led_model_config_t){
+                       .wave_period_ms = CONFIG_BLINKY_WAVE_PERIOD_MS,
+                       .poll_ms = CONFIG_BLINKY_POLL_MS,
+                       .sine_steps_max = CONFIG_BLINKY_SINE_STEPS_MAX,
+                       .saw_step_pct = CONFIG_BLINKY_SAW_STEP_PCT,
+                   });
+    led_model_set_wave(&ctx->model, led_start_wave_from_config(), now_ms());
     led_show_startup_pattern(ctx->model.wave);
     fsm_enter(ctx, STATE, ST_LED_COUNT, ST_LED_RUNNING, true);
 }

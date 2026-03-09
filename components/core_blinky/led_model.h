@@ -3,12 +3,10 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#include "freertos/FreeRTOS.h"
-#include "sdkconfig.h"
+#include "blinky_time.h"
 
 /* Time-driven LED waveform generator.
- * This module is hardware-agnostic: callers can consume either percent or
- * normalized raw brightness values.
+ * This module is framework/hardware-agnostic.
  */
 typedef enum {
     LED_WAVE_SQUARE = 0,
@@ -24,35 +22,47 @@ typedef uint16_t led_brightness_t;
 typedef uint8_t led_percent_t;
 
 typedef struct {
+    uint32_t wave_period_ms;
+    uint32_t poll_ms;
+    uint16_t sine_steps_max;
+    uint8_t saw_step_pct;
+} led_model_config_t;
+
+typedef struct {
     led_wave_t wave;
-    TickType_t next_update;
+    blinky_time_ms_t next_update;
     bool level;
     bool rising;
-    uint8_t phase_idx;
+    uint16_t phase_idx;
     uint8_t pct;
+
+    led_model_config_t cfg;
+    uint16_t sine_steps;
+    uint16_t sine_lut_len;
+    uint8_t sine_pct_lut[1024];
 } led_model_t;
 
-/* Initialize model state (precompute sine LUT if needed). */
-void led_model_init(led_model_t *model);
+/* Initialize model state and sanitize runtime configuration. */
+void led_model_init(led_model_t *model, const led_model_config_t *cfg);
 
 /* Conversion helpers between UI percent and normalized raw brightness. */
 led_brightness_t led_brightness_from_percent(led_percent_t pct);
 uint8_t led_percent_from_brightness(led_brightness_t brightness);
 
-/* Number of sine steps derived from config (build-time constant). */
-uint32_t led_model_sine_steps(void);
+/* Number of sine steps derived from runtime config. */
+uint32_t led_model_sine_steps(const led_model_t *model);
 
 /* Select waveform and reset model phase/output. */
 void led_model_set_wave(led_model_t *model,
                         led_wave_t wave,
-                        TickType_t now);
+                        blinky_time_ms_t now_ms);
 
 /* Advance model state in percent. Returns true when a new value is produced. */
 bool led_model_tick(led_model_t *model,
-                    TickType_t now,
+                    blinky_time_ms_t now_ms,
                     led_percent_t *pct_out);
 
 /* Same model step, but returns normalized raw brightness. */
 bool led_model_tick_raw(led_model_t *model,
-                        TickType_t now,
+                        blinky_time_ms_t now_ms,
                         led_brightness_t *brightness_out);
