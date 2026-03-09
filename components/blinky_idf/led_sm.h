@@ -4,7 +4,8 @@
 #include <stdint.h>
 
 #include "fsm_engine.h"
-#include "button.h"
+#include "button_input_adapter.h"
+#include "button_input_adapter_idf.h"
 #include "led_model.h"
 #include "led_policy.h"
 #include "led_output_adapter.h"
@@ -15,7 +16,8 @@
  */
 typedef struct {
     fsm_state_t state;
-    button_t button;
+    button_input_adapter_t input;
+    button_input_adapter_idf_t input_idf;
     led_policy_ctx_t policy;
 
     led_output_adapter_t led_output;

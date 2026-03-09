@@ -17,24 +17,6 @@
 #define DEBOUNCE_COUNT CONFIG_BLINKY_DEBOUNCE_COUNT
 #define LONG_PRESS_MS CONFIG_BLINKY_LONG_PRESS_MS
 
-static inline blinky_time_ms_t now_ms(void)
-{
-    return (blinky_time_ms_t)(xTaskGetTickCount() * portTICK_PERIOD_MS);
-}
-
-static blinky_event_t to_blinky_event(button_event_t ev)
-{
-    switch (ev) {
-    case BUTTON_EVENT_SHORT_PRESS:
-        return BLINKY_EVENT_SHORT_PRESS;
-    case BUTTON_EVENT_LONG_PRESS:
-        return BLINKY_EVENT_LONG_PRESS;
-    case BUTTON_EVENT_NONE:
-    default:
-        return BLINKY_EVENT_NONE;
-    }
-}
-
 static led_wave_t led_start_wave_from_config(void)
 {
 #if CONFIG_BLINKY_START_WAVE_SQUARE
@@ -81,7 +63,7 @@ static void enter_running(void *ctx)
     printf("SINE_STEPS_USED=%u\n", (unsigned)led_model_sine_steps(&led_ctx->model));
     led_model_set_wave(&led_ctx->model,
                        led_ctx->model.wave,
-                       now_ms());
+                       button_input_adapter_now_ms(&led_ctx->input));
     led_write(led_ctx, false);
 }
 
@@ -89,12 +71,11 @@ static fsm_state_t next_running(void *ctx)
 {
     sm_led_ctx_t *led_ctx = (sm_led_ctx_t *)ctx;
     led_brightness_t brightness = 0;
-    button_event_t ev = button_poll_event(&led_ctx->button, xTaskGetTickCount());
-    blinky_event_t bev = to_blinky_event(ev);
+    blinky_event_t bev = button_input_adapter_poll_event(&led_ctx->input);
     led_policy_step_result_t policy = {0};
 
     if (led_model_tick_raw(&led_ctx->model,
-                           now_ms(),
+                           button_input_adapter_now_ms(&led_ctx->input),
                            &brightness)) {
         led_output_adapter_set_brightness(&led_ctx->led_output, brightness);
 #if CONFIG_BLINKY_LOG_INTENSITY
@@ -117,8 +98,7 @@ static void enter_paused(void *ctx)
 static fsm_state_t next_paused(void *ctx)
 {
     sm_led_ctx_t *led_ctx = (sm_led_ctx_t *)ctx;
-    button_event_t ev = button_poll_event(&led_ctx->button, xTaskGetTickCount());
-    blinky_event_t bev = to_blinky_event(ev);
+    blinky_event_t bev = button_input_adapter_poll_event(&led_ctx->input);
     led_policy_step_result_t policy = led_policy_step(&led_ctx->policy, LED_POLICY_PAUSED, led_ctx->model.wave, bev);
     return (fsm_state_t)policy.next_state;
 }
@@ -130,19 +110,18 @@ static void enter_menu(void *ctx)
     printf("MENU: WAVE %s\n", led_policy_wave_name(led_ctx->policy.menu_wave));
     led_model_set_wave(&led_ctx->model,
                        led_ctx->policy.menu_wave,
-                       now_ms());
+                       button_input_adapter_now_ms(&led_ctx->input));
 }
 
 static fsm_state_t next_menu(void *ctx)
 {
     sm_led_ctx_t *led_ctx = (sm_led_ctx_t *)ctx;
-    button_event_t ev = button_poll_event(&led_ctx->button, xTaskGetTickCount());
-    blinky_event_t bev = to_blinky_event(ev);
+    blinky_event_t bev = button_input_adapter_poll_event(&led_ctx->input);
     led_brightness_t brightness = 0;
     led_policy_step_result_t policy = {0};
 
     if (led_model_tick_raw(&led_ctx->model,
-                           now_ms(),
+                           button_input_adapter_now_ms(&led_ctx->input),
                            &brightness)) {
         led_output_adapter_set_brightness(&led_ctx->led_output, brightness);
     }
@@ -151,7 +130,7 @@ static fsm_state_t next_menu(void *ctx)
     if (policy.menu_wave_changed) {
         led_model_set_wave(&led_ctx->model,
                            led_ctx->policy.menu_wave,
-                           now_ms());
+                           button_input_adapter_now_ms(&led_ctx->input));
         printf("MENU: WAVE %s\n", led_policy_wave_name(led_ctx->policy.menu_wave));
     }
     if (policy.next_state != LED_POLICY_MENU) {
@@ -183,12 +162,16 @@ void led_sm_init(sm_led_ctx_t *ctx)
 #elif CONFIG_BLINKY_BTN_PULL_DOWN
     pull = BUTTON_PULL_DOWN;
 #endif
-    button_init(&ctx->button,
-                BTN_GPIO,
-                CONFIG_BLINKY_BTN_ACTIVE_LOW,
-                pull,
-                DEBOUNCE_COUNT,
-                LONG_PRESS_MS);
+    button_input_adapter_idf_init(
+        &ctx->input,
+        &ctx->input_idf,
+        &(button_input_adapter_idf_config_t){
+            .gpio = BTN_GPIO,
+            .active_low = CONFIG_BLINKY_BTN_ACTIVE_LOW,
+            .pull = pull,
+            .debounce_count = DEBOUNCE_COUNT,
+            .long_press_ms = LONG_PRESS_MS,
+        });
     led_model_init(&ctx->model,
                    &(led_model_config_t){
                        .wave_period_ms = CONFIG_BLINKY_WAVE_PERIOD_MS,
@@ -196,7 +179,7 @@ void led_sm_init(sm_led_ctx_t *ctx)
                        .sine_steps_max = CONFIG_BLINKY_SINE_STEPS_MAX,
                        .saw_step_pct = CONFIG_BLINKY_SAW_STEP_PCT,
                    });
-    led_model_set_wave(&ctx->model, led_start_wave_from_config(), now_ms());
+    led_model_set_wave(&ctx->model, led_start_wave_from_config(), button_input_adapter_now_ms(&ctx->input));
     ctx->policy.menu_return_state = LED_POLICY_RUNNING;
     ctx->policy.menu_wave = ctx->model.wave;
     led_show_startup_pattern(ctx, ctx->model.wave);
