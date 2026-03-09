@@ -5,7 +5,7 @@
 #include "driver/gpio.h"
 #include "freertos/FreeRTOS.h"
 
-#include "button.h"
+#include "button_idf.h"
 #include "button_input_adapter.h"
 
 typedef struct {

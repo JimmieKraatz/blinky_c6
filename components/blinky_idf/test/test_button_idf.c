@@ -1,6 +1,6 @@
 #include "unity.h"
 
-#include "button.h"
+#include "button_idf.h"
 
 static button_t make_button(uint32_t long_press_ms)
 {

@@ -4,7 +4,7 @@
 #include "freertos/FreeRTOS.h"
 #include "driver/gpio.h"
 
-#include "button.h"
+#include "button_idf.h"
 
 static inline bool button_raw_pressed(const button_t *btn)
 {
