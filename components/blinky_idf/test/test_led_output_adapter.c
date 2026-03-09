@@ -60,3 +60,35 @@ TEST_CASE("adapter write maps bool to percent", "[led_output_adapter]")
     TEST_ASSERT_EQUAL_INT(2, fake.percent_calls);
     TEST_ASSERT_EQUAL_UINT8(0, fake.last_percent);
 }
+
+TEST_CASE("adapter null-safe defaults", "[led_output_adapter]")
+{
+    led_output_adapter_t adapter = {
+        .ops = NULL,
+        .ctx = NULL,
+    };
+
+    led_output_adapter_set_brightness(&adapter, 1234);
+    led_output_adapter_set_percent(&adapter, 50);
+    led_output_adapter_write(&adapter, true);
+
+    led_output_adapter_set_brightness(NULL, 1234);
+    led_output_adapter_set_percent(NULL, 50);
+    led_output_adapter_write(NULL, false);
+}
+
+TEST_CASE("adapter write is no-op when percent op missing", "[led_output_adapter]")
+{
+    fake_adapter_ctx_t fake = {0};
+    led_output_adapter_t adapter = {
+        .ops = &(led_output_adapter_ops_t){
+            .set_brightness = fake_set_brightness,
+            .set_percent = NULL,
+        },
+        .ctx = &fake,
+    };
+
+    led_output_adapter_write(&adapter, true);
+    TEST_ASSERT_EQUAL_INT(0, fake.percent_calls);
+    TEST_ASSERT_EQUAL_INT(0, fake.brightness_calls);
+}
