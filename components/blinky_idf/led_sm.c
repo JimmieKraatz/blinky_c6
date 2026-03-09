@@ -2,7 +2,7 @@
 #include <stdint.h>
 #include <stdio.h>
 
-#include "driver/ledc.h"
+#include "esp_check.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "sdkconfig.h"
@@ -50,10 +50,6 @@ static led_wave_t led_start_wave_from_config(void)
 #endif
 }
 
-#define LEDC_TIMER_NUM   LEDC_TIMER_0
-#define LEDC_SPEED_MODE  LEDC_LOW_SPEED_MODE
-#define LEDC_CHANNEL_NUM LEDC_CHANNEL_0
-#define LEDC_DUTY_RES    LEDC_TIMER_13_BIT
 #define LEDC_FREQ_HZ     CONFIG_BLINKY_PWM_FREQ_HZ
 
 /* Local run/pause FSM for LED behavior. */
@@ -64,76 +60,23 @@ typedef enum {
     ST_LED_COUNT
 } sm_led_state_t;
 
-static inline uint32_t ledc_max_duty(void)
+static inline void led_write(sm_led_ctx_t *ctx, bool on)
 {
-    return (1U << LEDC_DUTY_RES) - 1U;
+    led_output_adapter_write(&ctx->led_output, on);
 }
 
-static inline uint32_t duty_from_brightness(led_brightness_t brightness)
-{
-    /* Map normalized brightness to hardware PWM duty with rounding. */
-    return ((((uint32_t)brightness) * ledc_max_duty()) + (LED_BRIGHTNESS_MAX / 2U)) / LED_BRIGHTNESS_MAX;
-}
-
-static void pwm_init(void)
-{
-    /* PWM output is inverted because the on-board LED is active-low. */
-    ledc_timer_config_t tcfg = {
-        .speed_mode      = LEDC_SPEED_MODE,
-        .timer_num       = LEDC_TIMER_NUM,
-        .duty_resolution = LEDC_DUTY_RES,
-        .freq_hz         = LEDC_FREQ_HZ,
-        .clk_cfg         = LEDC_AUTO_CLK,
-    };
-    ledc_timer_config(&tcfg);
-
-    ledc_channel_config_t ccfg = {
-        .gpio_num   = LED_GPIO,
-        .speed_mode = LEDC_SPEED_MODE,
-        .channel    = LEDC_CHANNEL_NUM,
-        .intr_type  = LEDC_INTR_DISABLE,
-        .timer_sel  = LEDC_TIMER_NUM,
-        .duty       = 0,
-        .hpoint     = 0,
-        .flags.output_invert = 1,
-    };
-    ledc_channel_config(&ccfg);
-
-    ledc_set_duty(LEDC_SPEED_MODE, LEDC_CHANNEL_NUM, 0);
-    ledc_update_duty(LEDC_SPEED_MODE, LEDC_CHANNEL_NUM);
-}
-
-static inline void pwm_set_percent(led_percent_t pct)
-{
-    led_brightness_t brightness = led_brightness_from_percent(pct);
-    uint32_t duty = duty_from_brightness(brightness);
-    ledc_set_duty(LEDC_SPEED_MODE, LEDC_CHANNEL_NUM, duty);
-    ledc_update_duty(LEDC_SPEED_MODE, LEDC_CHANNEL_NUM);
-}
-
-static inline void pwm_set_brightness(led_brightness_t brightness)
-{
-    uint32_t duty = duty_from_brightness(brightness);
-    ledc_set_duty(LEDC_SPEED_MODE, LEDC_CHANNEL_NUM, duty);
-    ledc_update_duty(LEDC_SPEED_MODE, LEDC_CHANNEL_NUM);
-}
-
-static inline void led_write(bool on)
-{
-    pwm_set_percent(on ? 100 : 0);
-}
-
-static void led_show_startup_pattern(led_wave_t wave)
+static void led_show_startup_pattern(sm_led_ctx_t *ctx, led_wave_t wave)
 {
 #if CONFIG_BLINKY_BOOT_PATTERN
     int count = (int)wave + 1;
     for (int i = 0; i < count; ++i) {
-        led_write(true);
+        led_write(ctx, true);
         vTaskDelay(pdMS_TO_TICKS(CONFIG_BLINKY_BOOT_PATTERN_MS));
-        led_write(false);
+        led_write(ctx, false);
         vTaskDelay(pdMS_TO_TICKS(CONFIG_BLINKY_BOOT_PATTERN_MS));
     }
 #else
+    (void)ctx;
     (void)wave;
 #endif
 }
@@ -165,7 +108,7 @@ static void enter_running(void *ctx)
     led_model_set_wave(&led_ctx->model,
                        led_ctx->model.wave,
                        now_ms());
-    led_write(false);
+    led_write(led_ctx, false);
 }
 
 static fsm_state_t next_running(void *ctx)
@@ -177,7 +120,7 @@ static fsm_state_t next_running(void *ctx)
     if (led_model_tick_raw(&led_ctx->model,
                            now_ms(),
                            &brightness)) {
-        pwm_set_brightness(brightness);
+        led_output_adapter_set_brightness(&led_ctx->led_output, brightness);
 #if CONFIG_BLINKY_LOG_INTENSITY
         printf("LED %u%%\n", (unsigned)led_percent_from_brightness(brightness));
 #endif
@@ -198,7 +141,7 @@ static void enter_paused(void *ctx)
     sm_led_ctx_t *led_ctx = (sm_led_ctx_t *)ctx;
     printf("STATE: PAUSED\n");
     printf("MODEL: %s\n", wave_name(led_ctx->model.wave));
-    led_write(false);
+    led_write(led_ctx, false);
 }
 
 static fsm_state_t next_paused(void *ctx)
@@ -236,7 +179,7 @@ static fsm_state_t next_menu(void *ctx)
     if (led_model_tick_raw(&led_ctx->model,
                            now_ms(),
                            &brightness)) {
-        pwm_set_brightness(brightness);
+        led_output_adapter_set_brightness(&led_ctx->led_output, brightness);
     }
     led_menu_action_t action = led_menu_handle_event(&led_ctx->menu_wave, bev);
     if (action == LED_MENU_ACTION_WAVE_CHANGED) {
@@ -260,7 +203,14 @@ static const fsm_state_def_t STATE[ST_LED_COUNT] = {
 void led_sm_init(sm_led_ctx_t *ctx)
 {
     /* Keep LED and button setup local to this module for now. */
-    pwm_init();
+    ESP_ERROR_CHECK(led_output_adapter_idf_init(
+        &ctx->led_output,
+        &ctx->led_output_idf,
+        &(led_output_adapter_idf_config_t){
+            .gpio = LED_GPIO,
+            .pwm_freq_hz = LEDC_FREQ_HZ,
+            .active_low = true,
+        }));
     button_pull_t pull = BUTTON_PULL_NONE;
 #if CONFIG_BLINKY_BTN_PULL_UP
     pull = BUTTON_PULL_UP;
@@ -281,7 +231,7 @@ void led_sm_init(sm_led_ctx_t *ctx)
                        .saw_step_pct = CONFIG_BLINKY_SAW_STEP_PCT,
                    });
     led_model_set_wave(&ctx->model, led_start_wave_from_config(), now_ms());
-    led_show_startup_pattern(ctx->model.wave);
+    led_show_startup_pattern(ctx, ctx->model.wave);
     fsm_enter(ctx, STATE, ST_LED_COUNT, ST_LED_RUNNING, true);
 }
 
