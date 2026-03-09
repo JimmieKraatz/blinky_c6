@@ -38,49 +38,30 @@ void button_init(button_t *btn,
 
     btn->gpio = gpio;
     btn->active_low = active_low;
-    btn->stable = false;
-    btn->debounce = 0;
-    btn->debounce_count = debounce_count;
-    btn->pressed_at = 0;
-    btn->long_press_ticks = pdMS_TO_TICKS(long_press_ms);
-    btn->long_reported = false;
+    button_logic_init(&btn->logic, debounce_count, long_press_ms);
 }
 
-static button_event_t button_poll_event_impl(button_t *btn, bool raw, TickType_t now)
+static button_event_t to_button_event(button_logic_event_t ev)
 {
-    if (raw != btn->stable) {
-        if (++btn->debounce >= btn->debounce_count) {
-            bool prev = btn->stable;
-            btn->stable = raw;
-            btn->debounce = 0;
-            if (!prev && btn->stable) {
-                btn->pressed_at = now;
-                btn->long_reported = false;
-            } else if (prev && !btn->stable) {
-                if (!btn->long_reported && (now - btn->pressed_at) < btn->long_press_ticks) {
-                    return BUTTON_EVENT_SHORT_PRESS;
-                }
-            }
-        }
-    } else {
-        btn->debounce = 0;
-    }
-
-    if (btn->stable && !btn->long_reported &&
-        (now - btn->pressed_at) >= btn->long_press_ticks) {
-        btn->long_reported = true;
+    switch (ev) {
+    case BUTTON_LOGIC_EVENT_SHORT_PRESS:
+        return BUTTON_EVENT_SHORT_PRESS;
+    case BUTTON_LOGIC_EVENT_LONG_PRESS:
         return BUTTON_EVENT_LONG_PRESS;
+    case BUTTON_LOGIC_EVENT_NONE:
+    default:
+        return BUTTON_EVENT_NONE;
     }
-
-    return BUTTON_EVENT_NONE;
 }
 
 button_event_t button_poll_event(button_t *btn, TickType_t now)
 {
-    return button_poll_event_impl(btn, button_raw_pressed(btn), now);
+    blinky_time_ms_t now_ms = (blinky_time_ms_t)(now * portTICK_PERIOD_MS);
+    return to_button_event(button_logic_poll_raw(&btn->logic, button_raw_pressed(btn), now_ms));
 }
 
 button_event_t button_poll_event_raw(button_t *btn, bool raw_pressed, TickType_t now)
 {
-    return button_poll_event_impl(btn, raw_pressed, now);
+    blinky_time_ms_t now_ms = (blinky_time_ms_t)(now * portTICK_PERIOD_MS);
+    return to_button_event(button_logic_poll_raw(&btn->logic, raw_pressed, now_ms));
 }

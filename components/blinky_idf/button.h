@@ -5,6 +5,7 @@
 
 #include "freertos/FreeRTOS.h"
 #include "driver/gpio.h"
+#include "button_logic.h"
 
 typedef enum {
     BUTTON_EVENT_NONE = 0,
@@ -18,18 +19,13 @@ typedef enum {
     BUTTON_PULL_DOWN
 } button_pull_t;
 
-typedef uint8_t button_debounce_t;
-typedef uint32_t button_ms_t;
+typedef button_logic_debounce_t button_debounce_t;
+typedef blinky_time_ms_t button_ms_t;
 
 typedef struct {
     gpio_num_t gpio;
     bool active_low;
-    bool stable;
-    button_debounce_t debounce;
-    button_debounce_t debounce_count;
-    TickType_t pressed_at;
-    TickType_t long_press_ticks;
-    bool long_reported;
+    button_logic_t logic;
 } button_t;
 
 /* Configure GPIO for a debounced button input. */
