@@ -101,7 +101,7 @@ Current Kconfig defaults, ownership, and target direction:
 | `BLINKY_WAVE_PERIOD_MS` | `_idf` -> core model | `core_blinky` policy/config | Domain waveform behavior |
 | `BLINKY_SINE_STEPS_MAX` | `_idf` -> core model | `core_blinky` policy/config | Domain quality/perf policy |
 | `BLINKY_SAW_STEP_PCT` | `_idf` -> core model | `core_blinky` policy/config | Domain waveform shape policy |
-| `BLINKY_START_WAVE_*` | `_idf` source via startup policy | `core_blinky` policy/config | Domain startup behavior policy |
+| `BLINKY_START_WAVE_*` | `_idf` source mapped to startup selector token | `core_blinky` policy/config | Domain startup behavior policy |
 | `BLINKY_DEBOUNCE_COUNT` | `_idf` source via core config mapper (`button_timing`) | `core_blinky` policy/config | Semantic button timing policy |
 | `BLINKY_LONG_PRESS_MS` | `_idf` source via core config mapper (`button_timing`) | `core_blinky` policy/config | Semantic button timing policy |
 | `BLINKY_PRODUCER_POLL_MS` | `_idf` | `_idf` | Producer loop cadence is scheduler/platform concern |

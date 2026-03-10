@@ -312,3 +312,13 @@ Started a dedicated branch to address the remaining config/default ownership amb
 
 ### Why
 - Clarifies ownership: `_idf` maps framework values, while core defines semantic config contracts.
+
+## 2026-03-10 - Config ownership slice: startup wave selection tokenized
+### Changes
+- Reworked startup policy input from direct wave enum to a core-owned startup selector token.
+- `_idf` now maps Kconfig start-wave choice to selector token values (not `led_wave_t` values).
+- Core startup policy maps selector token to concrete `led_wave_t`.
+
+### Why
+- Reduces framework knowledge of domain waveform enumeration details.
+- Keeps startup behavior semantics owned by core policy.

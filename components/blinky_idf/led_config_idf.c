@@ -46,15 +46,15 @@ void idf_build_core_config(led_core_config_t *cfg)
     }
 
 #if CONFIG_BLINKY_START_WAVE_SQUARE
-    led_wave_t start_wave = LED_WAVE_SQUARE;
+    led_startup_selector_t startup_selector = LED_STARTUP_SELECT_SQUARE;
 #elif CONFIG_BLINKY_START_WAVE_SAW_UP
-    led_wave_t start_wave = LED_WAVE_SAW_UP;
+    led_startup_selector_t startup_selector = LED_STARTUP_SELECT_SAW_UP;
 #elif CONFIG_BLINKY_START_WAVE_SAW_DOWN
-    led_wave_t start_wave = LED_WAVE_SAW_DOWN;
+    led_startup_selector_t startup_selector = LED_STARTUP_SELECT_SAW_DOWN;
 #elif CONFIG_BLINKY_START_WAVE_TRIANGLE
-    led_wave_t start_wave = LED_WAVE_TRIANGLE;
+    led_startup_selector_t startup_selector = LED_STARTUP_SELECT_TRIANGLE;
 #else
-    led_wave_t start_wave = LED_WAVE_SINE;
+    led_startup_selector_t startup_selector = LED_STARTUP_SELECT_SINE;
 #endif
 
     *cfg = (led_core_config_t){
@@ -67,7 +67,7 @@ void idf_build_core_config(led_core_config_t *cfg)
             },
         .startup =
             {
-                .start_wave = start_wave,
+                .selector = startup_selector,
             },
         .button_timing = button_policy_timing_normalize((button_policy_timing_t){
             .debounce_count = CONFIG_BLINKY_DEBOUNCE_COUNT,
