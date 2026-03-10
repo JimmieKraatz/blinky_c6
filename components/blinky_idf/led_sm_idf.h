@@ -33,5 +33,8 @@ void led_sm_init(sm_led_ctx_t *ctx);
 void led_sm_producer_step(sm_led_ctx_t *ctx);
 /* Consumer side: dispatch queued events (0 => drain all). */
 void led_sm_consumer_step(sm_led_ctx_t *ctx, size_t max_events);
+/* Start background consumer task and provide event wake-up signal. */
+void led_sm_consumer_task_start(sm_led_ctx_t *ctx);
+void led_sm_consumer_task_notify(sm_led_ctx_t *ctx);
 /* Compatibility wrapper: delay, run producer step, then consumer step. */
 void led_sm_step(sm_led_ctx_t *ctx);

@@ -19,9 +19,11 @@ void led_sm_producer_step(sm_led_ctx_t *ctx)
     blinky_event_t bev = button_input_adapter_poll_event(&ctx->input);
     app_event_type_t type = app_event_from_blinky_event(bev);
 
-    (void)app_event_queue_push(&ctx->queue, &(app_event_t){
+    if (app_event_queue_push(&ctx->queue, &(app_event_t){
         .type = type,
         .timestamp_ms = now,
         .payload = {.u32 = 0},
-    });
+    })) {
+        led_sm_consumer_task_notify(ctx);
+    }
 }

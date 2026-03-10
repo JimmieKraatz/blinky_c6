@@ -142,22 +142,23 @@ void led_sm_init(sm_led_ctx_t *ctx)
         &ctx->queue,
         dispatch_event,
         ctx);
+    led_sm_consumer_task_start(ctx);
 
     /* Seed boot into the same producer/consumer pipeline used at runtime. */
-    (void)app_event_queue_push(&ctx->queue, &(app_event_t){
+    if (app_event_queue_push(&ctx->queue, &(app_event_t){
         .type = APP_EVENT_BOOT,
         .timestamp_ms = button_input_adapter_now_ms(&ctx->input),
         .payload = {.u32 = 0},
-    });
+    })) {
+        led_sm_consumer_task_notify(ctx);
+    }
 
     led_show_startup_pattern(ctx, ctx->runtime.model.wave);
     apply_runtime_output(ctx, &out);
-    led_sm_consumer_step(ctx, 0);
 }
 
 void led_sm_step(sm_led_ctx_t *ctx)
 {
     vTaskDelay(pdMS_TO_TICKS(POLL_MS));
     led_sm_producer_step(ctx);
-    led_sm_consumer_step(ctx, 0);
 }
