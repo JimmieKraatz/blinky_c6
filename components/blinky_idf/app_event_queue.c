@@ -8,47 +8,46 @@ void app_event_queue_init(app_event_queue_t *q)
         return;
     }
     memset(q, 0, sizeof(*q));
+    q->handle = xQueueCreateStatic(
+        APP_EVENT_QUEUE_CAPACITY,
+        sizeof(app_event_t),
+        q->item_storage,
+        &q->queue_storage);
 }
 
 bool app_event_queue_push(app_event_queue_t *q, const app_event_t *ev)
 {
-    if (!q || !ev) {
-        return false;
-    }
-    if (q->count >= APP_EVENT_QUEUE_CAPACITY) {
-        q->dropped++;
+    if (!q || !q->handle || !ev) {
         return false;
     }
 
-    q->items[q->tail] = *ev;
-    q->tail = (uint8_t)((q->tail + 1U) % APP_EVENT_QUEUE_CAPACITY);
-    q->count++;
+    if (xQueueSendToBack(q->handle, ev, 0) != pdPASS) {
+        q->dropped++;
+        return false;
+    }
     return true;
 }
 
 bool app_event_queue_pop(app_event_queue_t *q, app_event_t *out)
 {
-    if (!q || !out || q->count == 0U) {
+    if (!q || !q->handle || !out) {
         return false;
     }
 
-    *out = q->items[q->head];
-    q->head = (uint8_t)((q->head + 1U) % APP_EVENT_QUEUE_CAPACITY);
-    q->count--;
-    return true;
+    return (xQueueReceive(q->handle, out, 0) == pdPASS);
 }
 
 bool app_event_queue_is_empty(const app_event_queue_t *q)
 {
-    return (!q || q->count == 0U);
+    return (app_event_queue_size(q) == 0U);
 }
 
 size_t app_event_queue_size(const app_event_queue_t *q)
 {
-    if (!q) {
+    if (!q || !q->handle) {
         return 0U;
     }
-    return q->count;
+    return (size_t)uxQueueMessagesWaiting(q->handle);
 }
 
 uint32_t app_event_queue_dropped(const app_event_queue_t *q)
