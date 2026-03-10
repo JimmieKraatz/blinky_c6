@@ -75,16 +75,6 @@ menu "Blinky"
         help
             Target period for one full waveform cycle.
 
-    config BLINKY_STARTUP_SELECTOR
-        int "Startup selector token"
-        default 5
-        range 0 5
-        help
-            Generic startup selector token passed through IDF config mapper.
-            Core startup policy resolves token values:
-              0=default (currently sine), 1=square, 2=saw up, 3=saw down,
-              4=triangle, 5=sine.
-
     config BLINKY_SINE_STEPS_MAX
         int "Sine LUT max steps"
         default 256

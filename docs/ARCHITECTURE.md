@@ -76,7 +76,7 @@ Defaults/config ownership after extraction slices:
   - `button_policy_timing_*` normalizes debounce/long-press timing policy (`core_blinky`)
   - `led_event_map_*` event semantic mapping (`core_blinky`)
 - Framework-facing wiring/config:
-  - `sdkconfig` source values (pins, pull mode, poll cadence, boot pattern, pwm, start-wave choice source)
+  - `sdkconfig` source values (pins, pull mode, poll cadence, boot pattern, pwm)
   - `_idf` mapper boundary:
     - `idf_build_platform_config(...)`
     - `idf_build_core_config(...)`
@@ -101,7 +101,6 @@ Current Kconfig defaults, ownership, and target direction:
 | `BLINKY_WAVE_PERIOD_MS` | `_idf` -> core model | `core_blinky` policy/config | Domain waveform behavior |
 | `BLINKY_SINE_STEPS_MAX` | `_idf` -> core model | `core_blinky` policy/config | Domain quality/perf policy |
 | `BLINKY_SAW_STEP_PCT` | `_idf` -> core model | `core_blinky` policy/config | Domain waveform shape policy |
-| `BLINKY_STARTUP_SELECTOR` | `_idf` source mapped to startup selector token | `core_blinky` policy/config | Domain startup behavior policy |
 | `BLINKY_DEBOUNCE_COUNT` | `_idf` source via core config mapper (`button_timing`) | `core_blinky` policy/config | Semantic button timing policy |
 | `BLINKY_LONG_PRESS_MS` | `_idf` source via core config mapper (`button_timing`) | `core_blinky` policy/config | Semantic button timing policy |
 | `BLINKY_PRODUCER_POLL_MS` | `_idf` | `_idf` | Producer loop cadence is scheduler/platform concern |
@@ -126,7 +125,7 @@ Key knobs:
 - Producer poll interval, model poll interval, debounce count, long-press duration
 - Wave period, sine LUT max steps, saw/triangle step size
 - PWM frequency
-- Startup waveform
+- Startup waveform is core policy default (not Kconfig-driven)
 - Boot pattern enable and pulse duration
 - Intensity logging enable/disable
 

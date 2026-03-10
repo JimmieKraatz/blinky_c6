@@ -332,3 +332,13 @@ Started a dedicated branch to address the remaining config/default ownership amb
 ### Why
 - Removes waveform-name coupling from Kconfig/framework configuration surface.
 - Keeps framework as a value source, with startup interpretation remaining core-owned.
+
+## 2026-03-10 - Config ownership slice: startup selection removed from Kconfig
+### Changes
+- Removed startup selection symbols from `components/blinky_idf/Kconfig`.
+- Updated `_idf` mapper to inject `LED_STARTUP_SELECT_DEFAULT` only.
+- Startup waveform choice is now purely core policy (default + future runtime source), not framework config.
+
+### Why
+- Fully removes startup-wave semantic configuration from framework/Kconfig.
+- Keeps startup behavior ownership in core, with `_idf` only passing inputs and wiring outputs.
