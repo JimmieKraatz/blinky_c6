@@ -303,3 +303,12 @@ Started a dedicated branch to address the remaining config/default ownership amb
 
 ### Why
 - Keeps button semantic timing under core-owned policy while `_idf` remains the source adapter for `sdkconfig` values.
+
+## 2026-03-10 - Config ownership slice: core config contract moved to core_blinky
+### Changes
+- Introduced core-owned config contract header:
+  - `components/core_blinky/led_core_config.h`
+- Updated `_idf` mapper to populate that core-defined contract instead of defining core config types in `_idf`.
+
+### Why
+- Clarifies ownership: `_idf` maps framework values, while core defines semantic config contracts.

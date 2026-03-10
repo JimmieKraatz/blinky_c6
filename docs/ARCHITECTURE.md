@@ -80,6 +80,7 @@ Defaults/config ownership after extraction slices:
   - `_idf` mapper boundary:
     - `idf_build_platform_config(...)`
     - `idf_build_core_config(...)`
+  - `_idf` owns sourcing/mapping only; core contracts are defined in `core_blinky` headers (for example `led_core_config.h`)
   - FreeRTOS queue/task primitives and wake mechanics
   - adapter init for GPIO/LEDC/button hardware
   - queue storage/lifecycle and dispatcher wiring in `_idf`
