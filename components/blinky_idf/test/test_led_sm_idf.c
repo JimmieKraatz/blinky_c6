@@ -1,5 +1,8 @@
 #include "unity.h"
 
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+
 #include "led_sm_idf.h"
 
 typedef struct {
@@ -49,6 +52,32 @@ static const app_event_source_ops_t QUEUE_SOURCE_OPS = {
     .pop = queue_pop,
     .dropped = queue_dropped,
 };
+
+static sm_led_ctx_t g_async_ctx;
+static fake_consumer_ctx_t g_async_consumer;
+static bool g_async_started;
+
+static void reset_async_ctx(void)
+{
+    g_async_consumer.count = 0;
+    g_async_consumer.last_type = APP_EVENT_NONE;
+    app_event_queue_init(&g_async_ctx.queue);
+    app_dispatcher_init(&g_async_ctx.dispatcher,
+                        &QUEUE_SOURCE_OPS,
+                        &g_async_ctx.queue,
+                        fake_consumer_dispatch,
+                        &g_async_consumer);
+}
+
+static void ensure_async_task_started(void)
+{
+    if (g_async_started) {
+        return;
+    }
+    reset_async_ctx();
+    led_sm_consumer_task_start(&g_async_ctx);
+    g_async_started = true;
+}
 
 TEST_CASE("led sm producer maps short press to app event", "[led_sm_idf]")
 {
@@ -141,4 +170,63 @@ TEST_CASE("led sm consumer drains all when max_events is zero", "[led_sm_idf]")
     TEST_ASSERT_EQUAL_UINT32(2, con.count);
     TEST_ASSERT_EQUAL_UINT32(2, app_dispatcher_dispatched(&ctx.dispatcher));
     TEST_ASSERT_TRUE(app_event_queue_is_empty(&ctx.queue));
+}
+
+TEST_CASE("led sm consumer task notify is safe before task start", "[led_sm_idf]")
+{
+    sm_led_ctx_t ctx = {0};
+    fake_consumer_ctx_t con = {0};
+
+    app_event_queue_init(&ctx.queue);
+    app_dispatcher_init(&ctx.dispatcher,
+                        &QUEUE_SOURCE_OPS,
+                        &ctx.queue,
+                        fake_consumer_dispatch,
+                        &con);
+    TEST_ASSERT_TRUE(app_event_queue_push(&ctx.queue, &(app_event_t){.type = APP_EVENT_TICK}));
+
+    led_sm_consumer_task_notify(&ctx);
+    vTaskDelay(1);
+
+    TEST_ASSERT_EQUAL_UINT32(0, con.count);
+    TEST_ASSERT_EQUAL_UINT32(1, app_event_queue_size(&ctx.queue));
+}
+
+TEST_CASE("led sm producer notifies async consumer task", "[led_sm_idf]")
+{
+    ensure_async_task_started();
+    reset_async_ctx();
+
+    fake_input_ctx_t in = {
+        .event = BLINKY_EVENT_SHORT_PRESS,
+        .now_ms = 88,
+    };
+    g_async_ctx.input.ops = &(button_input_adapter_ops_t){
+        .poll_event = fake_poll_event,
+        .now_ms = fake_now_ms,
+    };
+    g_async_ctx.input.ctx = &in;
+
+    led_sm_producer_step(&g_async_ctx);
+    vTaskDelay(1);
+
+    TEST_ASSERT_EQUAL_UINT32(1, g_async_consumer.count);
+    TEST_ASSERT_EQUAL(APP_EVENT_BUTTON_SHORT, g_async_consumer.last_type);
+    TEST_ASSERT_TRUE(app_event_queue_is_empty(&g_async_ctx.queue));
+}
+
+TEST_CASE("led sm consumer task drains burst on single notify", "[led_sm_idf]")
+{
+    ensure_async_task_started();
+    reset_async_ctx();
+
+    TEST_ASSERT_TRUE(app_event_queue_push(&g_async_ctx.queue, &(app_event_t){.type = APP_EVENT_TICK}));
+    TEST_ASSERT_TRUE(app_event_queue_push(&g_async_ctx.queue, &(app_event_t){.type = APP_EVENT_BUTTON_SHORT}));
+    TEST_ASSERT_TRUE(app_event_queue_push(&g_async_ctx.queue, &(app_event_t){.type = APP_EVENT_BUTTON_LONG}));
+
+    led_sm_consumer_task_notify(&g_async_ctx);
+    vTaskDelay(1);
+
+    TEST_ASSERT_EQUAL_UINT32(3, g_async_consumer.count);
+    TEST_ASSERT_TRUE(app_event_queue_is_empty(&g_async_ctx.queue));
 }
