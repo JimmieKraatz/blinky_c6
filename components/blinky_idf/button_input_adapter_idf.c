@@ -45,8 +45,8 @@ void button_input_adapter_idf_init(button_input_adapter_t *adapter,
                 cfg->gpio,
                 cfg->active_low,
                 cfg->pull,
-                cfg->debounce_count,
-                cfg->long_press_ms);
+                cfg->timing.debounce_count,
+                cfg->timing.long_press_ms);
 
     adapter->ops = &IDF_OPS;
     adapter->ctx = impl;

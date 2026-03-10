@@ -66,6 +66,20 @@ Notes:
 - Queue backend uses a static FreeRTOS queue implementation (no dynamic allocation).
 - Consumer blocks on task notification and drains queue on wake-up.
 - Producer remains time-gated at `POLL_MS` cadence.
+- Producer publish path is now wake-agnostic; enqueue sink owns notify side-effects.
+
+## Core/Framework Ownership (Current)
+Defaults/config ownership after extraction slices:
+- Core-facing policy/config:
+  - `led_event_factory_*` builds boot/input semantic events (`core_blinky`)
+  - `led_startup_policy_*` selects startup waveform from core config (`core_blinky`)
+  - `button_policy_timing_*` normalizes debounce/long-press timing policy (`core_blinky`)
+  - `led_event_map_*` event semantic mapping (`core_blinky`)
+- Framework-facing wiring/config:
+  - `sdkconfig` source values (pins, pull mode, poll cadence, boot pattern, pwm, start-wave choice source)
+  - FreeRTOS queue/task primitives and wake mechanics
+  - adapter init for GPIO/LEDC/button hardware
+  - queue storage/lifecycle and dispatcher wiring in `_idf`
 
 ## Next Slice: Lifecycle and Backpressure
 Planned implementation direction:
@@ -106,6 +120,9 @@ Tests are Unity-based and split by ownership:
 - `components/blinky_interfaces/test/test_app_dispatcher.c`
 
 Unit tests run via ESP-IDF Unit Test App with this repo injected through `EXTRA_COMPONENT_DIRS`.
+
+Recent on-device run (2026-03-10):
+- `72 Tests 0 Failures 0 Ignored`
 
 ## Repo Hygiene
 - `unity-app/` is local scratch/test harness and intentionally git-ignored.

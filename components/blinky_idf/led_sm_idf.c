@@ -9,6 +9,8 @@
 
 #include "led_sm_idf.h"
 #include "led_event_consumer.h"
+#include "led_event_factory.h"
+#include "led_startup_policy.h"
 
 #define LED_GPIO ((gpio_num_t)CONFIG_BLINKY_LED_GPIO)
 #define BTN_GPIO ((gpio_num_t)CONFIG_BLINKY_BTN_GPIO)
@@ -19,18 +21,18 @@
 
 #define LEDC_FREQ_HZ CONFIG_BLINKY_PWM_FREQ_HZ
 
-static led_wave_t led_start_wave_from_config(void)
+static led_startup_config_t led_startup_config_from_kconfig(void)
 {
 #if CONFIG_BLINKY_START_WAVE_SQUARE
-    return LED_WAVE_SQUARE;
+    return (led_startup_config_t){.start_wave = LED_WAVE_SQUARE};
 #elif CONFIG_BLINKY_START_WAVE_SAW_UP
-    return LED_WAVE_SAW_UP;
+    return (led_startup_config_t){.start_wave = LED_WAVE_SAW_UP};
 #elif CONFIG_BLINKY_START_WAVE_SAW_DOWN
-    return LED_WAVE_SAW_DOWN;
+    return (led_startup_config_t){.start_wave = LED_WAVE_SAW_DOWN};
 #elif CONFIG_BLINKY_START_WAVE_TRIANGLE
-    return LED_WAVE_TRIANGLE;
+    return (led_startup_config_t){.start_wave = LED_WAVE_TRIANGLE};
 #else
-    return LED_WAVE_SINE;
+    return (led_startup_config_t){.start_wave = LED_WAVE_SINE};
 #endif
 }
 
@@ -66,11 +68,25 @@ static bool queue_pop(void *ctx, app_event_t *out)
     return app_event_queue_pop(q, out);
 }
 
+static bool queue_push(void *ctx, const app_event_t *ev)
+{
+    sm_led_ctx_t *sm = (sm_led_ctx_t *)ctx;
+    if (!app_event_queue_push(&sm->queue, ev)) {
+        return false;
+    }
+    led_sm_consumer_task_notify(sm);
+    return true;
+}
+
 static uint32_t queue_dropped(void *ctx)
 {
     app_event_queue_t *q = (app_event_queue_t *)ctx;
     return app_event_queue_dropped(q);
 }
+
+static const app_event_sink_ops_t QUEUE_SINK_OPS = {
+    .push = queue_push,
+};
 
 static const app_event_source_ops_t QUEUE_SOURCE_OPS = {
     .pop = queue_pop,
@@ -111,6 +127,11 @@ void led_sm_init(sm_led_ctx_t *ctx)
     pull = BUTTON_PULL_DOWN;
 #endif
 
+    button_policy_timing_t timing = button_policy_timing_normalize((button_policy_timing_t){
+        .debounce_count = DEBOUNCE_COUNT,
+        .long_press_ms = LONG_PRESS_MS,
+    });
+
     button_input_adapter_idf_init(
         &ctx->input,
         &ctx->input_idf,
@@ -118,11 +139,11 @@ void led_sm_init(sm_led_ctx_t *ctx)
             .gpio = BTN_GPIO,
             .active_low = CONFIG_BLINKY_BTN_ACTIVE_LOW,
             .pull = pull,
-            .debounce_count = DEBOUNCE_COUNT,
-            .long_press_ms = LONG_PRESS_MS,
+            .timing = timing,
         });
 
     led_runtime_output_t out = {0};
+    led_startup_config_t startup_cfg = led_startup_config_from_kconfig();
     led_runtime_init(
         &ctx->runtime,
         &(led_model_config_t){
@@ -131,11 +152,13 @@ void led_sm_init(sm_led_ctx_t *ctx)
             .sine_steps_max = CONFIG_BLINKY_SINE_STEPS_MAX,
             .saw_step_pct = CONFIG_BLINKY_SAW_STEP_PCT,
         },
-        led_start_wave_from_config(),
+        led_startup_policy_select_wave(&startup_cfg),
         button_input_adapter_now_ms(&ctx->input),
         &out);
 
     app_event_queue_init(&ctx->queue);
+    ctx->sink_ops = &QUEUE_SINK_OPS;
+    ctx->sink_ctx = ctx;
     app_dispatcher_init(
         &ctx->dispatcher,
         &QUEUE_SOURCE_OPS,
@@ -145,16 +168,19 @@ void led_sm_init(sm_led_ctx_t *ctx)
     led_sm_consumer_task_start(ctx);
 
     /* Seed boot into the same producer/consumer pipeline used at runtime. */
-    if (app_event_queue_push(&ctx->queue, &(app_event_t){
-        .type = APP_EVENT_BOOT,
-        .timestamp_ms = button_input_adapter_now_ms(&ctx->input),
-        .payload = {.u32 = 0},
-    })) {
-        led_sm_consumer_task_notify(ctx);
-    }
+    app_event_t boot = led_event_factory_boot(button_input_adapter_now_ms(&ctx->input));
+    (void)led_sm_enqueue_event(ctx, &boot);
 
     led_show_startup_pattern(ctx, ctx->runtime.model.wave);
     apply_runtime_output(ctx, &out);
+}
+
+bool led_sm_enqueue_event(sm_led_ctx_t *ctx, const app_event_t *ev)
+{
+    if (!ctx || !ctx->sink_ops || !ctx->sink_ops->push) {
+        return false;
+    }
+    return ctx->sink_ops->push(ctx->sink_ctx, ev);
 }
 
 void led_sm_step(sm_led_ctx_t *ctx)
