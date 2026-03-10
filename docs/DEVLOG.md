@@ -163,3 +163,36 @@ Current execution is still parity mode (enqueue + immediate drain in same loop).
 
 ### Notes
 - Queue capacity remains provisional during this slice and will be tuned from observed usage.
+
+## 2026-03-10 - Async producer/consumer split implemented
+### Context
+Completed the async transition slice while preserving producer polling cadence and core behavior.
+
+### Changes
+- Split `led_sm_idf` orchestration into explicit producer and consumer units:
+  - `led_sm_producer_idf.c`
+  - `led_sm_consumer_idf.c`
+- Kept `led_sm_idf.c` as IDF shell/orchestration entrypoint.
+- Replaced app event queue internals with a static FreeRTOS queue backend (no dynamic allocation).
+- Started a dedicated consumer task from `led_sm_init` and switched producer path to notify consumer on successful enqueue.
+- Removed in-loop consumer draining from `led_sm_step` (producer remains `POLL_MS`-gated).
+- Added targeted async wiring tests in `components/blinky_idf/test/test_led_sm_idf.c`:
+  - notify safety before task start
+  - producer notify path
+  - burst drain on single notify
+
+### Notes
+- This closes the async consumer split goal while keeping producer timing unchanged.
+- Next architectural work is lifecycle boundaries and overflow/backpressure policy.
+
+## 2026-03-10 - VS Code unit-test task alignment
+### Context
+VS Code test tasks could omit `blinky_interfaces` tests, causing dispatcher tests not to appear in on-device menus.
+
+### Changes
+- Updated `.vscode/tasks.json` test tasks to include:
+  - `-T blinky_interfaces`
+- Aligned `IDF: Flash+Monitor (tests)` with `EXTRA_COMPONENT_DIRS` and `CCACHE_ENABLE=1`.
+
+### Notes
+- Escaping for `SDKCONFIG_DEFAULTS` remains `\\;` in JSON and validates correctly in task execution.
