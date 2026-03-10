@@ -8,6 +8,7 @@
 #include "sdkconfig.h"
 
 #include "led_sm_idf.h"
+#include "led_event_consumer.h"
 
 #define LED_GPIO ((gpio_num_t)CONFIG_BLINKY_LED_GPIO)
 #define BTN_GPIO ((gpio_num_t)CONFIG_BLINKY_BTN_GPIO)
@@ -36,21 +37,6 @@ static led_wave_t led_start_wave_from_config(void)
 static inline void led_write(sm_led_ctx_t *ctx, bool on)
 {
     led_output_adapter_write(&ctx->led_output, on);
-}
-
-static blinky_event_t app_event_to_blinky_event(app_event_type_t type)
-{
-    switch (type) {
-    case APP_EVENT_BUTTON_SHORT:
-        return BLINKY_EVENT_SHORT_PRESS;
-    case APP_EVENT_BUTTON_LONG:
-        return BLINKY_EVENT_LONG_PRESS;
-    case APP_EVENT_TICK:
-    case APP_EVENT_BOOT:
-    case APP_EVENT_NONE:
-    default:
-        return BLINKY_EVENT_NONE;
-    }
 }
 
 static app_event_type_t app_event_from_blinky_event(blinky_event_t ev)
@@ -82,10 +68,7 @@ static void apply_runtime_output(sm_led_ctx_t *ctx, const led_runtime_output_t *
 static void dispatch_event(sm_led_ctx_t *ctx, const app_event_t *ev)
 {
     led_runtime_output_t out = {0};
-    led_runtime_step(&ctx->runtime,
-                     ev->timestamp_ms,
-                     app_event_to_blinky_event(ev->type),
-                     &out);
+    led_event_consumer_dispatch(&ctx->runtime, ev, &out);
     apply_runtime_output(ctx, &out);
 }
 
