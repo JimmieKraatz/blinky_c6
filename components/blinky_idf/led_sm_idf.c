@@ -9,6 +9,7 @@
 
 #include "led_sm_idf.h"
 #include "led_event_consumer.h"
+#include "led_event_factory.h"
 
 #define LED_GPIO ((gpio_num_t)CONFIG_BLINKY_LED_GPIO)
 #define BTN_GPIO ((gpio_num_t)CONFIG_BLINKY_BTN_GPIO)
@@ -157,11 +158,8 @@ void led_sm_init(sm_led_ctx_t *ctx)
     led_sm_consumer_task_start(ctx);
 
     /* Seed boot into the same producer/consumer pipeline used at runtime. */
-    if (led_sm_enqueue_event(ctx, &(app_event_t){
-        .type = APP_EVENT_BOOT,
-        .timestamp_ms = button_input_adapter_now_ms(&ctx->input),
-        .payload = {.u32 = 0},
-    })) {
+    app_event_t boot = led_event_factory_boot(button_input_adapter_now_ms(&ctx->input));
+    if (led_sm_enqueue_event(ctx, &boot)) {
         led_sm_consumer_task_notify(ctx);
     }
 

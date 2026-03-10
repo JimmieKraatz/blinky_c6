@@ -1,17 +1,13 @@
 #include "led_sm_idf.h"
-#include "led_event_map.h"
+#include "led_event_factory.h"
 
 void led_sm_producer_step(sm_led_ctx_t *ctx)
 {
     blinky_time_ms_t now = button_input_adapter_now_ms(&ctx->input);
     blinky_event_t bev = button_input_adapter_poll_event(&ctx->input);
-    app_event_type_t type = led_event_map_from_blinky(bev);
+    app_event_t ev = led_event_factory_from_input(bev, now);
 
-    if (led_sm_enqueue_event(ctx, &(app_event_t){
-        .type = type,
-        .timestamp_ms = now,
-        .payload = {.u32 = 0},
-    })) {
+    if (led_sm_enqueue_event(ctx, &ev)) {
         led_sm_consumer_task_notify(ctx);
     }
 }
