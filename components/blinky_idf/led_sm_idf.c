@@ -70,8 +70,12 @@ static bool queue_pop(void *ctx, app_event_t *out)
 
 static bool queue_push(void *ctx, const app_event_t *ev)
 {
-    app_event_queue_t *q = (app_event_queue_t *)ctx;
-    return app_event_queue_push(q, ev);
+    sm_led_ctx_t *sm = (sm_led_ctx_t *)ctx;
+    if (!app_event_queue_push(&sm->queue, ev)) {
+        return false;
+    }
+    led_sm_consumer_task_notify(sm);
+    return true;
 }
 
 static uint32_t queue_dropped(void *ctx)
@@ -150,7 +154,7 @@ void led_sm_init(sm_led_ctx_t *ctx)
 
     app_event_queue_init(&ctx->queue);
     ctx->sink_ops = &QUEUE_SINK_OPS;
-    ctx->sink_ctx = &ctx->queue;
+    ctx->sink_ctx = ctx;
     app_dispatcher_init(
         &ctx->dispatcher,
         &QUEUE_SOURCE_OPS,
@@ -161,9 +165,7 @@ void led_sm_init(sm_led_ctx_t *ctx)
 
     /* Seed boot into the same producer/consumer pipeline used at runtime. */
     app_event_t boot = led_event_factory_boot(button_input_adapter_now_ms(&ctx->input));
-    if (led_sm_enqueue_event(ctx, &boot)) {
-        led_sm_consumer_task_notify(ctx);
-    }
+    (void)led_sm_enqueue_event(ctx, &boot);
 
     led_show_startup_pattern(ctx, ctx->runtime.model.wave);
     apply_runtime_output(ctx, &out);
