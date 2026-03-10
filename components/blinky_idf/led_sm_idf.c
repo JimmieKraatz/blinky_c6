@@ -10,6 +10,7 @@
 #include "led_sm_idf.h"
 #include "led_event_consumer.h"
 #include "led_event_factory.h"
+#include "led_startup_policy.h"
 
 #define LED_GPIO ((gpio_num_t)CONFIG_BLINKY_LED_GPIO)
 #define BTN_GPIO ((gpio_num_t)CONFIG_BLINKY_BTN_GPIO)
@@ -20,18 +21,18 @@
 
 #define LEDC_FREQ_HZ CONFIG_BLINKY_PWM_FREQ_HZ
 
-static led_wave_t led_start_wave_from_config(void)
+static led_startup_config_t led_startup_config_from_kconfig(void)
 {
 #if CONFIG_BLINKY_START_WAVE_SQUARE
-    return LED_WAVE_SQUARE;
+    return (led_startup_config_t){.start_wave = LED_WAVE_SQUARE};
 #elif CONFIG_BLINKY_START_WAVE_SAW_UP
-    return LED_WAVE_SAW_UP;
+    return (led_startup_config_t){.start_wave = LED_WAVE_SAW_UP};
 #elif CONFIG_BLINKY_START_WAVE_SAW_DOWN
-    return LED_WAVE_SAW_DOWN;
+    return (led_startup_config_t){.start_wave = LED_WAVE_SAW_DOWN};
 #elif CONFIG_BLINKY_START_WAVE_TRIANGLE
-    return LED_WAVE_TRIANGLE;
+    return (led_startup_config_t){.start_wave = LED_WAVE_TRIANGLE};
 #else
-    return LED_WAVE_SINE;
+    return (led_startup_config_t){.start_wave = LED_WAVE_SINE};
 #endif
 }
 
@@ -134,6 +135,7 @@ void led_sm_init(sm_led_ctx_t *ctx)
         });
 
     led_runtime_output_t out = {0};
+    led_startup_config_t startup_cfg = led_startup_config_from_kconfig();
     led_runtime_init(
         &ctx->runtime,
         &(led_model_config_t){
@@ -142,7 +144,7 @@ void led_sm_init(sm_led_ctx_t *ctx)
             .sine_steps_max = CONFIG_BLINKY_SINE_STEPS_MAX,
             .saw_step_pct = CONFIG_BLINKY_SAW_STEP_PCT,
         },
-        led_start_wave_from_config(),
+        led_startup_policy_select_wave(&startup_cfg),
         button_input_adapter_now_ms(&ctx->input),
         &out);
 

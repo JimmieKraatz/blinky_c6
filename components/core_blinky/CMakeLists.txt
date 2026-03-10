@@ -8,6 +8,7 @@ idf_component_register(
         "led_event_consumer.c"
         "led_event_factory.c"
         "led_event_map.c"
+        "led_startup_policy.c"
     INCLUDE_DIRS "."
     REQUIRES blinky_interfaces
 )
