@@ -42,19 +42,26 @@ menu "Blinky"
                 Enable the internal pull-down resistor.
     endchoice
 
-    config BLINKY_POLL_MS
-        int "Button/LED poll interval (ms)"
+    config BLINKY_PRODUCER_POLL_MS
+        int "Producer poll interval (ms)"
         default 10
         help
-            Poll interval for the LED state machine.
+            Poll interval for producer-side input sampling in the LED state machine.
             Smaller values increase responsiveness but cost more CPU.
+
+    config BLINKY_MODEL_POLL_MS
+        int "Model update interval (ms)"
+        default 10
+        help
+            Core model cadence value passed to LED runtime/model config.
+            Smaller values increase update granularity but can increase CPU usage.
 
     config BLINKY_DEBOUNCE_COUNT
         int "Button debounce count"
         default 3
         help
             Number of consecutive samples required to change button state.
-            Effective debounce time is POLL_MS * DEBOUNCE_COUNT.
+            Effective debounce time is PRODUCER_POLL_MS * DEBOUNCE_COUNT.
 
     config BLINKY_LONG_PRESS_MS
         int "Long-press duration (ms)"
@@ -106,7 +113,7 @@ menu "Blinky"
         range 8 1024
         help
             Maximum LUT size used for the sine wave. The actual number of
-            steps is derived from BLINKY_WAVE_PERIOD_MS / BLINKY_POLL_MS,
+            steps is derived from BLINKY_WAVE_PERIOD_MS / BLINKY_MODEL_POLL_MS,
             clamped to a minimum of 8 and this maximum.
             Larger values use more memory but allow smoother long periods.
 

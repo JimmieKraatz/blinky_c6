@@ -15,7 +15,7 @@
 #define LED_GPIO ((gpio_num_t)CONFIG_BLINKY_LED_GPIO)
 #define BTN_GPIO ((gpio_num_t)CONFIG_BLINKY_BTN_GPIO)
 
-#define POLL_MS CONFIG_BLINKY_POLL_MS
+#define PRODUCER_POLL_MS CONFIG_BLINKY_PRODUCER_POLL_MS
 #define DEBOUNCE_COUNT CONFIG_BLINKY_DEBOUNCE_COUNT
 #define LONG_PRESS_MS CONFIG_BLINKY_LONG_PRESS_MS
 
@@ -148,7 +148,7 @@ void led_sm_init(sm_led_ctx_t *ctx)
         &ctx->runtime,
         &(led_model_config_t){
             .wave_period_ms = CONFIG_BLINKY_WAVE_PERIOD_MS,
-            .poll_ms = CONFIG_BLINKY_POLL_MS,
+            .poll_ms = CONFIG_BLINKY_MODEL_POLL_MS,
             .sine_steps_max = CONFIG_BLINKY_SINE_STEPS_MAX,
             .saw_step_pct = CONFIG_BLINKY_SAW_STEP_PCT,
         },
@@ -185,6 +185,6 @@ bool led_sm_enqueue_event(sm_led_ctx_t *ctx, const app_event_t *ev)
 
 void led_sm_step(sm_led_ctx_t *ctx)
 {
-    vTaskDelay(pdMS_TO_TICKS(POLL_MS));
+    vTaskDelay(pdMS_TO_TICKS(PRODUCER_POLL_MS));
     led_sm_producer_step(ctx);
 }

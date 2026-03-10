@@ -238,3 +238,16 @@ wake ownership, and button timing policy ownership.
 - Slice 2: startup waveform policy to core-facing config input (completed)
 - Slice 3: isolate notify/wake policy on consumer side only (completed)
 - Slice 4: button timing policy ownership cleanup (completed)
+
+## 2026-03-10 - Config/default ownership split kickoff
+### Context
+Started a dedicated branch to address the remaining config/default ownership ambiguity before logging boundary work.
+
+### Changes
+- Added an explicit config ownership decision table in `docs/ARCHITECTURE.md`.
+- Identified `BLINKY_POLL_MS` as the primary mixed-ownership symbol to split next.
+
+### Next implementation step
+- Split `BLINKY_POLL_MS` into:
+  - framework producer cadence knob (`_idf` loop delay)
+  - core model cadence knob (`core_blinky` model config input)
