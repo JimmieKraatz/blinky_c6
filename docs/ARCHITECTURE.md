@@ -77,6 +77,9 @@ Defaults/config ownership after extraction slices:
   - `led_event_map_*` event semantic mapping (`core_blinky`)
 - Framework-facing wiring/config:
   - `sdkconfig` source values (pins, pull mode, poll cadence, boot pattern, pwm, start-wave choice source)
+  - `_idf` mapper boundary:
+    - `idf_build_platform_config(...)`
+    - `idf_build_core_config(...)`
   - FreeRTOS queue/task primitives and wake mechanics
   - adapter init for GPIO/LEDC/button hardware
   - queue storage/lifecycle and dispatcher wiring in `_idf`

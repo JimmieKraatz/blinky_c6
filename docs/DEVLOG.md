@@ -280,3 +280,15 @@ Started a dedicated branch to address the remaining config/default ownership amb
 ### Test intent
 - Verifies stop semantics are safe when called repeatedly.
 - Guards against accidental event processing after consumer stop in async mode.
+
+## 2026-03-10 - Config ownership slice: mapper boundary introduced
+### Changes
+- Added explicit `_idf` mapper functions:
+  - `idf_build_platform_config(...)`
+  - `idf_build_core_config(...)`
+- Added mapper-backed config contracts in `components/blinky_idf/led_config_idf.*`.
+- Routed `led_sm_init(...)` and producer delay path through mapped config values with no behavior change.
+
+### Why
+- Keeps `sdkconfig` as source-of-truth in `_idf` while making ownership boundaries explicit.
+- Establishes the handoff point where core-owned semantics can be fed by framework-sourced values.

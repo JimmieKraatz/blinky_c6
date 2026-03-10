@@ -1,5 +1,6 @@
 idf_component_register(
     SRCS
+        "led_config_idf.c"
         "button_idf.c"
         "led_sm_idf.c"
         "led_sm_producer_idf.c"

@@ -11,6 +11,7 @@
 #include "led_runtime.h"
 #include "led_output_adapter.h"
 #include "led_output_adapter_idf.h"
+#include "led_config_idf.h"
 
 /* LED state machine context.
  * Owns runtime state for LED behavior and local button debounce.
@@ -22,6 +23,8 @@ typedef struct {
     led_output_adapter_t led_output;
     led_output_adapter_idf_t led_output_idf;
     led_runtime_t runtime;
+    led_platform_config_t platform_cfg;
+    led_core_config_t core_cfg;
     app_event_queue_t queue;
     const app_event_sink_ops_t *sink_ops;
     void *sink_ctx;
