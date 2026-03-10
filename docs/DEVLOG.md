@@ -230,11 +230,18 @@ wake ownership, and button timing policy ownership.
 - Fault/shutdown semantics (deferred):
   - define core-owned handling contract before adding platform producers
 - Defaults/config ownership review (deferred):
-  - audit each default/config and classify as core-facing policy vs framework-facing wiring
-  - add a small decision table in architecture docs to keep ownership decisions consistent
+  - remove temporary startup-symbol compatibility fallback in `led_config_idf.c` after all configs are migrated
+  - run one final ownership checklist pass after logging boundary work
 - Pause behavior policy decision (deferred):
   - decide whether `PAUSED` should freeze LED at current brightness or force LED off
   - document rationale and align tests with final behavior
+
+## Done TODOs
+- Startup waveform ownership decoupling (completed 2026-03-10):
+  - moved startup waveform semantics into core startup policy
+  - removed startup waveform selection from Kconfig/framework surface
+  - `_idf` now injects only core default startup selector input
+  - completion commits: `57afe3a`, `e9d2fc0`, `f17870e`
 
 ## Active extraction roadmap
 - Slice 1: extract core-owned wiring policy (completed)
