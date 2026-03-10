@@ -18,11 +18,6 @@ void idf_build_platform_config(led_platform_config_t *cfg)
     pull = BUTTON_PULL_DOWN;
 #endif
 
-    button_policy_timing_t timing = button_policy_timing_normalize((button_policy_timing_t){
-        .debounce_count = CONFIG_BLINKY_DEBOUNCE_COUNT,
-        .long_press_ms = CONFIG_BLINKY_LONG_PRESS_MS,
-    });
-
     *cfg = (led_platform_config_t){
         .led_output =
             {
@@ -30,13 +25,9 @@ void idf_build_platform_config(led_platform_config_t *cfg)
                 .pwm_freq_hz = CONFIG_BLINKY_PWM_FREQ_HZ,
                 .active_low = true,
             },
-        .button_input =
-            {
-                .gpio = BTN_GPIO,
-                .active_low = CONFIG_BLINKY_BTN_ACTIVE_LOW,
-                .pull = pull,
-                .timing = timing,
-            },
+        .button_gpio = BTN_GPIO,
+        .button_active_low = CONFIG_BLINKY_BTN_ACTIVE_LOW,
+        .button_pull = pull,
         .producer_poll_ms = CONFIG_BLINKY_PRODUCER_POLL_MS,
         .boot_pattern_ms = CONFIG_BLINKY_BOOT_PATTERN_MS,
     };
@@ -72,5 +63,9 @@ void idf_build_core_config(led_core_config_t *cfg)
             {
                 .start_wave = start_wave,
             },
+        .button_timing = button_policy_timing_normalize((button_policy_timing_t){
+            .debounce_count = CONFIG_BLINKY_DEBOUNCE_COUNT,
+            .long_press_ms = CONFIG_BLINKY_LONG_PRESS_MS,
+        }),
     };
 }

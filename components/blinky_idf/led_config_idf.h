@@ -7,7 +7,9 @@
 
 typedef struct {
     led_output_adapter_idf_config_t led_output;
-    button_input_adapter_idf_config_t button_input;
+    gpio_num_t button_gpio;
+    bool button_active_low;
+    button_pull_t button_pull;
     blinky_time_ms_t producer_poll_ms;
     int boot_pattern_ms;
 } led_platform_config_t;
@@ -15,6 +17,7 @@ typedef struct {
 typedef struct {
     led_model_config_t model;
     led_startup_config_t startup;
+    button_policy_timing_t button_timing;
 } led_core_config_t;
 
 void idf_build_platform_config(led_platform_config_t *cfg);

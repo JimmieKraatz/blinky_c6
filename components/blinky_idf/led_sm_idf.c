@@ -99,7 +99,12 @@ void led_sm_init(sm_led_ctx_t *ctx)
     button_input_adapter_idf_init(
         &ctx->input,
         &ctx->input_idf,
-        &ctx->platform_cfg.button_input);
+        &(button_input_adapter_idf_config_t){
+            .gpio = ctx->platform_cfg.button_gpio,
+            .active_low = ctx->platform_cfg.button_active_low,
+            .pull = ctx->platform_cfg.button_pull,
+            .timing = ctx->core_cfg.button_timing,
+        });
 
     led_runtime_output_t out = {0};
     led_runtime_init(

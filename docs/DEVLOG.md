@@ -292,3 +292,14 @@ Started a dedicated branch to address the remaining config/default ownership amb
 ### Why
 - Keeps `sdkconfig` as source-of-truth in `_idf` while making ownership boundaries explicit.
 - Establishes the handoff point where core-owned semantics can be fed by framework-sourced values.
+
+## 2026-03-10 - Config ownership slice: button timing remapped to core config
+### Changes
+- Updated mapper contracts so button timing is no longer carried in platform config.
+- `idf_build_core_config(...)` now owns normalized `button_timing` construction.
+- `led_sm_init(...)` now composes `button_input_adapter_idf_config_t` from:
+  - platform wiring (`gpio`, pull mode, active level)
+  - core timing policy (`debounce_count`, `long_press_ms`)
+
+### Why
+- Keeps button semantic timing under core-owned policy while `_idf` remains the source adapter for `sdkconfig` values.
