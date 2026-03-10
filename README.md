@@ -34,8 +34,8 @@ Build the Unit Test App and point it at this repo's components via `EXTRA_COMPON
 Option A (terminal):
 ```bash
 idf.py -C $IDF_PATH/tools/unit-test-app -B $PWD/build/unit-test-app -D EXTRA_COMPONENT_DIRS=$PWD/components -D "SDKCONFIG_DEFAULTS=$IDF_PATH/tools/unit-test-app/sdkconfig.defaults;$PWD/test/unit-test-app.sdkconfig.defaults" set-target esp32c6
-idf.py -C $IDF_PATH/tools/unit-test-app -B $PWD/build/unit-test-app -D EXTRA_COMPONENT_DIRS=$PWD/components -D SDKCONFIG=$PWD/build/unit-test-app/sdkconfig -D "SDKCONFIG_DEFAULTS=$IDF_PATH/tools/unit-test-app/sdkconfig.defaults;$PWD/test/unit-test-app.sdkconfig.defaults" -D CCACHE_ENABLE=1 -T core_sm -T core_blinky -T blinky_idf build
-idf.py -C $IDF_PATH/tools/unit-test-app -B $PWD/build/unit-test-app -D SDKCONFIG=$PWD/build/unit-test-app/sdkconfig -D "SDKCONFIG_DEFAULTS=$IDF_PATH/tools/unit-test-app/sdkconfig.defaults;$PWD/test/unit-test-app.sdkconfig.defaults" -T core_sm -T core_blinky -T blinky_idf -p /dev/ttyACM0 flash monitor
+idf.py -C $IDF_PATH/tools/unit-test-app -B $PWD/build/unit-test-app -D EXTRA_COMPONENT_DIRS=$PWD/components -D SDKCONFIG=$PWD/build/unit-test-app/sdkconfig -D "SDKCONFIG_DEFAULTS=$IDF_PATH/tools/unit-test-app/sdkconfig.defaults;$PWD/test/unit-test-app.sdkconfig.defaults" -D CCACHE_ENABLE=1 -T core_sm -T core_blinky -T blinky_idf -T blinky_interfaces build
+idf.py -C $IDF_PATH/tools/unit-test-app -B $PWD/build/unit-test-app -D SDKCONFIG=$PWD/build/unit-test-app/sdkconfig -D "SDKCONFIG_DEFAULTS=$IDF_PATH/tools/unit-test-app/sdkconfig.defaults;$PWD/test/unit-test-app.sdkconfig.defaults" -T core_sm -T core_blinky -T blinky_idf -T blinky_interfaces -p /dev/ttyACM0 flash monitor
 ```
 
 At the Unity prompt, run all tests with `*` then Enter.
@@ -48,8 +48,9 @@ Option B (VS Code Tasks):
 ## Project Layout
 - `main/` app entry (`app_main`)
 - `components/core_sm/` generic FSM/HSM engine headers + tests
-- `components/core_blinky/` generic blinky model/menu + tests
-- `components/blinky_idf/` ESP-IDF integration + tests
+- `components/core_blinky/` generic blinky model/policy/runtime + tests
+- `components/blinky_interfaces/` framework-agnostic adapter contracts
+- `components/blinky_idf/` ESP-IDF integration/adapters + tests
 - `test/` shared test config defaults for unit-test-app
 
 ## License

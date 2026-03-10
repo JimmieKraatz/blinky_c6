@@ -3,8 +3,9 @@
 ## Overview
 This project is split into portable core logic and ESP-IDF-specific integration:
 - `components/core_sm`: framework-agnostic FSM/HSM engines
-- `components/core_blinky`: framework-agnostic blinky model/menu logic
-- `components/blinky_idf`: ESP-IDF + hardware integration (button, LED PWM, app state machine)
+- `components/core_blinky`: framework-agnostic blinky model/policy/runtime logic
+- `components/blinky_interfaces`: framework-agnostic adapter contracts
+- `components/blinky_idf`: ESP-IDF + hardware integration/adapters (button, LED PWM, app shell)
 
 The app entry point (`main/main.c`) initializes the LED state machine and steps it in a loop.
 
@@ -13,8 +14,9 @@ Goal: isolate reusable logic from ESP-IDF/HAL code so core behavior can be teste
 
 Migration map:
 - `components/blinky/fsm_engine.h` -> `components/core_sm/fsm_engine.h`
-- `components/blinky/led_model.*` + `menu_logic.*` -> `components/core_blinky/`
-- `components/blinky/button.*` + `led_sm.*` + Kconfig integration -> `components/blinky_idf/`
+- `components/blinky/led_model.*` + `menu_logic.*` + policy/runtime orchestration -> `components/core_blinky/`
+- generic adapter contracts -> `components/blinky_interfaces/`
+- ESP-IDF wrappers (`*_idf.*`, app shell, Kconfig integration) -> `components/blinky_idf/`
 - Unit tests moved with ownership:
   - `core_sm/test/*`
   - `core_blinky/test/*`
@@ -50,7 +52,12 @@ Tests are Unity-based and split by ownership:
 - `components/core_sm/test/test_hsm_engine.c`
 - `components/core_blinky/test/test_led_model.c`
 - `components/core_blinky/test/test_menu_logic.c`
-- `components/blinky_idf/test/test_button.c`
+- `components/core_blinky/test/test_led_policy.c`
+- `components/core_blinky/test/test_led_runtime.c`
+- `components/core_blinky/test/test_button_logic.c`
+- `components/blinky_idf/test/test_button_idf.c`
+- `components/blinky_idf/test/test_button_input_adapter.c`
+- `components/blinky_idf/test/test_led_output_adapter.c`
 
 Unit tests run via ESP-IDF Unit Test App with this repo injected through `EXTRA_COMPONENT_DIRS`.
 
@@ -62,10 +69,58 @@ The next architectural step is moving from the current polling/step-loop orchest
 to an event-driven model.
 
 Planned direction:
-- Introduce input/output adapter boundaries first (preparatory phase):
+- Keep adapter boundaries explicit:
   - input adapters produce semantic app events
   - output adapters apply domain outputs to hardware
 - Use the HSM in `core_sm` as the primary orchestration mechanism.
 - Define explicit event contracts at module boundaries (button, timer tick, menu actions, control events).
 - Route events through a queue/dispatcher layer in `blinky_idf`, while keeping core logic portable.
 - Preserve current behavior parity while migrating (existing tests remain the guardrail).
+
+## Draft Event Contract
+Initial app-level event list (adjustable as behavior evolves):
+- `APP_EVENT_BOOT`
+  - Producer: app startup sequence.
+  - Consumer: app dispatcher/HSM root.
+  - Payload: none.
+  - Notes: one-shot initialization trigger.
+- `APP_EVENT_TICK`
+  - Producer: periodic timer/tick source.
+  - Consumer: runtime/HSM update path.
+  - Payload: optional timestamp.
+  - Notes: FIFO ordered with other events.
+- `APP_EVENT_BUTTON_SHORT`
+  - Producer: button input adapter.
+  - Consumer: runtime/HSM transition logic.
+  - Payload: none.
+  - Notes: semantic short-press event.
+- `APP_EVENT_BUTTON_LONG`
+  - Producer: button input adapter.
+  - Consumer: runtime/HSM transition logic.
+  - Payload: none.
+  - Notes: semantic long-press event.
+- `APP_EVENT_MENU_TIMEOUT` (optional)
+  - Producer: timer policy for menu inactivity.
+  - Consumer: menu state logic.
+  - Payload: optional timeout reason.
+  - Notes: can be deferred until menu timeout behavior is implemented.
+- `APP_EVENT_MODEL_STEP_DUE` (optional)
+  - Producer: scheduler/timing policy.
+  - Consumer: model update path.
+  - Payload: optional step timestamp.
+  - Notes: may remain collapsed into `APP_EVENT_TICK` if not needed.
+- `APP_EVENT_FAULT` (future)
+  - Producer: diagnostics/safety checks.
+  - Consumer: fault/safe state handling.
+  - Payload: fault code.
+  - Notes: priority semantics should be explicit if/when added.
+- `APP_EVENT_SHUTDOWN` (future)
+  - Producer: power/control policy.
+  - Consumer: orderly stop path.
+  - Payload: optional reason code.
+  - Notes: reserved for later power-mode work.
+
+Ordering/dispatch rules:
+- Queue semantics: FIFO.
+- Tie-break: insertion order for same-timestamp events.
+- Priority: none by default; any preemption rule (for example fault override) must be explicit in code/docs.

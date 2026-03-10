@@ -71,3 +71,45 @@ Transition runtime orchestration from polling/step-loop style to event-driven HS
 ### Open items
 - Add HIL CI path for Unity execution (optional).
 - Add diagrams for event/data flow (optional).
+
+## 2026-03-09 - Adapter boundary extraction progress
+### Context
+Completed the prepatory boundary work for LED and button to reduce coupling before event/HSM migration.
+
+### Changes
+- Moved LED orchestration into core runtime and left ESP-IDF shell in `led_sm_idf.*`.
+- Extracted button debouncer logic to `core_blinky/button_logic.*`.
+- Renamed platform wrappers to explicit `_idf` names (`led_sm_idf.*`, `button_idf.*`).
+- Created `components/blinky_interfaces/` and moved generic adapter contracts there:
+  - `button_input_adapter.h`
+  - `led_output_adapter.h`
+- Expanded adapter/runtime tests for null-safety and menu behavior.
+
+### Traceability (selected commits)
+- `f0dc52a` move LED runtime orchestration into `core_blinky`
+- `1768dca` rename `led_sm` shell to `led_sm_idf`
+- `4c64527` extract core button logic
+- `f6fefdd` rename button wrapper to `button_idf`
+- `945e03c` move generic adapter interfaces to `blinky_interfaces`
+- `bc5a9d2` add adapter null-safety/runtime behavior tests
+
+### Notes
+- Commit references are included here as lightweight breadcrumbs (no tags required).
+- Stable architecture intent remains in `docs/ARCHITECTURE.md`; this file remains diary/process oriented.
+
+## 2026-03-09 - Drafted app event contract list
+### Context
+After boundary extraction, the next step is formalizing event semantics and ownership.
+
+### Changes
+- Added a first-pass app event list to `docs/ARCHITECTURE.md`:
+  - boot, tick, button short/long
+  - optional/future events for menu timeout, model-step due, fault, shutdown
+- Added explicit producer/consumer/payload notes per event.
+- Added initial dispatcher ordering rules:
+  - FIFO queue
+  - insertion-order tie-break
+  - no implicit priority unless explicitly defined later
+
+### Notes
+- This list is intentionally draft-level and may be reordered or trimmed without changing behavior contracts.
