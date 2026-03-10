@@ -17,6 +17,10 @@ void idf_build_platform_config(led_platform_config_t *cfg)
 #elif CONFIG_BLINKY_BTN_PULL_DOWN
     pull = BUTTON_PULL_DOWN;
 #endif
+    bool log_intensity_enabled = false;
+#ifdef CONFIG_BLINKY_LOG_INTENSITY
+    log_intensity_enabled = CONFIG_BLINKY_LOG_INTENSITY;
+#endif
 
     *cfg = (led_platform_config_t){
         .led_output =
@@ -30,6 +34,8 @@ void idf_build_platform_config(led_platform_config_t *cfg)
         .button_pull = pull,
         .producer_poll_ms = CONFIG_BLINKY_PRODUCER_POLL_MS,
         .boot_pattern_ms = CONFIG_BLINKY_BOOT_PATTERN_MS,
+        .boot_pattern_enabled = CONFIG_BLINKY_BOOT_PATTERN,
+        .log_intensity_enabled = log_intensity_enabled,
     };
 }
 

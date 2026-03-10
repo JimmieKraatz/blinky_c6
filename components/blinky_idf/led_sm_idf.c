@@ -5,7 +5,6 @@
 #include "esp_check.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
-#include "sdkconfig.h"
 
 #include "led_config_idf.h"
 #include "led_sm_idf.h"
@@ -25,9 +24,9 @@ static void apply_runtime_output(sm_led_ctx_t *ctx, const led_runtime_output_t *
     }
     if (out->write_brightness) {
         led_output_adapter_set_brightness(&ctx->led_output, out->brightness);
-#if CONFIG_BLINKY_LOG_INTENSITY
-        printf("LED %u%%\n", (unsigned)led_percent_from_brightness(out->brightness));
-#endif
+        if (ctx->platform_cfg.log_intensity_enabled) {
+            printf("LED %u%%\n", (unsigned)led_percent_from_brightness(out->brightness));
+        }
     }
 }
 
@@ -72,7 +71,7 @@ static const app_event_source_ops_t QUEUE_SOURCE_OPS = {
 
 static void led_show_startup_pattern(sm_led_ctx_t *ctx, led_wave_t wave)
 {
-#if CONFIG_BLINKY_BOOT_PATTERN
+    if (ctx->platform_cfg.boot_pattern_enabled) {
     int count = (int)wave + 1;
     for (int i = 0; i < count; ++i) {
         led_write(ctx, true);
@@ -80,10 +79,7 @@ static void led_show_startup_pattern(sm_led_ctx_t *ctx, led_wave_t wave)
         led_write(ctx, false);
         vTaskDelay(pdMS_TO_TICKS(ctx->platform_cfg.boot_pattern_ms));
     }
-#else
-    (void)ctx;
-    (void)wave;
-#endif
+    }
 }
 
 void led_sm_init(sm_led_ctx_t *ctx)

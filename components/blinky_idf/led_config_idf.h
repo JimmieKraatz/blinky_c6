@@ -11,6 +11,8 @@ typedef struct {
     button_pull_t button_pull;
     blinky_time_ms_t producer_poll_ms;
     int boot_pattern_ms;
+    bool boot_pattern_enabled;
+    bool log_intensity_enabled;
 } led_platform_config_t;
 
 void idf_build_platform_config(led_platform_config_t *cfg);
