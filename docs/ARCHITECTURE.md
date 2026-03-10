@@ -153,3 +153,59 @@ Boundary rules:
 - `_idf` may create/queue events, but should not encode core transition policy.
 - core may interpret events, but should not include platform headers or queue internals.
 - payloads must remain POD/fixed-size; no dynamic allocation in dispatch path.
+
+## Draft Consumer Contract
+Consumer entrypoint (draft):
+- `dispatch_event(app_ctx, app_event_t ev)`
+
+Consumer responsibilities:
+- Own state transitions (`RUNNING`, `PAUSED`, `MENU`).
+- Own model/policy updates in response to semantic events.
+- Emit output intents (`write_level`, `write_brightness`) for platform application.
+
+Consumer non-responsibilities:
+- Do not read/write GPIO directly.
+- Do not own queue internals or scheduler primitives.
+- Do not depend on FreeRTOS/HAL headers.
+
+Unhandled-event policy (draft):
+- Default behavior: ignore unhandled event and keep state unchanged.
+- Optional debug logging may occur in `_idf` integration layer.
+
+## Draft State/Event Mapping
+- `APP_EVENT_BOOT`
+  - `ANY -> RUNNING`
+  - Actions: initialize runtime, set LED baseline output.
+- `APP_EVENT_TICK`
+  - `RUNNING`: advance model; emit brightness if due.
+  - `PAUSED`: no model advance output.
+  - `MENU`: advance preview model; emit brightness if due.
+- `APP_EVENT_BUTTON_SHORT`
+  - `RUNNING -> PAUSED`
+  - `PAUSED -> RUNNING`
+  - `MENU -> MENU` (cycle selected wave; refresh preview)
+- `APP_EVENT_BUTTON_LONG`
+  - `RUNNING -> MENU` (remember return state `RUNNING`)
+  - `PAUSED -> MENU` (remember return state `PAUSED`)
+  - `MENU -> remembered return state`
+- `APP_EVENT_MENU_TIMEOUT` (optional)
+  - `MENU -> remembered return state`
+- `APP_EVENT_FAULT` (future)
+  - `ANY -> FAULT_SAFE` once fault state is introduced
+
+## Draft Consumer Graph
+```text
+                 BUTTON_LONG
+        +------------------------------+
+        |                              v
++---------+   BUTTON_SHORT   +---------+   BUTTON_LONG / TIMEOUT
+| RUNNING | <--------------> | PAUSED  | ----------------------+
++---------+                  +---------+                       |
+     |                           |                             |
+     +----------- BUTTON_LONG ---+                             |
+                     (enter MENU, remember return)             |
+                                                              v
+                                                          +--------+
+             BUTTON_SHORT (cycle wave) -----------------> | MENU   |
+                                                          +--------+
+```
