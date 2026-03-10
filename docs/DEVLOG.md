@@ -203,3 +203,5 @@ VS Code test tasks could omit `blinky_interfaces` tests, causing dispatcher test
   - revisit `sdkconfig` defaults vs runtime provisioning for future network features
 - Dedicated test-hardening branch:
   - strengthen async timing/overflow assertions without expanding refactor branch scope
+  - split build/link validation vs on-target assertion validation in workflow/docs
+  - require at least one on-device Unity run (`flash monitor` + `*`) before branch merge
