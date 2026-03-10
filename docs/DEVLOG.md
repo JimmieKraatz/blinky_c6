@@ -197,6 +197,25 @@ VS Code test tasks could omit `blinky_interfaces` tests, causing dispatcher test
 ### Notes
 - Escaping for `SDKCONFIG_DEFAULTS` remains `\\;` in JSON and validates correctly in task execution.
 
+## 2026-03-10 - Core extraction slices 1-4 completed
+### Context
+Completed planned core/framework extraction slices for event wiring, startup policy,
+wake ownership, and button timing policy ownership.
+
+### Changes
+- Slice 1: extracted core event construction policy (`led_event_factory.*`) and removed inline event defaults from `_idf`.
+- Slice 2: extracted startup wave selection policy (`led_startup_policy.*`) behind core-facing config.
+- Slice 3: moved wake/notify side-effects behind enqueue sink boundary; producer path now only publishes.
+- Slice 4: introduced core-facing button timing contract (`button_policy.*`) and mapped `sdkconfig` through `_idf`.
+
+### Verification
+- Build validation: app + unit-test-app builds pass after each slice.
+- On-target Unity run (user-reported):
+  - `72 Tests 0 Failures 0 Ignored`
+
+### Notes
+- This branch is now merge-ready for the extraction scope.
+
 ## Deferred TODOs
 - Logging boundary (deferred to separate branch):
   - introduce portable logging interface in `blinky_interfaces`
@@ -215,11 +234,7 @@ VS Code test tasks could omit `blinky_interfaces` tests, causing dispatcher test
   - add a small decision table in architecture docs to keep ownership decisions consistent
 
 ## Active extraction roadmap
-- Slice 1: extract core-owned wiring policy
-  - move core-meaningful orchestration defaults/config surfaces out of `_idf` for touched paths only
-- Slice 2: startup waveform policy to core-facing config input
-  - keep config source in `_idf`, but pass core-facing selection contract
-- Slice 3: isolate notify/wake policy on consumer side only
-  - producer publishes event without consumer-task details
-- Slice 4: button timing policy ownership cleanup
-  - keep timing logic contracts core-facing and framework config mapping in `_idf`
+- Slice 1: extract core-owned wiring policy (completed)
+- Slice 2: startup waveform policy to core-facing config input (completed)
+- Slice 3: isolate notify/wake policy on consumer side only (completed)
+- Slice 4: button timing policy ownership cleanup (completed)
