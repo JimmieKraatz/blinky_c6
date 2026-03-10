@@ -38,6 +38,65 @@ static inline void led_write(sm_led_ctx_t *ctx, bool on)
     led_output_adapter_write(&ctx->led_output, on);
 }
 
+static blinky_event_t app_event_to_blinky_event(app_event_type_t type)
+{
+    switch (type) {
+    case APP_EVENT_BUTTON_SHORT:
+        return BLINKY_EVENT_SHORT_PRESS;
+    case APP_EVENT_BUTTON_LONG:
+        return BLINKY_EVENT_LONG_PRESS;
+    case APP_EVENT_TICK:
+    case APP_EVENT_BOOT:
+    case APP_EVENT_NONE:
+    default:
+        return BLINKY_EVENT_NONE;
+    }
+}
+
+static app_event_type_t app_event_from_blinky_event(blinky_event_t ev)
+{
+    switch (ev) {
+    case BLINKY_EVENT_SHORT_PRESS:
+        return APP_EVENT_BUTTON_SHORT;
+    case BLINKY_EVENT_LONG_PRESS:
+        return APP_EVENT_BUTTON_LONG;
+    case BLINKY_EVENT_NONE:
+    default:
+        return APP_EVENT_TICK;
+    }
+}
+
+static void apply_runtime_output(sm_led_ctx_t *ctx, const led_runtime_output_t *out)
+{
+    if (out->write_level) {
+        led_write(ctx, out->level_on);
+    }
+    if (out->write_brightness) {
+        led_output_adapter_set_brightness(&ctx->led_output, out->brightness);
+#if CONFIG_BLINKY_LOG_INTENSITY
+        printf("LED %u%%\n", (unsigned)led_percent_from_brightness(out->brightness));
+#endif
+    }
+}
+
+static void dispatch_event(sm_led_ctx_t *ctx, const app_event_t *ev)
+{
+    led_runtime_output_t out = {0};
+    led_runtime_step(&ctx->runtime,
+                     ev->timestamp_ms,
+                     app_event_to_blinky_event(ev->type),
+                     &out);
+    apply_runtime_output(ctx, &out);
+}
+
+static void drain_event_queue(sm_led_ctx_t *ctx)
+{
+    app_event_t ev = {0};
+    while (app_event_queue_pop(&ctx->queue, &ev)) {
+        dispatch_event(ctx, &ev);
+    }
+}
+
 static void led_show_startup_pattern(sm_led_ctx_t *ctx, led_wave_t wave)
 {
 #if CONFIG_BLINKY_BOOT_PATTERN
@@ -96,33 +155,30 @@ void led_sm_init(sm_led_ctx_t *ctx)
         button_input_adapter_now_ms(&ctx->input),
         &out);
 
-    led_show_startup_pattern(ctx, ctx->runtime.model.wave);
+    app_event_queue_init(&ctx->queue);
+    /* Seed boot into the same producer/consumer pipeline used at runtime. */
+    (void)app_event_queue_push(&ctx->queue, &(app_event_t){
+        .type = APP_EVENT_BOOT,
+        .timestamp_ms = button_input_adapter_now_ms(&ctx->input),
+        .payload = {.u32 = 0},
+    });
 
-    if (out.write_level) {
-        led_write(ctx, out.level_on);
-    }
-    if (out.write_brightness) {
-        led_output_adapter_set_brightness(&ctx->led_output, out.brightness);
-    }
+    led_show_startup_pattern(ctx, ctx->runtime.model.wave);
+    apply_runtime_output(ctx, &out);
+    drain_event_queue(ctx);
 }
 
 void led_sm_step(sm_led_ctx_t *ctx)
 {
     vTaskDelay(pdMS_TO_TICKS(POLL_MS));
+    blinky_time_ms_t now = button_input_adapter_now_ms(&ctx->input);
+    blinky_event_t bev = button_input_adapter_poll_event(&ctx->input);
+    app_event_type_t type = app_event_from_blinky_event(bev);
 
-    led_runtime_output_t out = {0};
-    led_runtime_step(&ctx->runtime,
-                     button_input_adapter_now_ms(&ctx->input),
-                     button_input_adapter_poll_event(&ctx->input),
-                     &out);
-
-    if (out.write_level) {
-        led_write(ctx, out.level_on);
-    }
-    if (out.write_brightness) {
-        led_output_adapter_set_brightness(&ctx->led_output, out.brightness);
-#if CONFIG_BLINKY_LOG_INTENSITY
-        printf("LED %u%%\n", (unsigned)led_percent_from_brightness(out.brightness));
-#endif
-    }
+    (void)app_event_queue_push(&ctx->queue, &(app_event_t){
+        .type = type,
+        .timestamp_ms = now,
+        .payload = {.u32 = 0},
+    });
+    drain_event_queue(ctx);
 }
