@@ -3,6 +3,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#include "app_dispatcher.h"
 #include "app_event_queue.h"
 #include "button_input_adapter.h"
 #include "button_input_adapter_idf.h"
@@ -21,6 +22,7 @@ typedef struct {
     led_output_adapter_idf_t led_output_idf;
     led_runtime_t runtime;
     app_event_queue_t queue;
+    app_dispatcher_t dispatcher;
 } sm_led_ctx_t;
 
 /* Initialize LED hardware and enter initial LED FSM state. */

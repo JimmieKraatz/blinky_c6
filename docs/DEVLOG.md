@@ -74,7 +74,7 @@ Transition runtime orchestration from polling/step-loop style to event-driven HS
 
 ## 2026-03-09 - Adapter boundary extraction progress
 ### Context
-Completed the prepatory boundary work for LED and button to reduce coupling before event/HSM migration.
+Completed the preparatory boundary work for LED and button to reduce coupling before event/HSM migration.
 
 ### Changes
 - Moved LED orchestration into core runtime and left ESP-IDF shell in `led_sm_idf.*`.
@@ -131,3 +131,20 @@ After defining the event list, the next prep step was clarifying where queueing/
 
 ### Notes
 - This is still design prep, not HSM implementation.
+
+## 2026-03-10 - Dispatcher extracted to interfaces
+### Context
+After validating queue and consumer wiring, dispatcher mechanics were moved to the portable interfaces layer.
+
+### Changes
+- Added portable dispatcher contract and implementation to `components/blinky_interfaces/`:
+  - `app_dispatcher.h`
+  - `app_dispatcher.c`
+- Added dispatcher unit tests in `components/blinky_interfaces/test/test_app_dispatcher.c`.
+- Kept queue storage/mechanics in `blinky_idf` and rewired `led_sm_idf` to use `app_dispatcher`.
+
+### Notes
+- This keeps separation of concerns explicit:
+  - interfaces own dispatch contracts
+  - idf owns queue storage + hardware producers
+  - core owns event semantics

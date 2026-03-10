@@ -65,20 +65,30 @@ static void apply_runtime_output(sm_led_ctx_t *ctx, const led_runtime_output_t *
     }
 }
 
-static void dispatch_event(sm_led_ctx_t *ctx, const app_event_t *ev)
+static void dispatch_event(void *ctx, const app_event_t *ev)
 {
+    sm_led_ctx_t *sm = (sm_led_ctx_t *)ctx;
     led_runtime_output_t out = {0};
-    led_event_consumer_dispatch(&ctx->runtime, ev, &out);
-    apply_runtime_output(ctx, &out);
+    led_event_consumer_dispatch(&sm->runtime, ev, &out);
+    apply_runtime_output(sm, &out);
 }
 
-static void drain_event_queue(sm_led_ctx_t *ctx)
+static bool queue_pop(void *ctx, app_event_t *out)
 {
-    app_event_t ev = {0};
-    while (app_event_queue_pop(&ctx->queue, &ev)) {
-        dispatch_event(ctx, &ev);
-    }
+    app_event_queue_t *q = (app_event_queue_t *)ctx;
+    return app_event_queue_pop(q, out);
 }
+
+static uint32_t queue_dropped(void *ctx)
+{
+    app_event_queue_t *q = (app_event_queue_t *)ctx;
+    return app_event_queue_dropped(q);
+}
+
+static const app_event_source_ops_t QUEUE_SOURCE_OPS = {
+    .pop = queue_pop,
+    .dropped = queue_dropped,
+};
 
 static void led_show_startup_pattern(sm_led_ctx_t *ctx, led_wave_t wave)
 {
@@ -139,6 +149,13 @@ void led_sm_init(sm_led_ctx_t *ctx)
         &out);
 
     app_event_queue_init(&ctx->queue);
+    app_dispatcher_init(
+        &ctx->dispatcher,
+        &QUEUE_SOURCE_OPS,
+        &ctx->queue,
+        dispatch_event,
+        ctx);
+
     /* Seed boot into the same producer/consumer pipeline used at runtime. */
     (void)app_event_queue_push(&ctx->queue, &(app_event_t){
         .type = APP_EVENT_BOOT,
@@ -148,7 +165,7 @@ void led_sm_init(sm_led_ctx_t *ctx)
 
     led_show_startup_pattern(ctx, ctx->runtime.model.wave);
     apply_runtime_output(ctx, &out);
-    drain_event_queue(ctx);
+    (void)app_dispatcher_drain(&ctx->dispatcher, 0);
 }
 
 void led_sm_step(sm_led_ctx_t *ctx)
@@ -163,5 +180,5 @@ void led_sm_step(sm_led_ctx_t *ctx)
         .timestamp_ms = now,
         .payload = {.u32 = 0},
     });
-    drain_event_queue(ctx);
+    (void)app_dispatcher_drain(&ctx->dispatcher, 0);
 }

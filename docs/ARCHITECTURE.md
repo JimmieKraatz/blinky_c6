@@ -58,6 +58,8 @@ Tests are Unity-based and split by ownership:
 - `components/blinky_idf/test/test_button_idf.c`
 - `components/blinky_idf/test/test_button_input_adapter.c`
 - `components/blinky_idf/test/test_led_output_adapter.c`
+- `components/blinky_idf/test/test_app_event_queue.c`
+- `components/blinky_interfaces/test/test_app_dispatcher.c`
 
 Unit tests run via ESP-IDF Unit Test App with this repo injected through `EXTRA_COMPONENT_DIRS`.
 
@@ -74,7 +76,8 @@ Planned direction:
   - output adapters apply domain outputs to hardware
 - Use the HSM in `core_sm` as the primary orchestration mechanism.
 - Define explicit event contracts at module boundaries (button, timer tick, menu actions, control events).
-- Route events through a queue/dispatcher layer in `blinky_idf`, while keeping core logic portable.
+- Route events through a queue/dispatcher path with portable dispatcher contracts in `blinky_interfaces`
+  and queue/storage mechanics in `blinky_idf`.
 - Preserve current behavior parity while migrating (existing tests remain the guardrail).
 
 ## Draft Event Contract
@@ -122,7 +125,7 @@ Initial app-level event list (adjustable as behavior evolves):
 
 Ordering/dispatch rules:
 - Queue semantics: FIFO.
-- Tie-break: insertion order for same-timestamp events.
+- Tie-break: insertion order for same-timestamp events (relevant if timestamp-based resequencing is added).
 - Priority: none by default; any preemption rule (for example fault override) must be explicit in code/docs.
 
 ## Draft Dispatcher Shape And Ownership
@@ -135,13 +138,17 @@ Dispatcher shape (text diagram):
   - static ring buffer of `app_event_t`
   - FIFO push/pop
   - overflow/drop counter for diagnostics
+- Dispatcher contract (`blinky_interfaces`):
+  - portable drain/dispatch API (`app_dispatcher`)
 - Consumer (`core` orchestration via IDF shell):
-  - one `dispatch_event(app_ctx, app_event_t)` path
+  - one semantic event consumer path
   - runtime/HSM transition logic consumes semantic events only
 
 Struct ownership:
 - Event type definitions (`app_event_t`, `app_event_type_t`):
   - shared contract header (portable, no FreeRTOS/HAL types)
+- Dispatcher contracts/logic:
+  - shared portable layer in `blinky_interfaces`
 - Queue implementation + lifecycle:
   - `blinky_idf` owns allocation/storage policy and enqueue/dequeue APIs
 - Producer adapters:
