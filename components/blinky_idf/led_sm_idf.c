@@ -66,11 +66,21 @@ static bool queue_pop(void *ctx, app_event_t *out)
     return app_event_queue_pop(q, out);
 }
 
+static bool queue_push(void *ctx, const app_event_t *ev)
+{
+    app_event_queue_t *q = (app_event_queue_t *)ctx;
+    return app_event_queue_push(q, ev);
+}
+
 static uint32_t queue_dropped(void *ctx)
 {
     app_event_queue_t *q = (app_event_queue_t *)ctx;
     return app_event_queue_dropped(q);
 }
+
+static const app_event_sink_ops_t QUEUE_SINK_OPS = {
+    .push = queue_push,
+};
 
 static const app_event_source_ops_t QUEUE_SOURCE_OPS = {
     .pop = queue_pop,
@@ -136,6 +146,8 @@ void led_sm_init(sm_led_ctx_t *ctx)
         &out);
 
     app_event_queue_init(&ctx->queue);
+    ctx->sink_ops = &QUEUE_SINK_OPS;
+    ctx->sink_ctx = &ctx->queue;
     app_dispatcher_init(
         &ctx->dispatcher,
         &QUEUE_SOURCE_OPS,
@@ -145,7 +157,7 @@ void led_sm_init(sm_led_ctx_t *ctx)
     led_sm_consumer_task_start(ctx);
 
     /* Seed boot into the same producer/consumer pipeline used at runtime. */
-    if (app_event_queue_push(&ctx->queue, &(app_event_t){
+    if (led_sm_enqueue_event(ctx, &(app_event_t){
         .type = APP_EVENT_BOOT,
         .timestamp_ms = button_input_adapter_now_ms(&ctx->input),
         .payload = {.u32 = 0},
@@ -155,6 +167,14 @@ void led_sm_init(sm_led_ctx_t *ctx)
 
     led_show_startup_pattern(ctx, ctx->runtime.model.wave);
     apply_runtime_output(ctx, &out);
+}
+
+bool led_sm_enqueue_event(sm_led_ctx_t *ctx, const app_event_t *ev)
+{
+    if (!ctx || !ctx->sink_ops || !ctx->sink_ops->push) {
+        return false;
+    }
+    return ctx->sink_ops->push(ctx->sink_ctx, ev);
 }
 
 void led_sm_step(sm_led_ctx_t *ctx)

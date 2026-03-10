@@ -48,6 +48,15 @@ static uint32_t queue_dropped(void *ctx)
     return app_event_queue_dropped((app_event_queue_t *)ctx);
 }
 
+static bool queue_push(void *ctx, const app_event_t *ev)
+{
+    return app_event_queue_push((app_event_queue_t *)ctx, ev);
+}
+
+static const app_event_sink_ops_t QUEUE_SINK_OPS = {
+    .push = queue_push,
+};
+
 static const app_event_source_ops_t QUEUE_SOURCE_OPS = {
     .pop = queue_pop,
     .dropped = queue_dropped,
@@ -62,6 +71,8 @@ static void reset_async_ctx(void)
     g_async_consumer.count = 0;
     g_async_consumer.last_type = APP_EVENT_NONE;
     app_event_queue_init(&g_async_ctx.queue);
+    g_async_ctx.sink_ops = &QUEUE_SINK_OPS;
+    g_async_ctx.sink_ctx = &g_async_ctx.queue;
     app_dispatcher_init(&g_async_ctx.dispatcher,
                         &QUEUE_SOURCE_OPS,
                         &g_async_ctx.queue,
@@ -93,6 +104,8 @@ TEST_CASE("led sm producer maps short press to app event", "[led_sm_idf]")
     };
     ctx.input.ctx = &in;
     app_event_queue_init(&ctx.queue);
+    ctx.sink_ops = &QUEUE_SINK_OPS;
+    ctx.sink_ctx = &ctx.queue;
 
     led_sm_producer_step(&ctx);
 
@@ -118,6 +131,8 @@ TEST_CASE("led sm producer maps no event to tick", "[led_sm_idf]")
     };
     ctx.input.ctx = &in;
     app_event_queue_init(&ctx.queue);
+    ctx.sink_ops = &QUEUE_SINK_OPS;
+    ctx.sink_ctx = &ctx.queue;
 
     led_sm_producer_step(&ctx);
 

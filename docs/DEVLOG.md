@@ -196,3 +196,10 @@ VS Code test tasks could omit `blinky_interfaces` tests, causing dispatcher test
 
 ### Notes
 - Escaping for `SDKCONFIG_DEFAULTS` remains `\\;` in JSON and validates correctly in task execution.
+
+## Deferred TODOs
+- Bootstrap layering split:
+  - separate environment/bootstrap config concerns from runtime orchestration
+  - revisit `sdkconfig` defaults vs runtime provisioning for future network features
+- Dedicated test-hardening branch:
+  - strengthen async timing/overflow assertions without expanding refactor branch scope

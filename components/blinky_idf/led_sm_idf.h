@@ -23,6 +23,8 @@ typedef struct {
     led_output_adapter_idf_t led_output_idf;
     led_runtime_t runtime;
     app_event_queue_t queue;
+    const app_event_sink_ops_t *sink_ops;
+    void *sink_ctx;
     app_dispatcher_t dispatcher;
 } sm_led_ctx_t;
 
@@ -31,6 +33,8 @@ void led_sm_init(sm_led_ctx_t *ctx);
 
 /* Producer side: sample inputs and enqueue one semantic app event. */
 void led_sm_producer_step(sm_led_ctx_t *ctx);
+/* Push one app event through configured sink boundary. */
+bool led_sm_enqueue_event(sm_led_ctx_t *ctx, const app_event_t *ev);
 /* Consumer side: dispatch queued events (0 => drain all). */
 void led_sm_consumer_step(sm_led_ctx_t *ctx, size_t max_events);
 /* Start background consumer task and provide event wake-up signal. */
