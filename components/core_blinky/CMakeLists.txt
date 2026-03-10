@@ -5,6 +5,7 @@ idf_component_register(
         "led_policy.c"
         "led_runtime.c"
         "button_logic.c"
+        "button_policy.c"
         "led_event_consumer.c"
         "led_event_factory.c"
         "led_event_map.c"

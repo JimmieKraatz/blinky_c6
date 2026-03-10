@@ -210,6 +210,9 @@ VS Code test tasks could omit `blinky_interfaces` tests, causing dispatcher test
   - require at least one on-device Unity run (`flash monitor` + `*`) before branch merge
 - Fault/shutdown semantics (deferred):
   - define core-owned handling contract before adding platform producers
+- Defaults/config ownership review (deferred):
+  - audit each default/config and classify as core-facing policy vs framework-facing wiring
+  - add a small decision table in architecture docs to keep ownership decisions consistent
 
 ## Active extraction roadmap
 - Slice 1: extract core-owned wiring policy

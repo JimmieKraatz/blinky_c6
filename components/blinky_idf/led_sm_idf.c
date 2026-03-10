@@ -127,6 +127,11 @@ void led_sm_init(sm_led_ctx_t *ctx)
     pull = BUTTON_PULL_DOWN;
 #endif
 
+    button_policy_timing_t timing = button_policy_timing_normalize((button_policy_timing_t){
+        .debounce_count = DEBOUNCE_COUNT,
+        .long_press_ms = LONG_PRESS_MS,
+    });
+
     button_input_adapter_idf_init(
         &ctx->input,
         &ctx->input_idf,
@@ -134,8 +139,7 @@ void led_sm_init(sm_led_ctx_t *ctx)
             .gpio = BTN_GPIO,
             .active_low = CONFIG_BLINKY_BTN_ACTIVE_LOW,
             .pull = pull,
-            .debounce_count = DEBOUNCE_COUNT,
-            .long_press_ms = LONG_PRESS_MS,
+            .timing = timing,
         });
 
     led_runtime_output_t out = {0};
