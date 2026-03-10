@@ -288,6 +288,40 @@ Started a dedicated branch to address the remaining config/default ownership amb
 - Verifies stop semantics are safe when called repeatedly.
 - Guards against accidental event processing after consumer stop in async mode.
 
+## 2026-03-10 - Logging boundary branch kickoff
+### Branch
+- `refactor/logging-boundary-plan`
+
+### Intent
+- Introduce a clean logging boundary so core logic does not depend on ESP-IDF logging APIs/macros.
+- Keep behavior unchanged while clarifying ownership:
+  - core emits log intents through interfaces/contracts
+  - `_idf` decides sink, formatting, and output backend
+
+### Scope guardrails
+- In scope:
+  - interface contract for logging
+  - `_idf` logging adapter implementation
+  - wiring/mapping updates where direct framework logging is currently mixed into non-framework paths
+- Out of scope for this branch:
+  - new product features
+  - fault/shutdown behavior expansion
+  - large test-framework redesign
+
+### Planned slices
+- Slice 1: inventory and classify current logging callsites by ownership (`core`, `interfaces`, `_idf`).
+- Slice 2: add portable log contract in `blinky_interfaces` (levels + sink interface).
+- Slice 3: add ESP-IDF adapter in `blinky_idf` and route existing `_idf` logging through adapter.
+- Slice 4: migrate any core-adjacent callsites to boundary usage and remove direct framework leakage.
+- Slice 5: tests + docs pass:
+  - add/adjust unit tests for contract behavior and null-safe adapter behavior
+  - run build/test validation and update architecture/devlog ownership notes
+
+### Exit criteria
+- No core-owned module includes or depends on ESP-IDF logging headers/macros.
+- Logging behavior remains functionally equivalent at runtime.
+- Ownership docs reflect final boundary and TODOs are updated (moved to done or deferred explicitly).
+
 ## 2026-03-10 - Config ownership slice: mapper boundary introduced
 ### Changes
 - Added explicit `_idf` mapper functions:
