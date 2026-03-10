@@ -124,3 +124,32 @@ Ordering/dispatch rules:
 - Queue semantics: FIFO.
 - Tie-break: insertion order for same-timestamp events.
 - Priority: none by default; any preemption rule (for example fault override) must be explicit in code/docs.
+
+## Draft Dispatcher Shape And Ownership
+Dispatcher shape (text diagram):
+- Producers (`blinky_idf`):
+  - button input adapter -> `APP_EVENT_BUTTON_SHORT` / `APP_EVENT_BUTTON_LONG`
+  - tick source -> `APP_EVENT_TICK`
+  - boot path -> `APP_EVENT_BOOT`
+- Queue (`blinky_idf`):
+  - static ring buffer of `app_event_t`
+  - FIFO push/pop
+  - overflow/drop counter for diagnostics
+- Consumer (`core` orchestration via IDF shell):
+  - one `dispatch_event(app_ctx, app_event_t)` path
+  - runtime/HSM transition logic consumes semantic events only
+
+Struct ownership:
+- Event type definitions (`app_event_t`, `app_event_type_t`):
+  - shared contract header (portable, no FreeRTOS/HAL types)
+- Queue implementation + lifecycle:
+  - `blinky_idf` owns allocation/storage policy and enqueue/dequeue APIs
+- Producer adapters:
+  - `blinky_idf` owns conversion from hardware signals/ticks to semantic events
+- State transition semantics:
+  - core logic owns meaning/handling of events (`running`, `paused`, `menu`, etc.)
+
+Boundary rules:
+- `_idf` may create/queue events, but should not encode core transition policy.
+- core may interpret events, but should not include platform headers or queue internals.
+- payloads must remain POD/fixed-size; no dynamic allocation in dispatch path.

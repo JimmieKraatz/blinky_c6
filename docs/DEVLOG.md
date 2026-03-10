@@ -113,3 +113,21 @@ After boundary extraction, the next step is formalizing event semantics and owne
 
 ### Notes
 - This list is intentionally draft-level and may be reordered or trimmed without changing behavior contracts.
+
+## 2026-03-10 - Drafted dispatcher shape and ownership
+### Context
+After defining the event list, the next prep step was clarifying where queueing/dispatch logic lives.
+
+### Changes
+- Added dispatcher shape section to `docs/ARCHITECTURE.md`:
+  - producers in `blinky_idf`
+  - static FIFO ring queue in `blinky_idf`
+  - single dispatch path into core orchestration
+- Added struct ownership rules:
+  - shared portable event types
+  - platform-owned queue implementation
+  - core-owned event semantics/state transition handling
+- Added boundary guardrails to prevent policy leakage across layers.
+
+### Notes
+- This is still design prep, not HSM implementation.
