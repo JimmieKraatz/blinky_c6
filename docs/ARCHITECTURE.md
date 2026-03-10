@@ -82,42 +82,54 @@ Planned direction:
 
 ## Draft Event Contract
 Initial app-level event list (adjustable as behavior evolves):
+Current implementation status summary:
+- Implemented in production flow: `APP_EVENT_BOOT`, `APP_EVENT_TICK`, `APP_EVENT_BUTTON_SHORT`, `APP_EVENT_BUTTON_LONG`
+- Declared but not yet wired in production flow: `APP_EVENT_MENU_TIMEOUT`, `APP_EVENT_MODEL_STEP_DUE`, `APP_EVENT_FAULT`, `APP_EVENT_SHUTDOWN`
+
 - `APP_EVENT_BOOT`
+  - Status: implemented.
   - Producer: app startup sequence.
   - Consumer: app dispatcher/HSM root.
   - Payload: none.
   - Notes: one-shot initialization trigger.
 - `APP_EVENT_TICK`
+  - Status: implemented.
   - Producer: periodic timer/tick source.
   - Consumer: runtime/HSM update path.
   - Payload: optional timestamp.
   - Notes: FIFO ordered with other events.
 - `APP_EVENT_BUTTON_SHORT`
+  - Status: implemented.
   - Producer: button input adapter.
   - Consumer: runtime/HSM transition logic.
   - Payload: none.
   - Notes: semantic short-press event.
 - `APP_EVENT_BUTTON_LONG`
+  - Status: implemented.
   - Producer: button input adapter.
   - Consumer: runtime/HSM transition logic.
   - Payload: none.
   - Notes: semantic long-press event.
 - `APP_EVENT_MENU_TIMEOUT` (optional)
+  - Status: declared, not wired.
   - Producer: timer policy for menu inactivity.
   - Consumer: menu state logic.
   - Payload: optional timeout reason.
   - Notes: can be deferred until menu timeout behavior is implemented.
 - `APP_EVENT_MODEL_STEP_DUE` (optional)
+  - Status: declared, not wired.
   - Producer: scheduler/timing policy.
   - Consumer: model update path.
   - Payload: optional step timestamp.
   - Notes: may remain collapsed into `APP_EVENT_TICK` if not needed.
 - `APP_EVENT_FAULT` (future)
+  - Status: declared, not wired.
   - Producer: diagnostics/safety checks.
   - Consumer: fault/safe state handling.
   - Payload: fault code.
   - Notes: priority semantics should be explicit if/when added.
 - `APP_EVENT_SHUTDOWN` (future)
+  - Status: declared, not wired.
   - Producer: power/control policy.
   - Consumer: orderly stop path.
   - Payload: optional reason code.
