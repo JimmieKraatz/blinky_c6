@@ -4,6 +4,9 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include "freertos/FreeRTOS.h"
+#include "freertos/queue.h"
+
 #include "app_event.h"
 
 #ifndef APP_EVENT_QUEUE_CAPACITY
@@ -11,10 +14,9 @@
 #endif
 
 typedef struct {
-    app_event_t items[APP_EVENT_QUEUE_CAPACITY];
-    uint8_t head;
-    uint8_t tail;
-    uint8_t count;
+    StaticQueue_t queue_storage;
+    QueueHandle_t handle;
+    uint8_t item_storage[APP_EVENT_QUEUE_CAPACITY * sizeof(app_event_t)];
     uint32_t dropped;
 } app_event_queue_t;
 

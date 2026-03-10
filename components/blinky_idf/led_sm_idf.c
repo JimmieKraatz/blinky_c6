@@ -39,19 +39,6 @@ static inline void led_write(sm_led_ctx_t *ctx, bool on)
     led_output_adapter_write(&ctx->led_output, on);
 }
 
-static app_event_type_t app_event_from_blinky_event(blinky_event_t ev)
-{
-    switch (ev) {
-    case BLINKY_EVENT_SHORT_PRESS:
-        return APP_EVENT_BUTTON_SHORT;
-    case BLINKY_EVENT_LONG_PRESS:
-        return APP_EVENT_BUTTON_LONG;
-    case BLINKY_EVENT_NONE:
-    default:
-        return APP_EVENT_TICK;
-    }
-}
-
 static void apply_runtime_output(sm_led_ctx_t *ctx, const led_runtime_output_t *out)
 {
     if (out->write_level) {
@@ -155,30 +142,23 @@ void led_sm_init(sm_led_ctx_t *ctx)
         &ctx->queue,
         dispatch_event,
         ctx);
+    led_sm_consumer_task_start(ctx);
 
     /* Seed boot into the same producer/consumer pipeline used at runtime. */
-    (void)app_event_queue_push(&ctx->queue, &(app_event_t){
+    if (app_event_queue_push(&ctx->queue, &(app_event_t){
         .type = APP_EVENT_BOOT,
         .timestamp_ms = button_input_adapter_now_ms(&ctx->input),
         .payload = {.u32 = 0},
-    });
+    })) {
+        led_sm_consumer_task_notify(ctx);
+    }
 
     led_show_startup_pattern(ctx, ctx->runtime.model.wave);
     apply_runtime_output(ctx, &out);
-    (void)app_dispatcher_drain(&ctx->dispatcher, 0);
 }
 
 void led_sm_step(sm_led_ctx_t *ctx)
 {
     vTaskDelay(pdMS_TO_TICKS(POLL_MS));
-    blinky_time_ms_t now = button_input_adapter_now_ms(&ctx->input);
-    blinky_event_t bev = button_input_adapter_poll_event(&ctx->input);
-    app_event_type_t type = app_event_from_blinky_event(bev);
-
-    (void)app_event_queue_push(&ctx->queue, &(app_event_t){
-        .type = type,
-        .timestamp_ms = now,
-        .payload = {.u32 = 0},
-    });
-    (void)app_dispatcher_drain(&ctx->dispatcher, 0);
+    led_sm_producer_step(ctx);
 }

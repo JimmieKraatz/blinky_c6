@@ -64,6 +64,27 @@ Notes:
 - Queue and dispatcher are present now, but dispatch is still immediate in the same loop cycle (parity mode).
 - This preserves prior behavior while enabling a later move to asynchronous/task-based consumption.
 
+## Next Slice: Async Producer/Consumer Split
+Planned implementation direction:
+1. Keep producer cadence at `POLL_MS` (10 ms currently):
+   - sample button/tick
+   - enqueue semantic `app_event_t`
+2. Move consumer to dedicated event-driven loop/task:
+   - block/wait on queue availability
+   - dispatch via `app_dispatcher`
+   - apply runtime output intents to hardware adapters
+3. Keep core semantics unchanged:
+   - `led_event_consumer` + `led_runtime` remain framework-agnostic
+4. Add instrumentation for queue behavior:
+   - max occupancy (high-water mark)
+   - dropped count
+   - optional dispatch latency probes
+
+Guardrails for this slice:
+- Preserve current user-visible behavior.
+- Avoid dynamic allocation in dispatch path.
+- Keep queue storage/mechanics in `blinky_idf`.
+
 ## Configuration
 Menuconfig path: `Component config -> Blinky` (from `components/blinky_idf/Kconfig`).
 
