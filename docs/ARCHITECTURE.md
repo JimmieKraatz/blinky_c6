@@ -34,6 +34,36 @@ Default pins:
 - LED output: `GPIO_NUM_14` (PWM, active-low, 5 kHz)
 - Button input: `GPIO_NUM_9` (active-low with pull-up)
 
+## Current Execution Flow
+Implemented flow today (poll-driven with event dispatch path):
+1. `main/main.c`
+   - calls `led_sm_init(&ctx)`
+   - loops forever calling `led_sm_step(&ctx)`
+2. `led_sm_init` (`blinky_idf`)
+   - initializes IDF adapters (button input, LED output)
+   - initializes core runtime (`led_runtime_init`)
+   - initializes app queue + dispatcher
+   - enqueues `APP_EVENT_BOOT` and drains dispatcher
+3. `led_sm_step` (`blinky_idf`)
+   - waits `POLL_MS` (`vTaskDelay`)
+   - reads semantic button event from input adapter
+   - maps to one app event (`APP_EVENT_BUTTON_SHORT`, `APP_EVENT_BUTTON_LONG`, or `APP_EVENT_TICK`)
+   - enqueues event into `app_event_queue`
+   - drains dispatcher (`app_dispatcher_drain(..., 0)`)
+4. `app_dispatcher` (`blinky_interfaces`)
+   - pops queued events from source ops
+   - invokes consumer callback per event
+5. `led_event_consumer` (`core_blinky`)
+   - maps app events to runtime semantic events
+   - calls `led_runtime_step`
+6. Output application (`blinky_idf`)
+   - applies runtime output intents via LED output adapter
+   - optional intensity log print
+
+Notes:
+- Queue and dispatcher are present now, but dispatch is still immediate in the same loop cycle (parity mode).
+- This preserves prior behavior while enabling a later move to asynchronous/task-based consumption.
+
 ## Configuration
 Menuconfig path: `Component config -> Blinky` (from `components/blinky_idf/Kconfig`).
 
