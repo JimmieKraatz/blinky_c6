@@ -148,3 +148,18 @@ After validating queue and consumer wiring, dispatcher mechanics were moved to t
   - interfaces own dispatch contracts
   - idf owns queue storage + hardware producers
   - core owns event semantics
+
+## 2026-03-10 - Next implementation branch: async producer/consumer split
+### Context
+Event contract, queue, dispatcher, and core consumer extraction are merged and stable on `develop`.
+Current execution is still parity mode (enqueue + immediate drain in same loop).
+
+### Plan
+- Create dedicated branch for async split.
+- Keep producer path time-gated (`POLL_MS`) in `blinky_idf`.
+- Move consumer dispatch to dedicated event-driven loop/task.
+- Preserve core event semantics and adapter boundaries.
+- Add queue high-water instrumentation before capacity tuning.
+
+### Notes
+- Queue capacity remains provisional during this slice and will be tuned from observed usage.
