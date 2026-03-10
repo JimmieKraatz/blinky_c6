@@ -232,6 +232,9 @@ wake ownership, and button timing policy ownership.
 - Defaults/config ownership review (deferred):
   - audit each default/config and classify as core-facing policy vs framework-facing wiring
   - add a small decision table in architecture docs to keep ownership decisions consistent
+- Pause behavior policy decision (deferred):
+  - decide whether `PAUSED` should freeze LED at current brightness or force LED off
+  - document rationale and align tests with final behavior
 
 ## Active extraction roadmap
 - Slice 1: extract core-owned wiring policy (completed)
@@ -251,3 +254,29 @@ Started a dedicated branch to address the remaining config/default ownership amb
 - Split `BLINKY_POLL_MS` into:
   - framework producer cadence knob (`_idf` loop delay)
   - core model cadence knob (`core_blinky` model config input)
+
+## 2026-03-10 - Config ownership: poll cadence split
+### Changes
+- Split mixed `BLINKY_POLL_MS` into:
+  - `BLINKY_PRODUCER_POLL_MS` (framework scheduler cadence)
+  - `BLINKY_MODEL_POLL_MS` (core model cadence input)
+- Updated `led_sm_idf` wiring so producer delay and model cadence are independently configured.
+- Updated architecture docs/table to reflect the new ownership boundary.
+
+### Why
+- Removes coupling between task scheduling cadence and model behavior cadence.
+- Makes future tuning safer (UI responsiveness vs model fidelity can be tuned independently).
+
+## 2026-03-10 - Lifecycle boundary slice: explicit start/stop
+### Changes
+- Added explicit lifecycle APIs:
+  - `led_sm_start(...)`
+  - `led_sm_stop(...)`
+  - `led_sm_consumer_task_stop(...)`
+- Kept backward compatibility by having `led_sm_init(...)` call `led_sm_start(...)`.
+- Added targeted lifecycle test:
+  - `led sm stop lifecycle is idempotent`
+
+### Test intent
+- Verifies stop semantics are safe when called repeatedly.
+- Guards against accidental event processing after consumer stop in async mode.

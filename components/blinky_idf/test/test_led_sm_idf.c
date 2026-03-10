@@ -101,6 +101,7 @@ static void ensure_async_task_started(void)
     }
     reset_async_ctx();
     led_sm_consumer_task_start(&g_async_ctx);
+    g_async_ctx.started = true;
     g_async_started = true;
 }
 
@@ -258,4 +259,21 @@ TEST_CASE("led sm consumer task drains burst on single notify", "[led_sm_idf]")
 
     TEST_ASSERT_EQUAL_UINT32(3, g_async_consumer.count);
     TEST_ASSERT_TRUE(app_event_queue_is_empty(&g_async_ctx.queue));
+}
+
+TEST_CASE("led sm stop lifecycle is idempotent", "[led_sm_idf]")
+{
+    ensure_async_task_started();
+    reset_async_ctx();
+
+    TEST_ASSERT_TRUE(g_async_ctx.started);
+    led_sm_stop(&g_async_ctx);
+    TEST_ASSERT_FALSE(g_async_ctx.started);
+    led_sm_stop(&g_async_ctx);
+    TEST_ASSERT_FALSE(g_async_ctx.started);
+
+    TEST_ASSERT_TRUE(app_event_queue_push(&g_async_ctx.queue, &(app_event_t){.type = APP_EVENT_TICK}));
+    led_sm_consumer_task_notify(&g_async_ctx);
+    vTaskDelay(1);
+    TEST_ASSERT_EQUAL_UINT32(0, g_async_consumer.count);
 }

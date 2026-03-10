@@ -165,13 +165,9 @@ void led_sm_init(sm_led_ctx_t *ctx)
         &ctx->queue,
         dispatch_event,
         ctx);
-    led_sm_consumer_task_start(ctx);
+    ctx->started = false;
+    led_sm_start(ctx);
 
-    /* Seed boot into the same producer/consumer pipeline used at runtime. */
-    app_event_t boot = led_event_factory_boot(button_input_adapter_now_ms(&ctx->input));
-    (void)led_sm_enqueue_event(ctx, &boot);
-
-    led_show_startup_pattern(ctx, ctx->runtime.model.wave);
     apply_runtime_output(ctx, &out);
 }
 
@@ -187,4 +183,30 @@ void led_sm_step(sm_led_ctx_t *ctx)
 {
     vTaskDelay(pdMS_TO_TICKS(PRODUCER_POLL_MS));
     led_sm_producer_step(ctx);
+}
+
+void led_sm_start(sm_led_ctx_t *ctx)
+{
+    if (!ctx || ctx->started) {
+        return;
+    }
+
+    led_sm_consumer_task_start(ctx);
+
+    /* Seed boot into the same producer/consumer pipeline used at runtime. */
+    app_event_t boot = led_event_factory_boot(button_input_adapter_now_ms(&ctx->input));
+    (void)led_sm_enqueue_event(ctx, &boot);
+
+    led_show_startup_pattern(ctx, ctx->runtime.model.wave);
+    ctx->started = true;
+}
+
+void led_sm_stop(sm_led_ctx_t *ctx)
+{
+    if (!ctx || !ctx->started) {
+        return;
+    }
+
+    led_sm_consumer_task_stop(ctx);
+    ctx->started = false;
 }
