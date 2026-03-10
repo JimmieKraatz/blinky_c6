@@ -198,6 +198,9 @@ VS Code test tasks could omit `blinky_interfaces` tests, causing dispatcher test
 - Escaping for `SDKCONFIG_DEFAULTS` remains `\\;` in JSON and validates correctly in task execution.
 
 ## Deferred TODOs
+- Logging boundary (deferred to separate branch):
+  - introduce portable logging interface in `blinky_interfaces`
+  - add ESP-IDF logging adapter in `blinky_idf`
 - Bootstrap layering split:
   - separate environment/bootstrap config concerns from runtime orchestration
   - revisit `sdkconfig` defaults vs runtime provisioning for future network features
@@ -205,3 +208,15 @@ VS Code test tasks could omit `blinky_interfaces` tests, causing dispatcher test
   - strengthen async timing/overflow assertions without expanding refactor branch scope
   - split build/link validation vs on-target assertion validation in workflow/docs
   - require at least one on-device Unity run (`flash monitor` + `*`) before branch merge
+- Fault/shutdown semantics (deferred):
+  - define core-owned handling contract before adding platform producers
+
+## Active extraction roadmap
+- Slice 1: extract core-owned wiring policy
+  - move core-meaningful orchestration defaults/config surfaces out of `_idf` for touched paths only
+- Slice 2: startup waveform policy to core-facing config input
+  - keep config source in `_idf`, but pass core-facing selection contract
+- Slice 3: isolate notify/wake policy on consumer side only
+  - producer publishes event without consumer-task details
+- Slice 4: button timing policy ownership cleanup
+  - keep timing logic contracts core-facing and framework config mapping in `_idf`
