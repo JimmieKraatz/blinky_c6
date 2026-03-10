@@ -35,7 +35,7 @@ Default pins:
 - Button input: `GPIO_NUM_9` (active-low with pull-up)
 
 ## Current Execution Flow
-Implemented flow today (poll-driven with event dispatch path):
+Implemented flow today (poll producer + async consumer task):
 1. `main/main.c`
    - calls `led_sm_init(&ctx)`
    - loops forever calling `led_sm_step(&ctx)`
@@ -43,15 +43,17 @@ Implemented flow today (poll-driven with event dispatch path):
    - initializes IDF adapters (button input, LED output)
    - initializes core runtime (`led_runtime_init`)
    - initializes app queue + dispatcher
-   - enqueues `APP_EVENT_BOOT` and drains dispatcher
+   - starts consumer task (`led_sm_consumer_task_start`)
+   - enqueues `APP_EVENT_BOOT` and notifies consumer task
 3. `led_sm_step` (`blinky_idf`)
    - waits `POLL_MS` (`vTaskDelay`)
    - reads semantic button event from input adapter
    - maps to one app event (`APP_EVENT_BUTTON_SHORT`, `APP_EVENT_BUTTON_LONG`, or `APP_EVENT_TICK`)
    - enqueues event into `app_event_queue`
-   - drains dispatcher (`app_dispatcher_drain(..., 0)`)
+   - notifies consumer task on successful enqueue
 4. `app_dispatcher` (`blinky_interfaces`)
-   - pops queued events from source ops
+   - runs in consumer task context
+   - drains queued events from source ops
    - invokes consumer callback per event
 5. `led_event_consumer` (`core_blinky`)
    - maps app events to runtime semantic events
@@ -61,29 +63,20 @@ Implemented flow today (poll-driven with event dispatch path):
    - optional intensity log print
 
 Notes:
-- Queue and dispatcher are present now, but dispatch is still immediate in the same loop cycle (parity mode).
-- This preserves prior behavior while enabling a later move to asynchronous/task-based consumption.
+- Queue backend uses a static FreeRTOS queue implementation (no dynamic allocation).
+- Consumer blocks on task notification and drains queue on wake-up.
+- Producer remains time-gated at `POLL_MS` cadence.
 
-## Next Slice: Async Producer/Consumer Split
+## Next Slice: Lifecycle and Backpressure
 Planned implementation direction:
-1. Keep producer cadence at `POLL_MS` (10 ms currently):
-   - sample button/tick
-   - enqueue semantic `app_event_t`
-2. Move consumer to dedicated event-driven loop/task:
-   - block/wait on queue availability
-   - dispatch via `app_dispatcher`
-   - apply runtime output intents to hardware adapters
-3. Keep core semantics unchanged:
-   - `led_event_consumer` + `led_runtime` remain framework-agnostic
-4. Add instrumentation for queue behavior:
+1. Add explicit `led_sm_idf` lifecycle boundaries (`start/stop` semantics).
+2. Finalize overflow/backpressure policy (drop behavior + counters).
+3. Add queue/dispatch instrumentation:
    - max occupancy (high-water mark)
-   - dropped count
+   - dropped count exposure
    - optional dispatch latency probes
-
-Guardrails for this slice:
-- Preserve current user-visible behavior.
-- Avoid dynamic allocation in dispatch path.
-- Keep queue storage/mechanics in `blinky_idf`.
+4. Keep core semantics unchanged:
+   - `led_event_consumer` + `led_runtime` remain framework-agnostic
 
 ## Configuration
 Menuconfig path: `Component config -> Blinky` (from `components/blinky_idf/Kconfig`).
