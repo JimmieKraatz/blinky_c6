@@ -3,8 +3,9 @@
 ## Overview
 This project is split into portable core logic and ESP-IDF-specific integration:
 - `components/core_sm`: framework-agnostic FSM/HSM engines
-- `components/core_blinky`: framework-agnostic blinky model/menu logic
-- `components/blinky_idf`: ESP-IDF + hardware integration (button, LED PWM, app state machine)
+- `components/core_blinky`: framework-agnostic blinky model/policy/runtime logic
+- `components/blinky_interfaces`: framework-agnostic adapter contracts
+- `components/blinky_idf`: ESP-IDF + hardware integration/adapters (button, LED PWM, app shell)
 
 The app entry point (`main/main.c`) initializes the LED state machine and steps it in a loop.
 
@@ -13,8 +14,9 @@ Goal: isolate reusable logic from ESP-IDF/HAL code so core behavior can be teste
 
 Migration map:
 - `components/blinky/fsm_engine.h` -> `components/core_sm/fsm_engine.h`
-- `components/blinky/led_model.*` + `menu_logic.*` -> `components/core_blinky/`
-- `components/blinky/button.*` + `led_sm.*` + Kconfig integration -> `components/blinky_idf/`
+- `components/blinky/led_model.*` + `menu_logic.*` + policy/runtime orchestration -> `components/core_blinky/`
+- generic adapter contracts -> `components/blinky_interfaces/`
+- ESP-IDF wrappers (`*_idf.*`, app shell, Kconfig integration) -> `components/blinky_idf/`
 - Unit tests moved with ownership:
   - `core_sm/test/*`
   - `core_blinky/test/*`
@@ -50,7 +52,14 @@ Tests are Unity-based and split by ownership:
 - `components/core_sm/test/test_hsm_engine.c`
 - `components/core_blinky/test/test_led_model.c`
 - `components/core_blinky/test/test_menu_logic.c`
-- `components/blinky_idf/test/test_button.c`
+- `components/core_blinky/test/test_led_policy.c`
+- `components/core_blinky/test/test_led_runtime.c`
+- `components/core_blinky/test/test_button_logic.c`
+- `components/blinky_idf/test/test_button_idf.c`
+- `components/blinky_idf/test/test_button_input_adapter.c`
+- `components/blinky_idf/test/test_led_output_adapter.c`
+- `components/blinky_idf/test/test_app_event_queue.c`
+- `components/blinky_interfaces/test/test_app_dispatcher.c`
 
 Unit tests run via ESP-IDF Unit Test App with this repo injected through `EXTRA_COMPONENT_DIRS`.
 
@@ -62,10 +71,160 @@ The next architectural step is moving from the current polling/step-loop orchest
 to an event-driven model.
 
 Planned direction:
-- Introduce input/output adapter boundaries first (preparatory phase):
+- Keep adapter boundaries explicit:
   - input adapters produce semantic app events
   - output adapters apply domain outputs to hardware
 - Use the HSM in `core_sm` as the primary orchestration mechanism.
 - Define explicit event contracts at module boundaries (button, timer tick, menu actions, control events).
-- Route events through a queue/dispatcher layer in `blinky_idf`, while keeping core logic portable.
+- Route events through a queue/dispatcher path with portable dispatcher contracts in `blinky_interfaces`
+  and queue/storage mechanics in `blinky_idf`.
 - Preserve current behavior parity while migrating (existing tests remain the guardrail).
+
+## Draft Event Contract
+Initial app-level event list (adjustable as behavior evolves):
+Current implementation status summary:
+- Implemented in production flow: `APP_EVENT_BOOT`, `APP_EVENT_TICK`, `APP_EVENT_BUTTON_SHORT`, `APP_EVENT_BUTTON_LONG`
+- Declared but not yet wired in production flow: `APP_EVENT_MENU_TIMEOUT`, `APP_EVENT_MODEL_STEP_DUE`, `APP_EVENT_FAULT`, `APP_EVENT_SHUTDOWN`
+
+- `APP_EVENT_BOOT`
+  - Status: implemented.
+  - Producer: app startup sequence.
+  - Consumer: app dispatcher/HSM root.
+  - Payload: none.
+  - Notes: one-shot initialization trigger.
+- `APP_EVENT_TICK`
+  - Status: implemented.
+  - Producer: periodic timer/tick source.
+  - Consumer: runtime/HSM update path.
+  - Payload: optional timestamp.
+  - Notes: FIFO ordered with other events.
+- `APP_EVENT_BUTTON_SHORT`
+  - Status: implemented.
+  - Producer: button input adapter.
+  - Consumer: runtime/HSM transition logic.
+  - Payload: none.
+  - Notes: semantic short-press event.
+- `APP_EVENT_BUTTON_LONG`
+  - Status: implemented.
+  - Producer: button input adapter.
+  - Consumer: runtime/HSM transition logic.
+  - Payload: none.
+  - Notes: semantic long-press event.
+- `APP_EVENT_MENU_TIMEOUT` (optional)
+  - Status: declared, not wired.
+  - Producer: timer policy for menu inactivity.
+  - Consumer: menu state logic.
+  - Payload: optional timeout reason.
+  - Notes: can be deferred until menu timeout behavior is implemented.
+- `APP_EVENT_MODEL_STEP_DUE` (optional)
+  - Status: declared, not wired.
+  - Producer: scheduler/timing policy.
+  - Consumer: model update path.
+  - Payload: optional step timestamp.
+  - Notes: may remain collapsed into `APP_EVENT_TICK` if not needed.
+- `APP_EVENT_FAULT` (future)
+  - Status: declared, not wired.
+  - Producer: diagnostics/safety checks.
+  - Consumer: fault/safe state handling.
+  - Payload: fault code.
+  - Notes: priority semantics should be explicit if/when added.
+- `APP_EVENT_SHUTDOWN` (future)
+  - Status: declared, not wired.
+  - Producer: power/control policy.
+  - Consumer: orderly stop path.
+  - Payload: optional reason code.
+  - Notes: reserved for later power-mode work.
+
+Ordering/dispatch rules:
+- Queue semantics: FIFO.
+- Tie-break: insertion order for same-timestamp events (relevant if timestamp-based resequencing is added).
+- Priority: none by default; any preemption rule (for example fault override) must be explicit in code/docs.
+
+## Draft Dispatcher Shape And Ownership
+Dispatcher shape (text diagram):
+- Producers (`blinky_idf`):
+  - button input adapter -> `APP_EVENT_BUTTON_SHORT` / `APP_EVENT_BUTTON_LONG`
+  - tick source -> `APP_EVENT_TICK`
+  - boot path -> `APP_EVENT_BOOT`
+- Queue (`blinky_idf`):
+  - static ring buffer of `app_event_t`
+  - FIFO push/pop
+  - overflow/drop counter for diagnostics
+- Dispatcher contract (`blinky_interfaces`):
+  - portable drain/dispatch API (`app_dispatcher`)
+- Consumer (`core` orchestration via IDF shell):
+  - one semantic event consumer path
+  - runtime/HSM transition logic consumes semantic events only
+
+Struct ownership:
+- Event type definitions (`app_event_t`, `app_event_type_t`):
+  - shared contract header (portable, no FreeRTOS/HAL types)
+- Dispatcher contracts/logic:
+  - shared portable layer in `blinky_interfaces`
+- Queue implementation + lifecycle:
+  - `blinky_idf` owns allocation/storage policy and enqueue/dequeue APIs
+- Producer adapters:
+  - `blinky_idf` owns conversion from hardware signals/ticks to semantic events
+- State transition semantics:
+  - core logic owns meaning/handling of events (`running`, `paused`, `menu`, etc.)
+
+Boundary rules:
+- `_idf` may create/queue events, but should not encode core transition policy.
+- core may interpret events, but should not include platform headers or queue internals.
+- payloads must remain POD/fixed-size; no dynamic allocation in dispatch path.
+
+## Draft Consumer Contract
+Consumer entrypoint (draft):
+- `dispatch_event(app_ctx, app_event_t ev)`
+
+Consumer responsibilities:
+- Own state transitions (`RUNNING`, `PAUSED`, `MENU`).
+- Own model/policy updates in response to semantic events.
+- Emit output intents (`write_level`, `write_brightness`) for platform application.
+
+Consumer non-responsibilities:
+- Do not read/write GPIO directly.
+- Do not own queue internals or scheduler primitives.
+- Do not depend on FreeRTOS/HAL headers.
+
+Unhandled-event policy (draft):
+- Default behavior: ignore unhandled event and keep state unchanged.
+- Optional debug logging may occur in `_idf` integration layer.
+
+## Draft State/Event Mapping
+- `APP_EVENT_BOOT`
+  - `ANY -> RUNNING`
+  - Actions: initialize runtime, set LED baseline output.
+- `APP_EVENT_TICK`
+  - `RUNNING`: advance model; emit brightness if due.
+  - `PAUSED`: no model advance output.
+  - `MENU`: advance preview model; emit brightness if due.
+- `APP_EVENT_BUTTON_SHORT`
+  - `RUNNING -> PAUSED`
+  - `PAUSED -> RUNNING`
+  - `MENU -> MENU` (cycle selected wave; refresh preview)
+- `APP_EVENT_BUTTON_LONG`
+  - `RUNNING -> MENU` (remember return state `RUNNING`)
+  - `PAUSED -> MENU` (remember return state `PAUSED`)
+  - `MENU -> remembered return state`
+- `APP_EVENT_MENU_TIMEOUT` (optional)
+  - `MENU -> remembered return state`
+- `APP_EVENT_FAULT` (future)
+  - `ANY -> FAULT_SAFE` once fault state is introduced
+
+## Draft Consumer Graph
+```text
+                 BUTTON_LONG
+        +------------------------------+
+        |                              v
++---------+   BUTTON_SHORT   +---------+   BUTTON_LONG / TIMEOUT
+| RUNNING | <--------------> | PAUSED  | ----------------------+
++---------+                  +---------+                       |
+     |                           |                             |
+     +----------- BUTTON_LONG ---+                             |
+                     (enter MENU, remember return)             |
+                                                              v
+                                                          +--------+
+             BUTTON_SHORT (cycle wave) -----------------> | MENU   |
+                                                          +--------+
+```

@@ -8,6 +8,7 @@
 #include "sdkconfig.h"
 
 #include "led_sm_idf.h"
+#include "led_event_consumer.h"
 
 #define LED_GPIO ((gpio_num_t)CONFIG_BLINKY_LED_GPIO)
 #define BTN_GPIO ((gpio_num_t)CONFIG_BLINKY_BTN_GPIO)
@@ -37,6 +38,57 @@ static inline void led_write(sm_led_ctx_t *ctx, bool on)
 {
     led_output_adapter_write(&ctx->led_output, on);
 }
+
+static app_event_type_t app_event_from_blinky_event(blinky_event_t ev)
+{
+    switch (ev) {
+    case BLINKY_EVENT_SHORT_PRESS:
+        return APP_EVENT_BUTTON_SHORT;
+    case BLINKY_EVENT_LONG_PRESS:
+        return APP_EVENT_BUTTON_LONG;
+    case BLINKY_EVENT_NONE:
+    default:
+        return APP_EVENT_TICK;
+    }
+}
+
+static void apply_runtime_output(sm_led_ctx_t *ctx, const led_runtime_output_t *out)
+{
+    if (out->write_level) {
+        led_write(ctx, out->level_on);
+    }
+    if (out->write_brightness) {
+        led_output_adapter_set_brightness(&ctx->led_output, out->brightness);
+#if CONFIG_BLINKY_LOG_INTENSITY
+        printf("LED %u%%\n", (unsigned)led_percent_from_brightness(out->brightness));
+#endif
+    }
+}
+
+static void dispatch_event(void *ctx, const app_event_t *ev)
+{
+    sm_led_ctx_t *sm = (sm_led_ctx_t *)ctx;
+    led_runtime_output_t out = {0};
+    led_event_consumer_dispatch(&sm->runtime, ev, &out);
+    apply_runtime_output(sm, &out);
+}
+
+static bool queue_pop(void *ctx, app_event_t *out)
+{
+    app_event_queue_t *q = (app_event_queue_t *)ctx;
+    return app_event_queue_pop(q, out);
+}
+
+static uint32_t queue_dropped(void *ctx)
+{
+    app_event_queue_t *q = (app_event_queue_t *)ctx;
+    return app_event_queue_dropped(q);
+}
+
+static const app_event_source_ops_t QUEUE_SOURCE_OPS = {
+    .pop = queue_pop,
+    .dropped = queue_dropped,
+};
 
 static void led_show_startup_pattern(sm_led_ctx_t *ctx, led_wave_t wave)
 {
@@ -96,33 +148,37 @@ void led_sm_init(sm_led_ctx_t *ctx)
         button_input_adapter_now_ms(&ctx->input),
         &out);
 
-    led_show_startup_pattern(ctx, ctx->runtime.model.wave);
+    app_event_queue_init(&ctx->queue);
+    app_dispatcher_init(
+        &ctx->dispatcher,
+        &QUEUE_SOURCE_OPS,
+        &ctx->queue,
+        dispatch_event,
+        ctx);
 
-    if (out.write_level) {
-        led_write(ctx, out.level_on);
-    }
-    if (out.write_brightness) {
-        led_output_adapter_set_brightness(&ctx->led_output, out.brightness);
-    }
+    /* Seed boot into the same producer/consumer pipeline used at runtime. */
+    (void)app_event_queue_push(&ctx->queue, &(app_event_t){
+        .type = APP_EVENT_BOOT,
+        .timestamp_ms = button_input_adapter_now_ms(&ctx->input),
+        .payload = {.u32 = 0},
+    });
+
+    led_show_startup_pattern(ctx, ctx->runtime.model.wave);
+    apply_runtime_output(ctx, &out);
+    (void)app_dispatcher_drain(&ctx->dispatcher, 0);
 }
 
 void led_sm_step(sm_led_ctx_t *ctx)
 {
     vTaskDelay(pdMS_TO_TICKS(POLL_MS));
+    blinky_time_ms_t now = button_input_adapter_now_ms(&ctx->input);
+    blinky_event_t bev = button_input_adapter_poll_event(&ctx->input);
+    app_event_type_t type = app_event_from_blinky_event(bev);
 
-    led_runtime_output_t out = {0};
-    led_runtime_step(&ctx->runtime,
-                     button_input_adapter_now_ms(&ctx->input),
-                     button_input_adapter_poll_event(&ctx->input),
-                     &out);
-
-    if (out.write_level) {
-        led_write(ctx, out.level_on);
-    }
-    if (out.write_brightness) {
-        led_output_adapter_set_brightness(&ctx->led_output, out.brightness);
-#if CONFIG_BLINKY_LOG_INTENSITY
-        printf("LED %u%%\n", (unsigned)led_percent_from_brightness(out.brightness));
-#endif
-    }
+    (void)app_event_queue_push(&ctx->queue, &(app_event_t){
+        .type = type,
+        .timestamp_ms = now,
+        .payload = {.u32 = 0},
+    });
+    (void)app_dispatcher_drain(&ctx->dispatcher, 0);
 }
