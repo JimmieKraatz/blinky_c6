@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
 
 #include "app_dispatcher.h"
@@ -27,5 +28,10 @@ typedef struct {
 
 /* Initialize LED hardware and enter initial LED FSM state. */
 void led_sm_init(sm_led_ctx_t *ctx);
-/* Delay/poll once and execute one FSM step. */
+
+/* Producer side: sample inputs and enqueue one semantic app event. */
+void led_sm_producer_step(sm_led_ctx_t *ctx);
+/* Consumer side: dispatch queued events (0 => drain all). */
+void led_sm_consumer_step(sm_led_ctx_t *ctx, size_t max_events);
+/* Compatibility wrapper: delay, run producer step, then consumer step. */
 void led_sm_step(sm_led_ctx_t *ctx);

@@ -165,12 +165,11 @@ void led_sm_init(sm_led_ctx_t *ctx)
 
     led_show_startup_pattern(ctx, ctx->runtime.model.wave);
     apply_runtime_output(ctx, &out);
-    (void)app_dispatcher_drain(&ctx->dispatcher, 0);
+    led_sm_consumer_step(ctx, 0);
 }
 
-void led_sm_step(sm_led_ctx_t *ctx)
+void led_sm_producer_step(sm_led_ctx_t *ctx)
 {
-    vTaskDelay(pdMS_TO_TICKS(POLL_MS));
     blinky_time_ms_t now = button_input_adapter_now_ms(&ctx->input);
     blinky_event_t bev = button_input_adapter_poll_event(&ctx->input);
     app_event_type_t type = app_event_from_blinky_event(bev);
@@ -180,5 +179,16 @@ void led_sm_step(sm_led_ctx_t *ctx)
         .timestamp_ms = now,
         .payload = {.u32 = 0},
     });
-    (void)app_dispatcher_drain(&ctx->dispatcher, 0);
+}
+
+void led_sm_consumer_step(sm_led_ctx_t *ctx, size_t max_events)
+{
+    (void)app_dispatcher_drain(&ctx->dispatcher, max_events);
+}
+
+void led_sm_step(sm_led_ctx_t *ctx)
+{
+    vTaskDelay(pdMS_TO_TICKS(POLL_MS));
+    led_sm_producer_step(ctx);
+    led_sm_consumer_step(ctx, 0);
 }
