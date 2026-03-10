@@ -75,37 +75,15 @@ menu "Blinky"
         help
             Target period for one full waveform cycle.
 
-    choice BLINKY_START_WAVE
-        prompt "Startup waveform"
-        default BLINKY_START_WAVE_SINE
+    config BLINKY_STARTUP_SELECTOR
+        int "Startup selector token"
+        default 5
+        range 0 5
         help
-            Initial waveform used on boot.
-
-        config BLINKY_START_WAVE_SQUARE
-            bool "Square"
-            help
-                Square wave (hard on/off).
-
-        config BLINKY_START_WAVE_SAW_UP
-            bool "Saw up"
-            help
-                Sawtooth ramp from 0% to 100%.
-
-        config BLINKY_START_WAVE_SAW_DOWN
-            bool "Saw down"
-            help
-                Sawtooth ramp from 100% to 0%.
-
-        config BLINKY_START_WAVE_TRIANGLE
-            bool "Triangle"
-            help
-                Triangle ramp up then down.
-
-        config BLINKY_START_WAVE_SINE
-            bool "Sine"
-            help
-                Smooth sine wave based on a LUT.
-    endchoice
+            Generic startup selector token passed through IDF config mapper.
+            Core startup policy resolves token values:
+              0=default (currently sine), 1=square, 2=saw up, 3=saw down,
+              4=triangle, 5=sine.
 
     config BLINKY_SINE_STEPS_MAX
         int "Sine LUT max steps"

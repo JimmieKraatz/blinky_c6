@@ -45,7 +45,10 @@ void idf_build_core_config(led_core_config_t *cfg)
         return;
     }
 
-#if CONFIG_BLINKY_START_WAVE_SQUARE
+#ifdef CONFIG_BLINKY_STARTUP_SELECTOR
+    led_startup_selector_t startup_selector =
+        (led_startup_selector_t)CONFIG_BLINKY_STARTUP_SELECTOR;
+#elif CONFIG_BLINKY_START_WAVE_SQUARE
     led_startup_selector_t startup_selector = LED_STARTUP_SELECT_SQUARE;
 #elif CONFIG_BLINKY_START_WAVE_SAW_UP
     led_startup_selector_t startup_selector = LED_STARTUP_SELECT_SAW_UP;

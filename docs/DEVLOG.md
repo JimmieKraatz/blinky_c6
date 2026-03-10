@@ -322,3 +322,13 @@ Started a dedicated branch to address the remaining config/default ownership amb
 ### Why
 - Reduces framework knowledge of domain waveform enumeration details.
 - Keeps startup behavior semantics owned by core policy.
+
+## 2026-03-10 - Config ownership slice: startup Kconfig decoupled from waveform names
+### Changes
+- Replaced wave-specific Kconfig choice (`BLINKY_START_WAVE_*`) with generic token:
+  - `BLINKY_STARTUP_SELECTOR` (0..5)
+- Updated `_idf` mapper to pass selector token directly to core startup policy input.
+
+### Why
+- Removes waveform-name coupling from Kconfig/framework configuration surface.
+- Keeps framework as a value source, with startup interpretation remaining core-owned.
