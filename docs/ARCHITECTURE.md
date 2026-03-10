@@ -76,10 +76,35 @@ Defaults/config ownership after extraction slices:
   - `button_policy_timing_*` normalizes debounce/long-press timing policy (`core_blinky`)
   - `led_event_map_*` event semantic mapping (`core_blinky`)
 - Framework-facing wiring/config:
-  - `sdkconfig` source values (pins, pull mode, poll cadence, boot pattern, pwm, start-wave choice source)
+  - `sdkconfig` source values (pins, pull mode, poll cadence, boot pattern, pwm)
+  - `_idf` mapper boundary:
+    - `idf_build_platform_config(...)`
+    - `idf_build_core_config(...)`
+  - `_idf` owns sourcing/mapping only; core contracts are defined in `core_blinky` headers (for example `led_core_config.h`)
   - FreeRTOS queue/task primitives and wake mechanics
   - adapter init for GPIO/LEDC/button hardware
   - queue storage/lifecycle and dispatcher wiring in `_idf`
+
+### Config Ownership Decision Table
+Current Kconfig defaults, ownership, and target direction:
+
+| Kconfig symbol | Current effective owner | Target owner | Rationale |
+|---|---|---|---|
+| `BLINKY_LED_GPIO` | `_idf` | `_idf` | Hardware pin wiring |
+| `BLINKY_BTN_GPIO` | `_idf` | `_idf` | Hardware pin wiring |
+| `BLINKY_BTN_ACTIVE_LOW` | `_idf` | `_idf` | Electrical interface behavior |
+| `BLINKY_BTN_PULL_*` | `_idf` | `_idf` | GPIO electrical configuration |
+| `BLINKY_PWM_FREQ_HZ` | `_idf` | `_idf` | LEDC/peripheral setup |
+| `BLINKY_BOOT_PATTERN` | `_idf` | `_idf` | Platform/UI indication behavior |
+| `BLINKY_BOOT_PATTERN_MS` | `_idf` | `_idf` | Platform/UI timing |
+| `BLINKY_LOG_INTENSITY` | `_idf` | `_idf` (until logging boundary) | Platform logging concern |
+| `BLINKY_WAVE_PERIOD_MS` | `_idf` -> core model | `core_blinky` policy/config | Domain waveform behavior |
+| `BLINKY_SINE_STEPS_MAX` | `_idf` -> core model | `core_blinky` policy/config | Domain quality/perf policy |
+| `BLINKY_SAW_STEP_PCT` | `_idf` -> core model | `core_blinky` policy/config | Domain waveform shape policy |
+| `BLINKY_DEBOUNCE_COUNT` | `_idf` source via core config mapper (`button_timing`) | `core_blinky` policy/config | Semantic button timing policy |
+| `BLINKY_LONG_PRESS_MS` | `_idf` source via core config mapper (`button_timing`) | `core_blinky` policy/config | Semantic button timing policy |
+| `BLINKY_PRODUCER_POLL_MS` | `_idf` | `_idf` | Producer loop cadence is scheduler/platform concern |
+| `BLINKY_MODEL_POLL_MS` | `_idf` -> core model | `core_blinky` policy/config | Model cadence is domain behavior policy |
 
 ## Next Slice: Lifecycle and Backpressure
 Planned implementation direction:
@@ -97,10 +122,10 @@ Menuconfig path: `Component config -> Blinky` (from `components/blinky_idf/Kconf
 
 Key knobs:
 - LED GPIO, button GPIO, active-low setting
-- Poll interval, debounce count, long-press duration
+- Producer poll interval, model poll interval, debounce count, long-press duration
 - Wave period, sine LUT max steps, saw/triangle step size
 - PWM frequency
-- Startup waveform
+- Startup waveform is core policy default (not Kconfig-driven)
 - Boot pattern enable and pulse duration
 - Intensity logging enable/disable
 

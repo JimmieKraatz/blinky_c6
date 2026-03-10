@@ -2,8 +2,17 @@
 
 #include "led_model.h"
 
+typedef enum {
+    LED_STARTUP_SELECT_DEFAULT = 0,
+    LED_STARTUP_SELECT_SQUARE,
+    LED_STARTUP_SELECT_SAW_UP,
+    LED_STARTUP_SELECT_SAW_DOWN,
+    LED_STARTUP_SELECT_TRIANGLE,
+    LED_STARTUP_SELECT_SINE,
+} led_startup_selector_t;
+
 typedef struct {
-    led_wave_t start_wave;
+    led_startup_selector_t selector;
 } led_startup_config_t;
 
 /* Select initial runtime wave from core-facing startup config.

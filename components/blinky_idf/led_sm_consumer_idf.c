@@ -41,6 +41,16 @@ void led_sm_consumer_task_start(sm_led_ctx_t *ctx)
         &s_consumer_task_tcb);
 }
 
+void led_sm_consumer_task_stop(sm_led_ctx_t *ctx)
+{
+    (void)ctx;
+    if (!s_consumer_task) {
+        return;
+    }
+    vTaskDelete(s_consumer_task);
+    s_consumer_task = NULL;
+}
+
 void led_sm_consumer_task_notify(sm_led_ctx_t *ctx)
 {
     (void)ctx;

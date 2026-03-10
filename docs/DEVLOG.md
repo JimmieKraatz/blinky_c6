@@ -230,11 +230,122 @@ wake ownership, and button timing policy ownership.
 - Fault/shutdown semantics (deferred):
   - define core-owned handling contract before adding platform producers
 - Defaults/config ownership review (deferred):
-  - audit each default/config and classify as core-facing policy vs framework-facing wiring
-  - add a small decision table in architecture docs to keep ownership decisions consistent
+  - remove temporary startup-symbol compatibility fallback in `led_config_idf.c` after all configs are migrated
+  - run one final ownership checklist pass after logging boundary work
+- Pause behavior policy decision (deferred):
+  - decide whether `PAUSED` should freeze LED at current brightness or force LED off
+  - document rationale and align tests with final behavior
+
+## Done TODOs
+- Startup waveform ownership decoupling (completed 2026-03-10):
+  - moved startup waveform semantics into core startup policy
+  - removed startup waveform selection from Kconfig/framework surface
+  - `_idf` now injects only core default startup selector input
+  - completion commits: `57afe3a`, `e9d2fc0`, `f17870e`
 
 ## Active extraction roadmap
 - Slice 1: extract core-owned wiring policy (completed)
 - Slice 2: startup waveform policy to core-facing config input (completed)
 - Slice 3: isolate notify/wake policy on consumer side only (completed)
 - Slice 4: button timing policy ownership cleanup (completed)
+
+## 2026-03-10 - Config/default ownership split kickoff
+### Context
+Started a dedicated branch to address the remaining config/default ownership ambiguity before logging boundary work.
+
+### Changes
+- Added an explicit config ownership decision table in `docs/ARCHITECTURE.md`.
+- Identified `BLINKY_POLL_MS` as the primary mixed-ownership symbol to split next.
+
+### Next implementation step
+- Split `BLINKY_POLL_MS` into:
+  - framework producer cadence knob (`_idf` loop delay)
+  - core model cadence knob (`core_blinky` model config input)
+
+## 2026-03-10 - Config ownership: poll cadence split
+### Changes
+- Split mixed `BLINKY_POLL_MS` into:
+  - `BLINKY_PRODUCER_POLL_MS` (framework scheduler cadence)
+  - `BLINKY_MODEL_POLL_MS` (core model cadence input)
+- Updated `led_sm_idf` wiring so producer delay and model cadence are independently configured.
+- Updated architecture docs/table to reflect the new ownership boundary.
+
+### Why
+- Removes coupling between task scheduling cadence and model behavior cadence.
+- Makes future tuning safer (UI responsiveness vs model fidelity can be tuned independently).
+
+## 2026-03-10 - Lifecycle boundary slice: explicit start/stop
+### Changes
+- Added explicit lifecycle APIs:
+  - `led_sm_start(...)`
+  - `led_sm_stop(...)`
+  - `led_sm_consumer_task_stop(...)`
+- Kept backward compatibility by having `led_sm_init(...)` call `led_sm_start(...)`.
+- Added targeted lifecycle test:
+  - `led sm stop lifecycle is idempotent`
+
+### Test intent
+- Verifies stop semantics are safe when called repeatedly.
+- Guards against accidental event processing after consumer stop in async mode.
+
+## 2026-03-10 - Config ownership slice: mapper boundary introduced
+### Changes
+- Added explicit `_idf` mapper functions:
+  - `idf_build_platform_config(...)`
+  - `idf_build_core_config(...)`
+- Added mapper-backed config contracts in `components/blinky_idf/led_config_idf.*`.
+- Routed `led_sm_init(...)` and producer delay path through mapped config values with no behavior change.
+
+### Why
+- Keeps `sdkconfig` as source-of-truth in `_idf` while making ownership boundaries explicit.
+- Establishes the handoff point where core-owned semantics can be fed by framework-sourced values.
+
+## 2026-03-10 - Config ownership slice: button timing remapped to core config
+### Changes
+- Updated mapper contracts so button timing is no longer carried in platform config.
+- `idf_build_core_config(...)` now owns normalized `button_timing` construction.
+- `led_sm_init(...)` now composes `button_input_adapter_idf_config_t` from:
+  - platform wiring (`gpio`, pull mode, active level)
+  - core timing policy (`debounce_count`, `long_press_ms`)
+
+### Why
+- Keeps button semantic timing under core-owned policy while `_idf` remains the source adapter for `sdkconfig` values.
+
+## 2026-03-10 - Config ownership slice: core config contract moved to core_blinky
+### Changes
+- Introduced core-owned config contract header:
+  - `components/core_blinky/led_core_config.h`
+- Updated `_idf` mapper to populate that core-defined contract instead of defining core config types in `_idf`.
+
+### Why
+- Clarifies ownership: `_idf` maps framework values, while core defines semantic config contracts.
+
+## 2026-03-10 - Config ownership slice: startup wave selection tokenized
+### Changes
+- Reworked startup policy input from direct wave enum to a core-owned startup selector token.
+- `_idf` now maps Kconfig start-wave choice to selector token values (not `led_wave_t` values).
+- Core startup policy maps selector token to concrete `led_wave_t`.
+
+### Why
+- Reduces framework knowledge of domain waveform enumeration details.
+- Keeps startup behavior semantics owned by core policy.
+
+## 2026-03-10 - Config ownership slice: startup Kconfig decoupled from waveform names
+### Changes
+- Replaced wave-specific Kconfig choice (`BLINKY_START_WAVE_*`) with generic token:
+  - `BLINKY_STARTUP_SELECTOR` (0..5)
+- Updated `_idf` mapper to pass selector token directly to core startup policy input.
+
+### Why
+- Removes waveform-name coupling from Kconfig/framework configuration surface.
+- Keeps framework as a value source, with startup interpretation remaining core-owned.
+
+## 2026-03-10 - Config ownership slice: startup selection removed from Kconfig
+### Changes
+- Removed startup selection symbols from `components/blinky_idf/Kconfig`.
+- Updated `_idf` mapper to inject `LED_STARTUP_SELECT_DEFAULT` only.
+- Startup waveform choice is now purely core policy (default + future runtime source), not framework config.
+
+### Why
+- Fully removes startup-wave semantic configuration from framework/Kconfig.
+- Keeps startup behavior ownership in core, with `_idf` only passing inputs and wiring outputs.
