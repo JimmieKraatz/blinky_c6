@@ -42,27 +42,37 @@ typedef struct {
     uint8_t sine_pct_lut[1024];
 } led_model_t;
 
-/* Initialize model state and sanitize runtime configuration. */
+/* Initialize model state and sanitize runtime configuration.
+ * Contract: model and cfg are required (non-null).
+ */
 void led_model_init(led_model_t *model, const led_model_config_t *cfg);
 
 /* Conversion helpers between UI percent and normalized raw brightness. */
 led_brightness_t led_brightness_from_percent(led_percent_t pct);
 uint8_t led_percent_from_brightness(led_brightness_t brightness);
 
-/* Number of sine steps derived from runtime config. */
+/* Number of sine steps derived from runtime config.
+ * Contract: model is required (non-null).
+ */
 uint32_t led_model_sine_steps(const led_model_t *model);
 
-/* Select waveform and reset model phase/output. */
+/* Select waveform and reset model phase/output.
+ * Contract: model is required (non-null).
+ */
 void led_model_set_wave(led_model_t *model,
                         led_wave_t wave,
                         blinky_time_ms_t now_ms);
 
-/* Advance model state in percent. Returns true when a new value is produced. */
+/* Advance model state in percent. Returns true when a new value is produced.
+ * Contract: model and pct_out are required (non-null).
+ */
 bool led_model_tick(led_model_t *model,
                     blinky_time_ms_t now_ms,
                     led_percent_t *pct_out);
 
-/* Same model step, but returns normalized raw brightness. */
+/* Same model step, but returns normalized raw brightness.
+ * Contract: model and brightness_out are required (non-null).
+ */
 bool led_model_tick_raw(led_model_t *model,
                         blinky_time_ms_t now_ms,
                         led_brightness_t *brightness_out);

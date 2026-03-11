@@ -5,6 +5,13 @@
 
 #include "esp_log.h"
 
+__attribute__((weak)) void blinky_log_adapter_idf_write(esp_log_level_t level,
+                                                         const char *tag,
+                                                         const char *line)
+{
+    esp_log_write(level, tag, "%s\n", line ? line : "");
+}
+
 static esp_log_level_t to_esp_level(blinky_log_level_t level)
 {
     switch (level) {
@@ -84,7 +91,7 @@ static void idf_emit(void *ctx, const blinky_log_record_t *record)
         used = append_kv(line, sizeof(line), used, &record->kvs[i]);
     }
 
-    esp_log_write(to_esp_level(record->level), adapter->tag, "%s\n", line);
+    blinky_log_adapter_idf_write(to_esp_level(record->level), adapter->tag, line);
 }
 
 void blinky_log_adapter_idf_init(blinky_log_sink_t *sink,

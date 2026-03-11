@@ -1,5 +1,6 @@
 #include "led_model.h"
 
+#include <assert.h>
 #include <math.h>
 
 #define LED_MODEL_SINE_STEPS_MIN 8U
@@ -43,6 +44,9 @@ static void led_model_build_sine_lut(led_model_t *model)
 
 void led_model_init(led_model_t *model, const led_model_config_t *cfg)
 {
+    assert(model);
+    assert(cfg);
+
     uint32_t raw_steps = 0;
 
     model->cfg.wave_period_ms = (cfg->wave_period_ms == 0U) ? 1000U : cfg->wave_period_ms;
@@ -63,6 +67,7 @@ void led_model_init(led_model_t *model, const led_model_config_t *cfg)
 
 uint32_t led_model_sine_steps(const led_model_t *model)
 {
+    assert(model);
     return model->sine_steps;
 }
 
@@ -83,6 +88,7 @@ uint8_t led_percent_from_brightness(led_brightness_t brightness)
 
 void led_model_set_wave(led_model_t *model, led_wave_t wave, blinky_time_ms_t now_ms)
 {
+    assert(model);
     model->wave = wave;
 
     switch (wave) {
@@ -119,6 +125,9 @@ void led_model_set_wave(led_model_t *model, led_wave_t wave, blinky_time_ms_t no
 
 bool led_model_tick(led_model_t *model, blinky_time_ms_t now_ms, led_percent_t *pct_out)
 {
+    assert(model);
+    assert(pct_out);
+
     switch (model->wave) {
         case LED_WAVE_SAW_UP:
             if (now_ms >= model->next_update) {
@@ -199,6 +208,9 @@ bool led_model_tick_raw(led_model_t *model,
                         blinky_time_ms_t now_ms,
                         led_brightness_t *brightness_out)
 {
+    assert(model);
+    assert(brightness_out);
+
     led_percent_t pct = 0;
     if (!led_model_tick(model, now_ms, &pct)) {
         return false;

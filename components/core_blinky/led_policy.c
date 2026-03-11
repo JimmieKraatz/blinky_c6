@@ -1,5 +1,7 @@
 #include "led_policy.h"
 
+#include <assert.h>
+
 #include "menu_logic.h"
 
 led_policy_step_result_t led_policy_step(led_policy_ctx_t *ctx,
@@ -7,6 +9,8 @@ led_policy_step_result_t led_policy_step(led_policy_ctx_t *ctx,
                                          led_wave_t current_wave,
                                          blinky_event_t event)
 {
+    assert(ctx);
+
     led_policy_step_result_t out = {
         .next_state = current_state,
         .menu_wave_changed = false,

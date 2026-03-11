@@ -1,5 +1,6 @@
 #include "led_runtime.h"
 
+#include <assert.h>
 #include <string.h>
 
 static void clear_output(led_runtime_output_t *out)
@@ -74,7 +75,11 @@ void led_runtime_init(led_runtime_t *rt,
                       blinky_time_ms_t now,
                       led_runtime_output_t *out)
 {
-    blinky_log_sink_t *existing_sink = rt ? rt->log_sink : NULL;
+    assert(rt);
+    assert(cfg);
+    assert(out);
+
+    blinky_log_sink_t *existing_sink = rt->log_sink;
     clear_output(out);
     led_model_init(&rt->model, cfg);
     led_model_set_wave(&rt->model, start_wave, now);
@@ -89,6 +94,9 @@ void led_runtime_step(led_runtime_t *rt,
                       blinky_event_t event,
                       led_runtime_output_t *out)
 {
+    assert(rt);
+    assert(out);
+
     clear_output(out);
 
     if (rt->state == LED_POLICY_RUNNING || rt->state == LED_POLICY_MENU) {
@@ -117,8 +125,6 @@ void led_runtime_step(led_runtime_t *rt,
 
 void led_runtime_set_log_sink(led_runtime_t *rt, blinky_log_sink_t *sink)
 {
-    if (!rt) {
-        return;
-    }
+    assert(rt);
     rt->log_sink = sink;
 }
