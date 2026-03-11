@@ -3,6 +3,7 @@
 #include <stdbool.h>
 
 #include "blinky_events.h"
+#include "blinky_log.h"
 #include "blinky_time.h"
 #include "led_model.h"
 #include "led_policy.h"
@@ -11,6 +12,7 @@ typedef struct {
     led_policy_state_t state;
     led_policy_ctx_t policy;
     led_model_t model;
+    blinky_log_sink_t *log_sink;
 } led_runtime_t;
 
 typedef struct {
@@ -30,3 +32,5 @@ void led_runtime_step(led_runtime_t *rt,
                       blinky_time_ms_t now,
                       blinky_event_t event,
                       led_runtime_output_t *out);
+
+void led_runtime_set_log_sink(led_runtime_t *rt, blinky_log_sink_t *sink);

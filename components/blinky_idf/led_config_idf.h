@@ -1,5 +1,6 @@
 #pragma once
 
+#include "blinky_log.h"
 #include "button_input_adapter_idf.h"
 #include "led_core_config.h"
 #include "led_output_adapter_idf.h"
@@ -13,6 +14,7 @@ typedef struct {
     int boot_pattern_ms;
     bool boot_pattern_enabled;
     bool log_intensity_enabled;
+    blinky_log_level_t log_min_level;
 } led_platform_config_t;
 
 void idf_build_platform_config(led_platform_config_t *cfg);

@@ -22,6 +22,17 @@ void idf_build_platform_config(led_platform_config_t *cfg)
     log_intensity_enabled = CONFIG_BLINKY_LOG_INTENSITY;
 #endif
 
+    blinky_log_level_t log_min_level = BLINKY_LOG_LEVEL_INFO;
+#if CONFIG_BLINKY_LOG_MIN_LEVEL_ERROR
+    log_min_level = BLINKY_LOG_LEVEL_ERROR;
+#elif CONFIG_BLINKY_LOG_MIN_LEVEL_WARN
+    log_min_level = BLINKY_LOG_LEVEL_WARN;
+#elif CONFIG_BLINKY_LOG_MIN_LEVEL_DEBUG
+    log_min_level = BLINKY_LOG_LEVEL_DEBUG;
+#else
+    log_min_level = BLINKY_LOG_LEVEL_INFO;
+#endif
+
     *cfg = (led_platform_config_t){
         .led_output =
             {
@@ -36,6 +47,7 @@ void idf_build_platform_config(led_platform_config_t *cfg)
         .boot_pattern_ms = CONFIG_BLINKY_BOOT_PATTERN_MS,
         .boot_pattern_enabled = CONFIG_BLINKY_BOOT_PATTERN,
         .log_intensity_enabled = log_intensity_enabled,
+        .log_min_level = log_min_level,
     };
 }
 

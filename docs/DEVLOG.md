@@ -217,9 +217,6 @@ wake ownership, and button timing policy ownership.
 - This branch is now merge-ready for the extraction scope.
 
 ## Deferred TODOs
-- Logging boundary (deferred to separate branch):
-  - introduce portable logging interface in `blinky_interfaces`
-  - add ESP-IDF logging adapter in `blinky_idf`
 - Bootstrap layering split:
   - separate environment/bootstrap config concerns from runtime orchestration
   - revisit `sdkconfig` defaults vs runtime provisioning for future network features
@@ -242,6 +239,18 @@ wake ownership, and button timing policy ownership.
   - removed startup waveform selection from Kconfig/framework surface
   - `_idf` now injects only core default startup selector input
   - completion commits: `57afe3a`, `e9d2fc0`, `f17870e`
+- Logging boundary migration (completed 2026-03-11):
+  - added portable structured logging contract in `blinky_interfaces` (`blinky_log.h`)
+  - added ESP-IDF log adapter and routed `_idf` intensity logs through sink
+  - migrated core runtime logging from direct `printf` to sink emission
+  - restored parity/stability:
+    - preserve init-time sink logs
+    - fix consumer stack overflow under logging load
+    - add newline termination for monitor readability
+  - completion commits: `47fc9f4`, `8ec8f24`, `7369566`, `48c9283`
+- Runtime behavior bug (menu exit apparent reset) resolved (2026-03-11):
+  - root cause: consumer task stack overflow caused reboot/reset behavior
+  - fix: increased consumer task stack and retained structured logging output parity
 
 ## Active extraction roadmap
 - Slice 1: extract core-owned wiring policy (completed)
@@ -287,6 +296,163 @@ Started a dedicated branch to address the remaining config/default ownership amb
 ### Test intent
 - Verifies stop semantics are safe when called repeatedly.
 - Guards against accidental event processing after consumer stop in async mode.
+
+## 2026-03-10 - Logging boundary branch kickoff
+### Branch
+- `refactor/logging-boundary-plan`
+
+### Intent
+- Introduce a clean logging boundary so core logic does not depend on ESP-IDF logging APIs/macros.
+- Keep behavior unchanged while clarifying ownership:
+  - core emits log intents through interfaces/contracts
+  - `_idf` decides sink, formatting, and output backend
+
+### Scope guardrails
+- In scope:
+  - interface contract for logging
+  - `_idf` logging adapter implementation
+  - wiring/mapping updates where direct framework logging is currently mixed into non-framework paths
+- Out of scope for this branch:
+  - new product features
+  - fault/shutdown behavior expansion
+  - large test-framework redesign
+
+### Planned slices
+- Slice 1: inventory and classify current logging callsites by ownership (`core`, `interfaces`, `_idf`).
+- Slice 2: add portable log contract in `blinky_interfaces` (levels + sink interface).
+- Slice 3: add ESP-IDF adapter in `blinky_idf` and route existing `_idf` logging through adapter.
+- Slice 4: migrate any core-adjacent callsites to boundary usage and remove direct framework leakage.
+- Slice 5: tests + docs pass:
+  - add/adjust unit tests for contract behavior and null-safe adapter behavior
+  - run build/test validation and update architecture/devlog ownership notes
+
+### Exit criteria
+- No core-owned module includes or depends on ESP-IDF logging headers/macros.
+- Logging behavior remains functionally equivalent at runtime.
+- Ownership docs reflect final boundary and TODOs are updated (moved to done or deferred explicitly).
+
+## 2026-03-10 - Logging boundary slice 1: callsite inventory
+### Summary
+- Inventory completed for runtime logging callsites.
+- Current state uses `printf` (not `ESP_LOG*`) in both core and `_idf`.
+- Highest-priority boundary leak: core runtime emits direct log output.
+
+### Callsites by ownership
+- `core_blinky`:
+  - `components/core_blinky/led_runtime.c`:
+    - `printf("STATE: RUNNING\\n")`
+    - `printf("SINE_STEPS_USED=%u\\n", ...)`
+    - `printf("STATE: PAUSED\\n")`
+    - `printf("MODEL: %s\\n", ...)`
+    - `printf("STATE: MENU\\n")`
+    - `printf("MENU: WAVE %s\\n", ...)` (enter)
+    - `printf("MENU: WAVE %s\\n", ...)` (change)
+    - `printf("MENU: EXIT\\n")`
+- `_idf`:
+  - `components/blinky_idf/led_sm_idf.c`:
+    - `printf("LED %u%%\\n", ...)` (gated by `log_intensity_enabled`)
+- `blinky_interfaces`:
+  - no logging callsites
+
+### Config touchpoints relevant to logging
+- `components/blinky_idf/Kconfig`: `BLINKY_LOG_INTENSITY`
+- `components/blinky_idf/led_config_idf.*`: maps and carries `log_intensity_enabled`
+
+### Implications for next slice
+- Add portable logging contract in `blinky_interfaces`.
+- Route core runtime logs through contract sink instead of direct `printf`.
+- Keep `_idf` as the concrete sink owner (stdout/ESP log backend decision stays platform-owned).
+
+## 2026-03-11 - Logging boundary slice 2: portable contract added
+### Summary
+- Added a portable structured logging contract in `blinky_interfaces`:
+  - `components/blinky_interfaces/blinky_log.h`
+- Added interface-focused tests:
+  - `components/blinky_interfaces/test/test_blinky_log.c`
+
+### Contract shape
+- Record fields:
+  - `level`, `domain`, `event`, `message`
+  - optional typed key-value payload (`kvs`, `kv_count`)
+- Sink boundary:
+  - `blinky_log_sink_ops_t.emit(...)`
+  - `blinky_log_emit(...)` inline helper with null-safe behavior
+- Value typing:
+  - `INT`, `UINT`, `BOOL`, `STR` via `blinky_log_kv_type_t`
+  - helper constructors (`blinky_log_kv_int/uint/bool/str`)
+
+### Why this shape
+- Avoids heap allocation and varargs formatting in core paths.
+- Keeps core output semantic/structured while leaving rendering/backend to `_idf`.
+- Improves testability by asserting record fields instead of formatted strings.
+
+### Verification
+- Unit-test-app build succeeds and includes `test_blinky_log.c`.
+
+## 2026-03-11 - Logging boundary slice 3: ESP-IDF adapter + _idf routing
+### Summary
+- Added concrete ESP-IDF logging adapter:
+  - `components/blinky_idf/blinky_log_adapter_idf.h`
+  - `components/blinky_idf/blinky_log_adapter_idf.c`
+- Added `_idf` adapter tests:
+  - `components/blinky_idf/test/test_blinky_log_adapter_idf.c`
+- Routed `_idf` intensity logging path in `led_sm_idf.c` through `blinky_log_emit(...)` instead of direct `printf`.
+
+### Wiring changes
+- `sm_led_ctx_t` now owns:
+  - `blinky_log_sink_t log_sink`
+  - `blinky_log_adapter_idf_t log_idf`
+- `led_sm_init(...)` initializes adapter with tag `"blinky"` and `INFO` minimum level.
+- `BLINKY_LOG_INTENSITY` behavior is preserved (same gate, new sink path).
+
+### Verification
+- Unit-test-app build passes with adapter and new tests included.
+
+## 2026-03-11 - Logging boundary slice 4: core runtime callsites migrated
+### Summary
+- Migrated core runtime direct logging from `printf` to structured sink emission.
+- `led_runtime` now supports optional sink injection:
+  - `led_runtime_set_log_sink(led_runtime_t *rt, blinky_log_sink_t *sink)`
+- `_idf` wiring now injects the sink into core runtime after init.
+
+### Callsite status
+- Removed direct `printf` usage from:
+  - `components/core_blinky/led_runtime.c`
+- Core runtime now emits structured records for:
+  - state transitions (`running`, `paused`, `menu`)
+  - menu wave changes
+  - menu exit
+
+### Tests and verification
+- Added runtime test covering structured log emission when sink is configured.
+- Unit-test-app build passes with updated API and tests.
+
+### Follow-up parity fix
+- Preserved preconfigured runtime sink across `led_runtime_init(...)` so init-time state logs are not dropped.
+- Updated `_idf` init flow to set runtime sink before `led_runtime_init(...)`.
+- Added test coverage for init-time log emission with preconfigured sink.
+- Verified on-device behavior after follow-up fixes:
+  - menu exit no longer triggers startup-like reset sequence
+  - line-based logging output restored in monitor
+
+## 2026-03-11 - Logging boundary slice 5: configurability and boot identity
+### Summary
+- Added framework-owned log verbosity control in Kconfig:
+  - `BLINKY_LOG_MIN_LEVEL_{ERROR,WARN,INFO,DEBUG}`
+- Mapped selected level through `_idf` config mapper into platform config.
+- Routed sink init to use mapped `log_min_level` instead of hardcoded value.
+- Added structured app boot identity log record emitted at startup:
+  - domain/event: `app:boot`
+  - message: `startup`
+  - keys: `project`, `version`, `idf`, `min_level`
+
+### Wiring detail
+- Added `esp_app_format` component dependency to `blinky_idf` for app description metadata.
+- Boot identity record is emitted immediately after sink adapter init in `led_sm_init(...)`.
+
+### Verification
+- App build passes.
+- Unit-test-app build passes.
 
 ## 2026-03-10 - Config ownership slice: mapper boundary introduced
 ### Changes

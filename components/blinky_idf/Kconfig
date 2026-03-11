@@ -122,4 +122,32 @@ menu "Blinky"
         help
             Print LED intensity updates to the serial console while running.
 
+    choice BLINKY_LOG_MIN_LEVEL
+        prompt "Minimum log level"
+        default BLINKY_LOG_MIN_LEVEL_INFO
+        help
+            Minimum severity emitted by the ESP-IDF logging sink.
+            Lower verbosity reduces console load.
+
+        config BLINKY_LOG_MIN_LEVEL_ERROR
+            bool "Error"
+            help
+                Emit only error-level logs.
+
+        config BLINKY_LOG_MIN_LEVEL_WARN
+            bool "Warn"
+            help
+                Emit warn and error logs.
+
+        config BLINKY_LOG_MIN_LEVEL_INFO
+            bool "Info"
+            help
+                Emit info, warn, and error logs.
+
+        config BLINKY_LOG_MIN_LEVEL_DEBUG
+            bool "Debug"
+            help
+                Emit debug, info, warn, and error logs.
+    endchoice
+
 endmenu
