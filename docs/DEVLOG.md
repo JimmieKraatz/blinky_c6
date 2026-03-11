@@ -58,6 +58,8 @@ Addressed startup ordering race between boot-pattern LED writes and async consum
 ### Verification
 - Unit-test-app build passes with targets:
   - `core_sm`, `core_blinky`, `blinky_idf`, `blinky_interfaces`
+- On-device Unity run checkpoint:
+  - `82 Tests 0 Failures 0 Ignored`
 
 ## 2026-03-09 - Repository structure and testing flow
 ### Context
