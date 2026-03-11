@@ -174,7 +174,7 @@ Targeted hardening TODO:
 - rework temporary `app_main` static `sm_led_ctx_t` storage (used to avoid main-task stack overflow) so final runtime ownership remains consistent with non-singleton lifecycle intent.
 
 Critical hardening tracker:
-- `docs/CRITICAL_REVIEW_2026-03-11.md` (finding register + remediation slices)
+- `docs/reviews/CRITICAL_REVIEW_2026-03-11.md` (finding register + remediation slices)
 
 ## Repo Hygiene
 - `unity-app/` is local scratch/test harness and intentionally git-ignored.

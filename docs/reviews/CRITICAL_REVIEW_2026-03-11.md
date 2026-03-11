@@ -29,7 +29,7 @@ Values below are abbreviated Git commit hashes.
 - `CR-004`: `d78aecb`
 - `CR-005`: `d35edf2`
 - `CR-006`: `643f9bf`
-- `CR-007`: `643f9bf`
+- `CR-007`: `643f9bf`, `cc7b25d`
 
 ## Planned Remediation Slices
 
@@ -99,3 +99,6 @@ Values below are abbreviated Git commit hashes.
 - New/updated tests cover each remediated finding.
 - `docs/ARCHITECTURE.md` and `docs/DEVLOG.md` updated to reflect final behavior.
 - Findings register statuses moved from `Open` to `Done` (or `Accepted Risk`) with commit references.
+
+## Post-Closure Follow-Ups
+- `c49bdad`: moved `app_main` context storage off main-task stack to resolve runtime stack-protection fault and tracked ownership follow-up TODOs in architecture/devlog.

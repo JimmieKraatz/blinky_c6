@@ -13,7 +13,7 @@ Requested a full critical review pass before further feature work.
 
 ### Changes
 - Added critical findings register and remediation plan:
-  - `docs/CRITICAL_REVIEW_2026-03-11.md`
+  - `docs/reviews/CRITICAL_REVIEW_2026-03-11.md`
 - Captured seven findings across lifecycle, startup ordering, config hardening, and test depth.
 - Defined remediation in four focused slices with explicit closure criteria.
 
