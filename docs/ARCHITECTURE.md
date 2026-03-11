@@ -70,6 +70,7 @@ Notes:
 - Lifecycle modes:
   - `LED_SM_START_FRESH`: reinitialize runtime + queue/dispatcher, emit boot event, show boot pattern
   - `LED_SM_START_RESUME`: keep existing runtime/queue state and resume consumer task
+  - startup ordering guarantee: boot pattern runs before consumer task start in fresh mode
 
 ## Core/Framework Ownership (Current)
 Defaults/config ownership after extraction slices:

@@ -173,7 +173,6 @@ void led_sm_init(sm_led_ctx_t *ctx)
         });
 
     led_runtime_set_log_sink(&ctx->runtime, &ctx->log_sink);
-    led_runtime_reinitialize(ctx);
 
     app_event_queue_init(&ctx->queue);
     ctx->sink_ops = &QUEUE_SINK_OPS;
@@ -220,6 +219,8 @@ bool led_sm_start(sm_led_ctx_t *ctx, led_sm_start_mode_t mode)
             dispatch_event,
             ctx);
         led_runtime_reinitialize(ctx);
+        /* Ensure startup LED pattern is serialized before async consumer begins output writes. */
+        led_show_startup_pattern(ctx, ctx->runtime.model.wave);
     }
 
     led_sm_consumer_task_start(ctx);
@@ -231,8 +232,6 @@ bool led_sm_start(sm_led_ctx_t *ctx, led_sm_start_mode_t mode)
         /* Seed boot into the same producer/consumer pipeline used at runtime. */
         app_event_t boot = led_event_factory_boot(button_input_adapter_now_ms(&ctx->input));
         (void)led_sm_enqueue_event(ctx, &boot);
-
-        led_show_startup_pattern(ctx, ctx->runtime.model.wave);
     }
     ctx->started = true;
     return true;

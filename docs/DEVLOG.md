@@ -40,6 +40,25 @@ Addressed first hardening slice for lifecycle ownership and explicit restart sem
 - Unit-test-app build passes with targets:
   - `core_sm`, `core_blinky`, `blinky_idf`, `blinky_interfaces`
 
+## 2026-03-11 - Critical review slice 2: startup ordering race hardening
+### Context
+Addressed startup ordering race between boot-pattern LED writes and async consumer output path.
+
+### Changes
+- Reordered fresh-start flow in `led_sm_start(...)`:
+  - run runtime fresh init
+  - run boot pattern
+  - start consumer task
+  - enqueue boot event
+- Removed duplicate runtime reinit in `led_sm_init(...)` so fresh-start owns initialization sequencing.
+
+### Why
+- Prevents consumer-driven LED output from interleaving with synchronous startup pattern writes.
+
+### Verification
+- Unit-test-app build passes with targets:
+  - `core_sm`, `core_blinky`, `blinky_idf`, `blinky_interfaces`
+
 ## 2026-03-09 - Repository structure and testing flow
 ### Context
 The codebase started with a monolithic `components/blinky` module and local/manual
