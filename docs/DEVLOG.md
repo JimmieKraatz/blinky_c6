@@ -217,6 +217,20 @@ wake ownership, and button timing policy ownership.
 - This branch is now merge-ready for the extraction scope.
 
 ## Deferred TODOs
+- Runtime behavior bug: menu exit can trigger apparent startup/reset behavior (reported 2026-03-11)
+  - Repro:
+    - start in sine
+    - enter menu (long press)
+    - cycle waveform in menu (short press) and settle on square
+    - exit menu (long press)
+  - Observed:
+    - LED shows startup-like multi-flash pattern (reported as 5 flashes)
+    - active waveform returns to sine instead of selected square
+  - Expected:
+    - no startup pattern on menu exit
+    - selected menu wave should be applied after exit
+  - Notes:
+    - likely unintended re-init/restart path or startup selection override during/after menu exit
 - Logging boundary (deferred to separate branch):
   - introduce portable logging interface in `blinky_interfaces`
   - add ESP-IDF logging adapter in `blinky_idf`
@@ -398,6 +412,25 @@ Started a dedicated branch to address the remaining config/default ownership amb
 
 ### Verification
 - Unit-test-app build passes with adapter and new tests included.
+
+## 2026-03-11 - Logging boundary slice 4: core runtime callsites migrated
+### Summary
+- Migrated core runtime direct logging from `printf` to structured sink emission.
+- `led_runtime` now supports optional sink injection:
+  - `led_runtime_set_log_sink(led_runtime_t *rt, blinky_log_sink_t *sink)`
+- `_idf` wiring now injects the sink into core runtime after init.
+
+### Callsite status
+- Removed direct `printf` usage from:
+  - `components/core_blinky/led_runtime.c`
+- Core runtime now emits structured records for:
+  - state transitions (`running`, `paused`, `menu`)
+  - menu wave changes
+  - menu exit
+
+### Tests and verification
+- Added runtime test covering structured log emission when sink is configured.
+- Unit-test-app build passes with updated API and tests.
 
 ## 2026-03-10 - Config ownership slice: mapper boundary introduced
 ### Changes

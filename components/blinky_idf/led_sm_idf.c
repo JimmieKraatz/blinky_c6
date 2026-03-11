@@ -125,6 +125,7 @@ void led_sm_init(sm_led_ctx_t *ctx)
         led_startup_policy_select_wave(&ctx->core_cfg.startup),
         button_input_adapter_now_ms(&ctx->input),
         &out);
+    led_runtime_set_log_sink(&ctx->runtime, &ctx->log_sink);
 
     app_event_queue_init(&ctx->queue);
     ctx->sink_ops = &QUEUE_SINK_OPS;
