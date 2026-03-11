@@ -226,9 +226,6 @@ wake ownership, and button timing policy ownership.
   - require at least one on-device Unity run (`flash monitor` + `*`) before branch merge
 - Fault/shutdown semantics (deferred):
   - define core-owned handling contract before adding platform producers
-- Defaults/config ownership review (deferred):
-  - remove temporary startup-symbol compatibility fallback in `led_config_idf.c` after all configs are migrated
-  - run one final ownership checklist pass after logging boundary work
 - Pause behavior policy decision (deferred):
   - decide whether `PAUSED` should freeze LED at current brightness or force LED off
   - document rationale and align tests with final behavior
@@ -251,6 +248,9 @@ wake ownership, and button timing policy ownership.
 - Runtime behavior bug (menu exit apparent reset) resolved (2026-03-11):
   - root cause: consumer task stack overflow caused reboot/reset behavior
   - fix: increased consumer task stack and retained structured logging output parity
+- Defaults/config ownership review follow-up completed (2026-03-11):
+  - removed temporary startup-symbol compatibility path in mapper/config flow
+  - completed ownership checklist pass after logging-boundary merge
 
 ## Active extraction roadmap
 - Slice 1: extract core-owned wiring policy (completed)
