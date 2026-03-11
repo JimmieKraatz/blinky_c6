@@ -78,7 +78,6 @@ static const app_event_source_ops_t QUEUE_SOURCE_OPS = {
 
 static sm_led_ctx_t g_async_ctx;
 static fake_consumer_ctx_t g_async_consumer;
-static bool g_async_started;
 
 static void reset_async_ctx(void)
 {
@@ -96,13 +95,11 @@ static void reset_async_ctx(void)
 
 static void ensure_async_task_started(void)
 {
-    if (g_async_started) {
-        return;
-    }
+    /* Ensure deterministic per-test task state regardless of prior test order. */
+    led_sm_consumer_task_stop(&g_async_ctx);
     reset_async_ctx();
     led_sm_consumer_task_start(&g_async_ctx);
     g_async_ctx.started = true;
-    g_async_started = true;
 }
 
 TEST_CASE("led sm producer maps short press to app event", "[led_sm_idf]")

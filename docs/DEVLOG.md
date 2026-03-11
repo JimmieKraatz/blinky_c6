@@ -217,23 +217,6 @@ wake ownership, and button timing policy ownership.
 - This branch is now merge-ready for the extraction scope.
 
 ## Deferred TODOs
-- Runtime behavior bug: menu exit can trigger apparent startup/reset behavior (reported 2026-03-11)
-  - Repro:
-    - start in sine
-    - enter menu (long press)
-    - cycle waveform in menu (short press) and settle on square
-    - exit menu (long press)
-  - Observed:
-    - LED shows startup-like multi-flash pattern (reported as 5 flashes)
-    - active waveform returns to sine instead of selected square
-  - Expected:
-    - no startup pattern on menu exit
-    - selected menu wave should be applied after exit
-  - Notes:
-    - likely unintended re-init/restart path or startup selection override during/after menu exit
-- Logging boundary (deferred to separate branch):
-  - introduce portable logging interface in `blinky_interfaces`
-  - add ESP-IDF logging adapter in `blinky_idf`
 - Bootstrap layering split:
   - separate environment/bootstrap config concerns from runtime orchestration
   - revisit `sdkconfig` defaults vs runtime provisioning for future network features
@@ -256,6 +239,18 @@ wake ownership, and button timing policy ownership.
   - removed startup waveform selection from Kconfig/framework surface
   - `_idf` now injects only core default startup selector input
   - completion commits: `57afe3a`, `e9d2fc0`, `f17870e`
+- Logging boundary migration (completed 2026-03-11):
+  - added portable structured logging contract in `blinky_interfaces` (`blinky_log.h`)
+  - added ESP-IDF log adapter and routed `_idf` intensity logs through sink
+  - migrated core runtime logging from direct `printf` to sink emission
+  - restored parity/stability:
+    - preserve init-time sink logs
+    - fix consumer stack overflow under logging load
+    - add newline termination for monitor readability
+  - completion commits: `47fc9f4`, `8ec8f24`, `7369566`, `48c9283`
+- Runtime behavior bug (menu exit apparent reset) resolved (2026-03-11):
+  - root cause: consumer task stack overflow caused reboot/reset behavior
+  - fix: increased consumer task stack and retained structured logging output parity
 
 ## Active extraction roadmap
 - Slice 1: extract core-owned wiring policy (completed)
@@ -436,6 +431,9 @@ Started a dedicated branch to address the remaining config/default ownership amb
 - Preserved preconfigured runtime sink across `led_runtime_init(...)` so init-time state logs are not dropped.
 - Updated `_idf` init flow to set runtime sink before `led_runtime_init(...)`.
 - Added test coverage for init-time log emission with preconfigured sink.
+- Verified on-device behavior after follow-up fixes:
+  - menu exit no longer triggers startup-like reset sequence
+  - line-based logging output restored in monitor
 
 ## 2026-03-10 - Config ownership slice: mapper boundary introduced
 ### Changes
