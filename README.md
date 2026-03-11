@@ -5,6 +5,7 @@ ESP-IDF app for ESP32-C6 that drives an LED using a waveform-based state machine
 For deeper docs:
 - Architecture and module boundaries: `docs/ARCHITECTURE.md`
 - Refactor journey and decisions: `docs/DEVLOG.md`
+- Delivery workflow (branching, CI/CD, release/tag policy): `docs/DELIVERY_WORKFLOW.md`
 
 ## Quick Start
 
