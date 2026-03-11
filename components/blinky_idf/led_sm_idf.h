@@ -8,6 +8,8 @@
 #include "app_event_queue.h"
 #include "button_input_adapter.h"
 #include "button_input_adapter_idf.h"
+#include "blinky_log.h"
+#include "blinky_log_adapter_idf.h"
 #include "led_runtime.h"
 #include "led_output_adapter.h"
 #include "led_output_adapter_idf.h"
@@ -22,6 +24,8 @@ typedef struct {
 
     led_output_adapter_t led_output;
     led_output_adapter_idf_t led_output_idf;
+    blinky_log_sink_t log_sink;
+    blinky_log_adapter_idf_t log_idf;
     led_runtime_t runtime;
     led_platform_config_t platform_cfg;
     led_core_config_t core_cfg;

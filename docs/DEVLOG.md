@@ -380,6 +380,25 @@ Started a dedicated branch to address the remaining config/default ownership amb
 ### Verification
 - Unit-test-app build succeeds and includes `test_blinky_log.c`.
 
+## 2026-03-11 - Logging boundary slice 3: ESP-IDF adapter + _idf routing
+### Summary
+- Added concrete ESP-IDF logging adapter:
+  - `components/blinky_idf/blinky_log_adapter_idf.h`
+  - `components/blinky_idf/blinky_log_adapter_idf.c`
+- Added `_idf` adapter tests:
+  - `components/blinky_idf/test/test_blinky_log_adapter_idf.c`
+- Routed `_idf` intensity logging path in `led_sm_idf.c` through `blinky_log_emit(...)` instead of direct `printf`.
+
+### Wiring changes
+- `sm_led_ctx_t` now owns:
+  - `blinky_log_sink_t log_sink`
+  - `blinky_log_adapter_idf_t log_idf`
+- `led_sm_init(...)` initializes adapter with tag `"blinky"` and `INFO` minimum level.
+- `BLINKY_LOG_INTENSITY` behavior is preserved (same gate, new sink path).
+
+### Verification
+- Unit-test-app build passes with adapter and new tests included.
+
 ## 2026-03-10 - Config ownership slice: mapper boundary introduced
 ### Changes
 - Added explicit `_idf` mapper functions:

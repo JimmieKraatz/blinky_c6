@@ -1,6 +1,5 @@
 #include <stdbool.h>
 #include <stdint.h>
-#include <stdio.h>
 
 #include "esp_check.h"
 #include "freertos/FreeRTOS.h"
@@ -25,7 +24,17 @@ static void apply_runtime_output(sm_led_ctx_t *ctx, const led_runtime_output_t *
     if (out->write_brightness) {
         led_output_adapter_set_brightness(&ctx->led_output, out->brightness);
         if (ctx->platform_cfg.log_intensity_enabled) {
-            printf("LED %u%%\n", (unsigned)led_percent_from_brightness(out->brightness));
+            const blinky_log_kv_t kv = blinky_log_kv_uint(
+                "percent", (uint32_t)led_percent_from_brightness(out->brightness));
+            const blinky_log_record_t record = {
+                .level = BLINKY_LOG_LEVEL_INFO,
+                .domain = "led",
+                .event = "intensity",
+                .message = "brightness update",
+                .kvs = &kv,
+                .kv_count = 1,
+            };
+            blinky_log_emit(&ctx->log_sink, &record);
         }
     }
 }
@@ -91,6 +100,13 @@ void led_sm_init(sm_led_ctx_t *ctx)
         &ctx->led_output,
         &ctx->led_output_idf,
         &ctx->platform_cfg.led_output));
+    blinky_log_adapter_idf_init(
+        &ctx->log_sink,
+        &ctx->log_idf,
+        &(blinky_log_adapter_idf_config_t){
+            .tag = "blinky",
+            .min_level = BLINKY_LOG_LEVEL_INFO,
+        });
 
     button_input_adapter_idf_init(
         &ctx->input,
