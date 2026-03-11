@@ -18,8 +18,8 @@ Purpose: track high-criticality findings, remediation slices, and closure eviden
 | CR-003 | High | lifecycle semantics | `stop/start` semantics can preserve stale queue/runtime state; restart behavior not explicitly defined or tested | Done |
 | CR-004 | Medium | config normalization | `_idf` timing values (`producer_poll_ms`, `boot_pattern_ms`) are not normalized at mapper boundary | Done |
 | CR-005 | Medium | contract drift | `led_sm_step` header comment no longer matches implementation after async split | Done |
-| CR-006 | Medium | API defensiveness | Null-safety expectations are inconsistent across core runtime/model APIs | Open |
-| CR-007 | Medium | test depth | Missing targeted assertions for async lifecycle edge cases and log adapter behavior | Open |
+| CR-006 | Medium | API defensiveness | Null-safety expectations are inconsistent across core runtime/model APIs | Done |
+| CR-007 | Medium | test depth | Missing targeted assertions for async lifecycle edge cases and log adapter behavior | Done |
 
 ### Resolution References (Done Findings: Git Commit Hashes)
 Values below are abbreviated Git commit hashes.
@@ -28,6 +28,8 @@ Values below are abbreviated Git commit hashes.
 - `CR-003`: `77339b5`, `4cf6574`
 - `CR-004`: `d78aecb`
 - `CR-005`: `d35edf2`
+- `CR-006`: `643f9bf`
+- `CR-007`: `643f9bf`
 
 ## Planned Remediation Slices
 
@@ -84,6 +86,13 @@ Values below are abbreviated Git commit hashes.
   - optional pointers must be explicitly documented in headers as optional.
   - avoid mixed/partial null handling within a single API; behavior must be either strict or defensive by contract.
   - lifecycle APIs enforce state validity (`init`/`start`/`stop`) rather than pointer-only checks.
+- Status:
+  - completed in this branch:
+    - aligned core contracts to strict required-pointer assertions for runtime/model/policy/menu/button/consumer APIs
+    - added explicit header-level contract notes for required vs optional pointer parameters
+    - added async lifecycle tests for consumer task create failure and post-stop enqueue/resume behavior
+    - added log adapter tests for min-level filtering and structured line formatting
+  - commit: `643f9bf`
 
 ## Closure Criteria
 - All High findings resolved or explicitly accepted with rationale.

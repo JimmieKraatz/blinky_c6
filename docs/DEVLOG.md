@@ -96,6 +96,32 @@ CR-006 identified inconsistent null-safety behavior across module surfaces and m
 - Add/update header contract notes (`required` vs `optional`) on affected APIs.
 - Add targeted tests for CR-007 lifecycle and log-adapter depth items.
 
+## 2026-03-11 - Critical review slice 4 implementation: contract alignment + test hardening
+### Summary
+- Implemented the slice 4 policy decision and closed CR-006/CR-007 implementation scope.
+
+### Changes
+- Core contract alignment:
+  - enforced strict required-pointer assertions in core runtime/model/policy/menu/button/consumer APIs
+  - removed mixed partial-null handling patterns in core APIs
+  - documented required vs optional pointer contracts in core headers
+- Async lifecycle test hardening (`test_led_sm_idf.c`):
+  - added start failure path test by forcing consumer task create to return null
+  - added post-stop enqueue behavior test (no dispatch until resumed + notified)
+- Log adapter test hardening (`test_blinky_log_adapter_idf.c`):
+  - added min-level filtering test
+  - added structured formatting test for domain/event/message + typed key-values
+  - added log-write test seam to capture emitted line/tag/level in unit tests
+
+### Verification
+- Unit-test-app build passes with targets:
+  - `core_blinky`, `blinky_idf`, `blinky_interfaces`
+- command used:
+  - `idf.py -C $IDF_PATH/tools/unit-test-app -B $PWD/build/unit-test-app -D EXTRA_COMPONENT_DIRS=$PWD/components -D SDKCONFIG=$PWD/build/unit-test-app/sdkconfig -D "SDKCONFIG_DEFAULTS=$IDF_PATH/tools/unit-test-app/sdkconfig.defaults;$PWD/test/unit-test-app.sdkconfig.defaults" -D CCACHE_ENABLE=1 -T core_blinky -T blinky_idf -T blinky_interfaces build`
+
+### Commit
+- `643f9bf`
+
 ## 2026-03-09 - Repository structure and testing flow
 ### Context
 The codebase started with a monolithic `components/blinky` module and local/manual
