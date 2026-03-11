@@ -21,7 +21,8 @@ Purpose: track high-criticality findings, remediation slices, and closure eviden
 | CR-006 | Medium | API defensiveness | Null-safety expectations are inconsistent across core runtime/model APIs | Open |
 | CR-007 | Medium | test depth | Missing targeted assertions for async lifecycle edge cases and log adapter behavior | Open |
 
-### Resolution References (Done Findings)
+### Resolution References (Done Findings: Git Commit Hashes)
+Values below are abbreviated Git commit hashes.
 - `CR-001`: `77339b5`
 - `CR-002`: `ad112ac`
 - `CR-003`: `77339b5`, `4cf6574`
