@@ -1,6 +1,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#include "esp_app_desc.h"
 #include "esp_check.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -37,6 +38,45 @@ static void apply_runtime_output(sm_led_ctx_t *ctx, const led_runtime_output_t *
             blinky_log_emit(&ctx->log_sink, &record);
         }
     }
+}
+
+static const char *log_level_name(blinky_log_level_t level)
+{
+    switch (level) {
+    case BLINKY_LOG_LEVEL_ERROR:
+        return "ERROR";
+    case BLINKY_LOG_LEVEL_WARN:
+        return "WARN";
+    case BLINKY_LOG_LEVEL_DEBUG:
+        return "DEBUG";
+    case BLINKY_LOG_LEVEL_INFO:
+    default:
+        return "INFO";
+    }
+}
+
+static void log_boot_identity(sm_led_ctx_t *ctx)
+{
+    if (!ctx) {
+        return;
+    }
+
+    const esp_app_desc_t *app = esp_app_get_description();
+    const blinky_log_kv_t kvs[] = {
+        blinky_log_kv_str("project", app ? app->project_name : ""),
+        blinky_log_kv_str("version", app ? app->version : ""),
+        blinky_log_kv_str("idf", app ? app->idf_ver : ""),
+        blinky_log_kv_str("min_level", log_level_name(ctx->platform_cfg.log_min_level)),
+    };
+    const blinky_log_record_t record = {
+        .level = BLINKY_LOG_LEVEL_INFO,
+        .domain = "app",
+        .event = "boot",
+        .message = "startup",
+        .kvs = kvs,
+        .kv_count = 4,
+    };
+    blinky_log_emit(&ctx->log_sink, &record);
 }
 
 static void dispatch_event(void *ctx, const app_event_t *ev)
@@ -107,6 +147,7 @@ void led_sm_init(sm_led_ctx_t *ctx)
             .tag = "blinky",
             .min_level = ctx->platform_cfg.log_min_level,
         });
+    log_boot_identity(ctx);
 
     button_input_adapter_idf_init(
         &ctx->input,
