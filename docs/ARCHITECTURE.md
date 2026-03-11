@@ -169,6 +169,9 @@ Unit tests run via ESP-IDF Unit Test App with this repo injected through `EXTRA_
 Recent on-device run (2026-03-10):
 - `72 Tests 0 Failures 0 Ignored`
 
+Targeted hardening TODO:
+- add explicit assert-contract testing for strict core APIs (for example `led_policy_step(NULL, ...)` assert-fail path) while preserving positive-path non-null coverage.
+
 Critical hardening tracker:
 - `docs/CRITICAL_REVIEW_2026-03-11.md` (finding register + remediation slices)
 

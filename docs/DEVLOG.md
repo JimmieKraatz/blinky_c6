@@ -347,6 +347,9 @@ wake ownership, and button timing policy ownership.
   - strengthen async timing/overflow assertions without expanding refactor branch scope
   - split build/link validation vs on-target assertion validation in workflow/docs
   - require at least one on-device Unity run (`flash monitor` + `*`) before branch merge
+  - add explicit assert-contract validation for strict core APIs:
+    - verify `led_policy_step(NULL, ...)` triggers assert-fail path
+    - keep positive-path coverage proving no assert for valid non-null contexts
 - Fault/shutdown semantics (deferred):
   - define core-owned handling contract before adding platform producers
 - Pause behavior policy decision (deferred):
