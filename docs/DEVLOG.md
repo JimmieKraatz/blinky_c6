@@ -354,6 +354,32 @@ Started a dedicated branch to address the remaining config/default ownership amb
 - Route core runtime logs through contract sink instead of direct `printf`.
 - Keep `_idf` as the concrete sink owner (stdout/ESP log backend decision stays platform-owned).
 
+## 2026-03-11 - Logging boundary slice 2: portable contract added
+### Summary
+- Added a portable structured logging contract in `blinky_interfaces`:
+  - `components/blinky_interfaces/blinky_log.h`
+- Added interface-focused tests:
+  - `components/blinky_interfaces/test/test_blinky_log.c`
+
+### Contract shape
+- Record fields:
+  - `level`, `domain`, `event`, `message`
+  - optional typed key-value payload (`kvs`, `kv_count`)
+- Sink boundary:
+  - `blinky_log_sink_ops_t.emit(...)`
+  - `blinky_log_emit(...)` inline helper with null-safe behavior
+- Value typing:
+  - `INT`, `UINT`, `BOOL`, `STR` via `blinky_log_kv_type_t`
+  - helper constructors (`blinky_log_kv_int/uint/bool/str`)
+
+### Why this shape
+- Avoids heap allocation and varargs formatting in core paths.
+- Keeps core output semantic/structured while leaving rendering/backend to `_idf`.
+- Improves testability by asserting record fields instead of formatted strings.
+
+### Verification
+- Unit-test-app build succeeds and includes `test_blinky_log.c`.
+
 ## 2026-03-10 - Config ownership slice: mapper boundary introduced
 ### Changes
 - Added explicit `_idf` mapper functions:
