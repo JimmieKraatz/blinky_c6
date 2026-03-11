@@ -78,6 +78,12 @@ Values below are abbreviated Git commit hashes.
     - task-create/start failure and idempotence paths
     - post-stop event handling
     - log adapter level/filter/format behavior
+- Null-contract architectural decision (2026-03-11):
+  - `core_*` modules use strict/fail-fast contracts for required arguments and internal invariants.
+  - `blinky_interfaces` and `blinky_idf` boundary APIs are defensive and return status on invalid inputs/state.
+  - optional pointers must be explicitly documented in headers as optional.
+  - avoid mixed/partial null handling within a single API; behavior must be either strict or defensive by contract.
+  - lifecycle APIs enforce state validity (`init`/`start`/`stop`) rather than pointer-only checks.
 
 ## Closure Criteria
 - All High findings resolved or explicitly accepted with rationale.

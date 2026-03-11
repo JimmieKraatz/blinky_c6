@@ -140,6 +140,15 @@ Key knobs:
 - `_idf` owns concrete logging backend/rendering through `blinky_log_adapter_idf.*` (`esp_log_write`).
 - Direct core `printf` state/menu logging has been removed; output now flows through boundary contracts.
 
+## API Null-Contract Policy (2026-03-11)
+This is a module-boundary architectural decision.
+
+- `core_*` modules use strict/fail-fast contracts for required pointers and internal invariants.
+- `blinky_interfaces` and `blinky_idf` APIs are defensive at boundaries and return status on invalid inputs/state.
+- Optional pointers must be documented explicitly in headers.
+- APIs should avoid mixed partial null handling; each API should have one clear contract style.
+- Lifecycle boundaries should validate state transitions (`init`/`start`/`stop`) rather than pointer-only checks.
+
 ## Testing Strategy
 Tests are Unity-based and split by ownership:
 - `components/core_sm/test/test_fsm_engine.c`

@@ -80,6 +80,22 @@ Addressed config normalization risk for platform-owned timing values.
 - Keeps normalization at boundary (not call-sites), consistent with ownership rules.
 - Prevents zero/invalid delays from causing tight-loop behavior or collapsed boot timing.
 
+## 2026-03-11 - Critical review slice 4 decision: null-contract policy
+### Context
+CR-006 identified inconsistent null-safety behavior across module surfaces and mixed strict/defensive handling in some core APIs.
+
+### Decision
+- This is an architectural decision at module-boundary level, not a local style preference.
+- `core_*` APIs will use strict/fail-fast contracts for required pointers and invariants.
+- `blinky_interfaces` and `blinky_idf` APIs will remain defensive and return status on invalid arguments/state.
+- Optional pointers must be documented explicitly in headers.
+- Lifecycle APIs should validate state transitions, not only pointer presence.
+
+### Next implementation targets
+- Normalize `led_runtime_*` contract behavior to remove mixed partial null handling.
+- Add/update header contract notes (`required` vs `optional`) on affected APIs.
+- Add targeted tests for CR-007 lifecycle and log-adapter depth items.
+
 ## 2026-03-09 - Repository structure and testing flow
 ### Context
 The codebase started with a monolithic `components/blinky` module and local/manual
