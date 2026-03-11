@@ -46,14 +46,3 @@ TEST_CASE("consumer ignores unsupported event types", "[led_event_consumer]")
     TEST_ASSERT_FALSE(out.write_level);
     TEST_ASSERT_FALSE(out.write_brightness);
 }
-
-TEST_CASE("consumer null safety", "[led_event_consumer]")
-{
-    led_runtime_t rt = {0};
-    led_runtime_output_t out = {0};
-    app_event_t ev = {.type = APP_EVENT_TICK, .timestamp_ms = 1};
-
-    led_event_consumer_dispatch(NULL, &ev, &out);
-    led_event_consumer_dispatch(&rt, NULL, &out);
-    led_event_consumer_dispatch(&rt, &ev, NULL);
-}

@@ -121,14 +121,27 @@ static const app_event_source_ops_t QUEUE_SOURCE_OPS = {
 static void led_show_startup_pattern(sm_led_ctx_t *ctx, led_wave_t wave)
 {
     if (ctx->platform_cfg.boot_pattern_enabled) {
-    int count = (int)wave + 1;
-    for (int i = 0; i < count; ++i) {
-        led_write(ctx, true);
-        vTaskDelay(pdMS_TO_TICKS(ctx->platform_cfg.boot_pattern_ms));
-        led_write(ctx, false);
-        vTaskDelay(pdMS_TO_TICKS(ctx->platform_cfg.boot_pattern_ms));
+        int count = (int)wave + 1;
+        for (int i = 0; i < count; ++i) {
+            led_write(ctx, true);
+            vTaskDelay(pdMS_TO_TICKS(ctx->platform_cfg.boot_pattern_ms));
+            led_write(ctx, false);
+            vTaskDelay(pdMS_TO_TICKS(ctx->platform_cfg.boot_pattern_ms));
+        }
     }
-    }
+}
+
+static void led_runtime_reinitialize(sm_led_ctx_t *ctx)
+{
+    led_runtime_output_t out = {0};
+    blinky_time_ms_t now = button_input_adapter_now_ms(&ctx->input);
+    led_runtime_init(
+        &ctx->runtime,
+        &ctx->core_cfg.model,
+        led_startup_policy_select_wave(&ctx->core_cfg.startup),
+        now,
+        &out);
+    apply_runtime_output(ctx, &out);
 }
 
 void led_sm_init(sm_led_ctx_t *ctx)
@@ -160,13 +173,6 @@ void led_sm_init(sm_led_ctx_t *ctx)
         });
 
     led_runtime_set_log_sink(&ctx->runtime, &ctx->log_sink);
-    led_runtime_output_t out = {0};
-    led_runtime_init(
-        &ctx->runtime,
-        &ctx->core_cfg.model,
-        led_startup_policy_select_wave(&ctx->core_cfg.startup),
-        button_input_adapter_now_ms(&ctx->input),
-        &out);
 
     app_event_queue_init(&ctx->queue);
     ctx->sink_ops = &QUEUE_SINK_OPS;
@@ -178,9 +184,7 @@ void led_sm_init(sm_led_ctx_t *ctx)
         dispatch_event,
         ctx);
     ctx->started = false;
-    led_sm_start(ctx);
-
-    apply_runtime_output(ctx, &out);
+    (void)led_sm_start(ctx, LED_SM_START_FRESH);
 }
 
 bool led_sm_enqueue_event(sm_led_ctx_t *ctx, const app_event_t *ev)
@@ -197,20 +201,40 @@ void led_sm_step(sm_led_ctx_t *ctx)
     led_sm_producer_step(ctx);
 }
 
-void led_sm_start(sm_led_ctx_t *ctx)
+bool led_sm_start(sm_led_ctx_t *ctx, led_sm_start_mode_t mode)
 {
-    if (!ctx || ctx->started) {
-        return;
+    if (!ctx) {
+        return false;
+    }
+    if (ctx->started) {
+        return true;
+    }
+
+    if (mode == LED_SM_START_FRESH) {
+        app_event_queue_init(&ctx->queue);
+        app_dispatcher_init(
+            &ctx->dispatcher,
+            &QUEUE_SOURCE_OPS,
+            &ctx->queue,
+            dispatch_event,
+            ctx);
+        led_runtime_reinitialize(ctx);
+        /* Ensure startup LED pattern is serialized before async consumer begins output writes. */
+        led_show_startup_pattern(ctx, ctx->runtime.model.wave);
     }
 
     led_sm_consumer_task_start(ctx);
+    if (!ctx->consumer_task) {
+        return false;
+    }
 
-    /* Seed boot into the same producer/consumer pipeline used at runtime. */
-    app_event_t boot = led_event_factory_boot(button_input_adapter_now_ms(&ctx->input));
-    (void)led_sm_enqueue_event(ctx, &boot);
-
-    led_show_startup_pattern(ctx, ctx->runtime.model.wave);
+    if (mode == LED_SM_START_FRESH) {
+        /* Seed boot into the same producer/consumer pipeline used at runtime. */
+        app_event_t boot = led_event_factory_boot(button_input_adapter_now_ms(&ctx->input));
+        (void)led_sm_enqueue_event(ctx, &boot);
+    }
     ctx->started = true;
+    return true;
 }
 
 void led_sm_stop(sm_led_ctx_t *ctx)

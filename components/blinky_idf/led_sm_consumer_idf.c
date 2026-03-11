@@ -3,13 +3,22 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
-/* Logging now runs on consumer path; keep extra headroom for VFS/log call depth. */
-#define LED_SM_CONSUMER_TASK_STACK_WORDS 4096U
-#define LED_SM_CONSUMER_TASK_PRIORITY    5U
-
-static TaskHandle_t s_consumer_task = NULL;
-static StaticTask_t s_consumer_task_tcb;
-static StackType_t s_consumer_task_stack[LED_SM_CONSUMER_TASK_STACK_WORDS];
+__attribute__((weak)) TaskHandle_t led_sm_consumer_task_create_static(TaskFunction_t task_code,
+                                                                       const char *const name,
+                                                                       const uint32_t stack_depth,
+                                                                       void *const parameters,
+                                                                       UBaseType_t priority,
+                                                                       StackType_t *const stack_buffer,
+                                                                       StaticTask_t *const task_buffer)
+{
+    return xTaskCreateStatic(task_code,
+                             name,
+                             stack_depth,
+                             parameters,
+                             priority,
+                             stack_buffer,
+                             task_buffer);
+}
 
 void led_sm_consumer_step(sm_led_ctx_t *ctx, size_t max_events)
 {
@@ -28,35 +37,33 @@ static void led_sm_consumer_task(void *arg)
 
 void led_sm_consumer_task_start(sm_led_ctx_t *ctx)
 {
-    if (!ctx || s_consumer_task) {
+    if (!ctx || ctx->consumer_task) {
         return;
     }
 
-    s_consumer_task = xTaskCreateStatic(
+    ctx->consumer_task = led_sm_consumer_task_create_static(
         led_sm_consumer_task,
         "led_consumer",
         LED_SM_CONSUMER_TASK_STACK_WORDS,
         ctx,
         LED_SM_CONSUMER_TASK_PRIORITY,
-        s_consumer_task_stack,
-        &s_consumer_task_tcb);
+        ctx->consumer_task_stack,
+        &ctx->consumer_task_tcb);
 }
 
 void led_sm_consumer_task_stop(sm_led_ctx_t *ctx)
 {
-    (void)ctx;
-    if (!s_consumer_task) {
+    if (!ctx || !ctx->consumer_task) {
         return;
     }
-    vTaskDelete(s_consumer_task);
-    s_consumer_task = NULL;
+    vTaskDelete(ctx->consumer_task);
+    ctx->consumer_task = NULL;
 }
 
 void led_sm_consumer_task_notify(sm_led_ctx_t *ctx)
 {
-    (void)ctx;
-    if (!s_consumer_task) {
+    if (!ctx || !ctx->consumer_task) {
         return;
     }
-    xTaskNotifyGive(s_consumer_task);
+    xTaskNotifyGive(ctx->consumer_task);
 }

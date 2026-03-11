@@ -22,6 +22,7 @@ typedef struct {
     bool menu_wave_changed;
 } led_policy_step_result_t;
 
+/* Contract: ctx is required (non-null). */
 led_policy_step_result_t led_policy_step(led_policy_ctx_t *ctx,
                                          led_policy_state_t current_state,
                                          led_wave_t current_wave,

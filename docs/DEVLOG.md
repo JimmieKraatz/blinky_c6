@@ -4,6 +4,124 @@
 This file is a diary of development progress: what changed, why, and what is next.
 For the stable technical view, see `docs/ARCHITECTURE.md`.
 
+## 2026-03-11 - Critical review branch kickoff
+### Branch
+- `review/findings-hardening-2026-03-11`
+
+### Context
+Requested a full critical review pass before further feature work.
+
+### Changes
+- Added critical findings register and remediation plan:
+  - `docs/reviews/CRITICAL_REVIEW_2026-03-11.md`
+- Captured seven findings across lifecycle, startup ordering, config hardening, and test depth.
+- Defined remediation in four focused slices with explicit closure criteria.
+
+### Notes
+- High-severity lifecycle/startup issues are prioritized ahead of new feature additions.
+
+## 2026-03-11 - Critical review slice 1: non-singleton lifecycle + start modes
+### Context
+Addressed first hardening slice for lifecycle ownership and explicit restart semantics.
+
+### Changes
+- Converted consumer task ownership from file-static singleton to per-context fields on `sm_led_ctx_t`.
+- Added explicit start modes:
+  - `LED_SM_START_FRESH`
+  - `LED_SM_START_RESUME`
+- Updated `led_sm_start(...)` API to accept lifecycle mode and return success/failure.
+- `led_sm_init(...)` now starts using explicit fresh mode.
+- Added targeted lifecycle tests in `test_led_sm_idf.c`:
+  - fresh start resets runtime and emits boot event
+  - resume start preserves runtime and does not emit boot event
+  - start idempotence check on resume path
+
+### Verification
+- Unit-test-app build passes with targets:
+  - `core_sm`, `core_blinky`, `blinky_idf`, `blinky_interfaces`
+
+## 2026-03-11 - Critical review slice 2: startup ordering race hardening
+### Context
+Addressed startup ordering race between boot-pattern LED writes and async consumer output path.
+
+### Changes
+- Reordered fresh-start flow in `led_sm_start(...)`:
+  - run runtime fresh init
+  - run boot pattern
+  - start consumer task
+  - enqueue boot event
+- Removed duplicate runtime reinit in `led_sm_init(...)` so fresh-start owns initialization sequencing.
+
+### Why
+- Prevents consumer-driven LED output from interleaving with synchronous startup pattern writes.
+
+### Verification
+- Unit-test-app build passes with targets:
+  - `core_sm`, `core_blinky`, `blinky_idf`, `blinky_interfaces`
+- On-device Unity run checkpoint:
+  - `82 Tests 0 Failures 0 Ignored`
+
+## 2026-03-11 - Critical review slice 3a: platform timing normalization
+### Context
+Addressed config normalization risk for platform-owned timing values.
+
+### Changes
+- Added mapper-side normalization in `idf_build_platform_config(...)`:
+  - `BLINKY_PRODUCER_POLL_MS` -> minimum `1 ms`
+  - `BLINKY_BOOT_PATTERN_MS` -> minimum `1 ms`
+- Added Kconfig UI guardrails:
+  - `BLINKY_PRODUCER_POLL_MS` range: `1..1000`
+  - `BLINKY_BOOT_PATTERN_MS` range: `1..2000`
+- Added targeted mapper clamp tests:
+  - `components/blinky_idf/test/test_led_config_idf.c`
+  - validates min clamp, max clamp, and in-range pass-through behavior
+
+### Why
+- Keeps normalization at boundary (not call-sites), consistent with ownership rules.
+- Prevents zero/invalid delays from causing tight-loop behavior or collapsed boot timing.
+
+## 2026-03-11 - Critical review slice 4 decision: null-contract policy
+### Context
+CR-006 identified inconsistent null-safety behavior across module surfaces and mixed strict/defensive handling in some core APIs.
+
+### Decision
+- This is an architectural decision at module-boundary level, not a local style preference.
+- `core_*` APIs will use strict/fail-fast contracts for required pointers and invariants.
+- `blinky_interfaces` and `blinky_idf` APIs will remain defensive and return status on invalid arguments/state.
+- Optional pointers must be documented explicitly in headers.
+- Lifecycle APIs should validate state transitions, not only pointer presence.
+
+### Next implementation targets
+- Normalize `led_runtime_*` contract behavior to remove mixed partial null handling.
+- Add/update header contract notes (`required` vs `optional`) on affected APIs.
+- Add targeted tests for CR-007 lifecycle and log-adapter depth items.
+
+## 2026-03-11 - Critical review slice 4 implementation: contract alignment + test hardening
+### Summary
+- Implemented the slice 4 policy decision and closed CR-006/CR-007 implementation scope.
+
+### Changes
+- Core contract alignment:
+  - enforced strict required-pointer assertions in core runtime/model/policy/menu/button/consumer APIs
+  - removed mixed partial-null handling patterns in core APIs
+  - documented required vs optional pointer contracts in core headers
+- Async lifecycle test hardening (`test_led_sm_idf.c`):
+  - added start failure path test by forcing consumer task create to return null
+  - added post-stop enqueue behavior test (no dispatch until resumed + notified)
+- Log adapter test hardening (`test_blinky_log_adapter_idf.c`):
+  - added min-level filtering test
+  - added structured formatting test for domain/event/message + typed key-values
+  - added log-write test seam to capture emitted line/tag/level in unit tests
+
+### Verification
+- Unit-test-app build passes with targets:
+  - `core_blinky`, `blinky_idf`, `blinky_interfaces`
+- command used:
+  - `idf.py -C $IDF_PATH/tools/unit-test-app -B $PWD/build/unit-test-app -D EXTRA_COMPONENT_DIRS=$PWD/components -D SDKCONFIG=$PWD/build/unit-test-app/sdkconfig -D "SDKCONFIG_DEFAULTS=$IDF_PATH/tools/unit-test-app/sdkconfig.defaults;$PWD/test/unit-test-app.sdkconfig.defaults" -D CCACHE_ENABLE=1 -T core_blinky -T blinky_idf -T blinky_interfaces build`
+
+### Commit
+- `643f9bf`
+
 ## 2026-03-09 - Repository structure and testing flow
 ### Context
 The codebase started with a monolithic `components/blinky` module and local/manual
@@ -229,6 +347,12 @@ wake ownership, and button timing policy ownership.
   - strengthen async timing/overflow assertions without expanding refactor branch scope
   - split build/link validation vs on-target assertion validation in workflow/docs
   - require at least one on-device Unity run (`flash monitor` + `*`) before branch merge
+  - add explicit assert-contract validation for strict core APIs:
+    - verify `led_policy_step(NULL, ...)` triggers assert-fail path
+    - keep positive-path coverage proving no assert for valid non-null contexts
+- Runtime context ownership follow-up:
+  - readdress temporary `app_main` static `sm_led_ctx_t` workaround added to avoid main-task stack overflow
+  - align final approach with documented non-singleton lifecycle ownership decision from critical review slice 1
 - Fault/shutdown semantics (deferred):
   - define core-owned handling contract before adding platform producers
 - Pause behavior policy decision (deferred):

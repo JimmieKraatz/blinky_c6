@@ -43,8 +43,8 @@ Implemented flow today (poll producer + async consumer task):
    - initializes IDF adapters (button input, LED output)
    - initializes core runtime (`led_runtime_init`)
    - initializes app queue + dispatcher
-   - starts consumer task (`led_sm_consumer_task_start`)
-   - enqueues `APP_EVENT_BOOT` and notifies consumer task
+   - starts lifecycle in fresh mode (`led_sm_start(..., LED_SM_START_FRESH)`)
+   - fresh start enqueues `APP_EVENT_BOOT` and notifies consumer task
 3. `led_sm_step` (`blinky_idf`)
    - waits `POLL_MS` (`vTaskDelay`)
    - reads semantic button event from input adapter
@@ -67,6 +67,10 @@ Notes:
 - Consumer blocks on task notification and drains queue on wake-up.
 - Producer remains time-gated at `POLL_MS` cadence.
 - Producer publish path is now wake-agnostic; enqueue sink owns notify side-effects.
+- Lifecycle modes:
+  - `LED_SM_START_FRESH`: reinitialize runtime + queue/dispatcher, emit boot event, show boot pattern
+  - `LED_SM_START_RESUME`: keep existing runtime/queue state and resume consumer task
+  - startup ordering guarantee: boot pattern runs before consumer task start in fresh mode
 
 ## Core/Framework Ownership (Current)
 Defaults/config ownership after extraction slices:
@@ -136,6 +140,15 @@ Key knobs:
 - `_idf` owns concrete logging backend/rendering through `blinky_log_adapter_idf.*` (`esp_log_write`).
 - Direct core `printf` state/menu logging has been removed; output now flows through boundary contracts.
 
+## API Null-Contract Policy (2026-03-11)
+This is a module-boundary architectural decision.
+
+- `core_*` modules use strict/fail-fast contracts for required pointers and internal invariants.
+- `blinky_interfaces` and `blinky_idf` APIs are defensive at boundaries and return status on invalid inputs/state.
+- Optional pointers must be documented explicitly in headers.
+- APIs should avoid mixed partial null handling; each API should have one clear contract style.
+- Lifecycle boundaries should validate state transitions (`init`/`start`/`stop`) rather than pointer-only checks.
+
 ## Testing Strategy
 Tests are Unity-based and split by ownership:
 - `components/core_sm/test/test_fsm_engine.c`
@@ -155,6 +168,13 @@ Unit tests run via ESP-IDF Unit Test App with this repo injected through `EXTRA_
 
 Recent on-device run (2026-03-10):
 - `72 Tests 0 Failures 0 Ignored`
+
+Targeted hardening TODO:
+- add explicit assert-contract testing for strict core APIs (for example `led_policy_step(NULL, ...)` assert-fail path) while preserving positive-path non-null coverage.
+- rework temporary `app_main` static `sm_led_ctx_t` storage (used to avoid main-task stack overflow) so final runtime ownership remains consistent with non-singleton lifecycle intent.
+
+Critical hardening tracker:
+- `docs/reviews/CRITICAL_REVIEW_2026-03-11.md` (finding register + remediation slices)
 
 ## Repo Hygiene
 - `unity-app/` is local scratch/test harness and intentionally git-ignored.

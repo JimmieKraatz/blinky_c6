@@ -5,6 +5,44 @@
 #define LED_GPIO ((gpio_num_t)CONFIG_BLINKY_LED_GPIO)
 #define BTN_GPIO ((gpio_num_t)CONFIG_BLINKY_BTN_GPIO)
 
+#define BLINKY_PRODUCER_POLL_MS_MIN ((blinky_time_ms_t)1U)
+#define BLINKY_PRODUCER_POLL_MS_MAX ((blinky_time_ms_t)1000U)
+#define BLINKY_BOOT_PATTERN_MS_MIN  ((blinky_time_ms_t)1U)
+#define BLINKY_BOOT_PATTERN_MS_MAX  ((blinky_time_ms_t)2000U)
+
+/* Keep these bounds aligned with Kconfig ranges:
+ * - BLINKY_PRODUCER_POLL_MS range lower-bound
+ * - BLINKY_PRODUCER_POLL_MS range upper-bound
+ * - BLINKY_BOOT_PATTERN_MS range lower-bound
+ * - BLINKY_BOOT_PATTERN_MS range upper-bound
+ */
+static blinky_time_ms_t clamp_ms_u32(int value,
+                                     blinky_time_ms_t min_inclusive,
+                                     blinky_time_ms_t max_inclusive)
+{
+    if (value <= 0) {
+        return min_inclusive;
+    }
+    blinky_time_ms_t normalized = (blinky_time_ms_t)value;
+    if (normalized < min_inclusive) {
+        return min_inclusive;
+    }
+    if (normalized > max_inclusive) {
+        return max_inclusive;
+    }
+    return normalized;
+}
+
+blinky_time_ms_t led_config_idf_clamp_producer_poll_ms(int value)
+{
+    return clamp_ms_u32(value, BLINKY_PRODUCER_POLL_MS_MIN, BLINKY_PRODUCER_POLL_MS_MAX);
+}
+
+int led_config_idf_clamp_boot_pattern_ms(int value)
+{
+    return (int)clamp_ms_u32(value, BLINKY_BOOT_PATTERN_MS_MIN, BLINKY_BOOT_PATTERN_MS_MAX);
+}
+
 void idf_build_platform_config(led_platform_config_t *cfg)
 {
     if (!cfg) {
@@ -43,8 +81,8 @@ void idf_build_platform_config(led_platform_config_t *cfg)
         .button_gpio = BTN_GPIO,
         .button_active_low = CONFIG_BLINKY_BTN_ACTIVE_LOW,
         .button_pull = pull,
-        .producer_poll_ms = CONFIG_BLINKY_PRODUCER_POLL_MS,
-        .boot_pattern_ms = CONFIG_BLINKY_BOOT_PATTERN_MS,
+        .producer_poll_ms = led_config_idf_clamp_producer_poll_ms(CONFIG_BLINKY_PRODUCER_POLL_MS),
+        .boot_pattern_ms = led_config_idf_clamp_boot_pattern_ms(CONFIG_BLINKY_BOOT_PATTERN_MS),
         .boot_pattern_enabled = CONFIG_BLINKY_BOOT_PATTERN,
         .log_intensity_enabled = log_intensity_enabled,
         .log_min_level = log_min_level,

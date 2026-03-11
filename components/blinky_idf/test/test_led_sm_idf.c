@@ -78,9 +78,26 @@ static const app_event_source_ops_t QUEUE_SOURCE_OPS = {
 
 static sm_led_ctx_t g_async_ctx;
 static fake_consumer_ctx_t g_async_consumer;
+static bool g_force_consumer_create_fail;
+
+TaskHandle_t led_sm_consumer_task_create_static(TaskFunction_t task_code,
+                                                const char *const name,
+                                                const uint32_t stack_depth,
+                                                void *const parameters,
+                                                UBaseType_t priority,
+                                                StackType_t *const stack_buffer,
+                                                StaticTask_t *const task_buffer)
+{
+    if (g_force_consumer_create_fail) {
+        return NULL;
+    }
+    return xTaskCreateStatic(
+        task_code, name, stack_depth, parameters, priority, stack_buffer, task_buffer);
+}
 
 static void reset_async_ctx(void)
 {
+    g_force_consumer_create_fail = false;
     g_async_consumer.count = 0;
     g_async_consumer.last_type = APP_EVENT_NONE;
     app_event_queue_init(&g_async_ctx.queue);
@@ -99,7 +116,37 @@ static void ensure_async_task_started(void)
     led_sm_consumer_task_stop(&g_async_ctx);
     reset_async_ctx();
     led_sm_consumer_task_start(&g_async_ctx);
-    g_async_ctx.started = true;
+    g_async_ctx.started = (g_async_ctx.consumer_task != NULL);
+}
+
+static void wait_until_consumer_count(uint32_t expected, TickType_t timeout_ticks)
+{
+    for (TickType_t i = 0; i < timeout_ticks; ++i) {
+        if (g_async_consumer.count >= expected) {
+            return;
+        }
+        vTaskDelay(1);
+    }
+}
+
+static void wait_until_queue_size(size_t expected, TickType_t timeout_ticks)
+{
+    for (TickType_t i = 0; i < timeout_ticks; ++i) {
+        if (app_event_queue_size(&g_async_ctx.queue) == expected) {
+            return;
+        }
+        vTaskDelay(1);
+    }
+}
+
+static void wait_until_dispatched(uint32_t expected, TickType_t timeout_ticks)
+{
+    for (TickType_t i = 0; i < timeout_ticks; ++i) {
+        if (app_dispatcher_dispatched(&g_async_ctx.dispatcher) >= expected) {
+            return;
+        }
+        vTaskDelay(1);
+    }
 }
 
 TEST_CASE("led sm producer maps short press to app event", "[led_sm_idf]")
@@ -222,7 +269,6 @@ TEST_CASE("led sm consumer task notify is safe before task start", "[led_sm_idf]
 TEST_CASE("led sm producer notifies async consumer task", "[led_sm_idf]")
 {
     ensure_async_task_started();
-    reset_async_ctx();
 
     fake_input_ctx_t in = {
         .event = BLINKY_EVENT_SHORT_PRESS,
@@ -235,7 +281,7 @@ TEST_CASE("led sm producer notifies async consumer task", "[led_sm_idf]")
     g_async_ctx.input.ctx = &in;
 
     led_sm_producer_step(&g_async_ctx);
-    vTaskDelay(1);
+    wait_until_consumer_count(1, 10);
 
     TEST_ASSERT_EQUAL_UINT32(1, g_async_consumer.count);
     TEST_ASSERT_EQUAL(APP_EVENT_BUTTON_SHORT, g_async_consumer.last_type);
@@ -245,14 +291,14 @@ TEST_CASE("led sm producer notifies async consumer task", "[led_sm_idf]")
 TEST_CASE("led sm consumer task drains burst on single notify", "[led_sm_idf]")
 {
     ensure_async_task_started();
-    reset_async_ctx();
 
     TEST_ASSERT_TRUE(app_event_queue_push(&g_async_ctx.queue, &(app_event_t){.type = APP_EVENT_TICK}));
     TEST_ASSERT_TRUE(app_event_queue_push(&g_async_ctx.queue, &(app_event_t){.type = APP_EVENT_BUTTON_SHORT}));
     TEST_ASSERT_TRUE(app_event_queue_push(&g_async_ctx.queue, &(app_event_t){.type = APP_EVENT_BUTTON_LONG}));
 
     led_sm_consumer_task_notify(&g_async_ctx);
-    vTaskDelay(1);
+    wait_until_consumer_count(3, 10);
+    wait_until_queue_size(0, 10);
 
     TEST_ASSERT_EQUAL_UINT32(3, g_async_consumer.count);
     TEST_ASSERT_TRUE(app_event_queue_is_empty(&g_async_ctx.queue));
@@ -261,7 +307,6 @@ TEST_CASE("led sm consumer task drains burst on single notify", "[led_sm_idf]")
 TEST_CASE("led sm stop lifecycle is idempotent", "[led_sm_idf]")
 {
     ensure_async_task_started();
-    reset_async_ctx();
 
     TEST_ASSERT_TRUE(g_async_ctx.started);
     led_sm_stop(&g_async_ctx);
@@ -273,4 +318,112 @@ TEST_CASE("led sm stop lifecycle is idempotent", "[led_sm_idf]")
     led_sm_consumer_task_notify(&g_async_ctx);
     vTaskDelay(1);
     TEST_ASSERT_EQUAL_UINT32(0, g_async_consumer.count);
+}
+
+TEST_CASE("led sm start fresh resets runtime and emits boot event", "[led_sm_idf]")
+{
+    ensure_async_task_started();
+    led_sm_consumer_task_stop(&g_async_ctx);
+    g_async_ctx.started = false;
+
+    fake_input_ctx_t in = {
+        .event = BLINKY_EVENT_NONE,
+        .now_ms = 500,
+    };
+    g_async_ctx.input.ops = &(button_input_adapter_ops_t){
+        .poll_event = fake_poll_event,
+        .now_ms = fake_now_ms,
+    };
+    g_async_ctx.input.ctx = &in;
+    g_async_ctx.core_cfg.startup.selector = LED_STARTUP_SELECT_TRIANGLE;
+
+    led_runtime_output_t out = {0};
+    led_runtime_init(&g_async_ctx.runtime, &g_async_ctx.core_cfg.model, LED_WAVE_SQUARE, 0, &out);
+    led_runtime_step(&g_async_ctx.runtime, 1, BLINKY_EVENT_SHORT_PRESS, &out);
+    TEST_ASSERT_EQUAL(LED_POLICY_PAUSED, g_async_ctx.runtime.state);
+
+    TEST_ASSERT_TRUE(led_sm_start(&g_async_ctx, LED_SM_START_FRESH));
+    wait_until_dispatched(1, 10);
+
+    TEST_ASSERT_TRUE(g_async_ctx.started);
+    TEST_ASSERT_EQUAL(LED_POLICY_RUNNING, g_async_ctx.runtime.state);
+    TEST_ASSERT_EQUAL(LED_WAVE_TRIANGLE, g_async_ctx.runtime.model.wave);
+    TEST_ASSERT_EQUAL_UINT32(1, app_dispatcher_dispatched(&g_async_ctx.dispatcher));
+    TEST_ASSERT_TRUE(app_event_queue_is_empty(&g_async_ctx.queue));
+
+    led_sm_stop(&g_async_ctx);
+}
+
+TEST_CASE("led sm start resume preserves runtime and does not emit boot event", "[led_sm_idf]")
+{
+    ensure_async_task_started();
+    led_sm_consumer_task_stop(&g_async_ctx);
+    g_async_ctx.started = false;
+
+    fake_input_ctx_t in = {
+        .event = BLINKY_EVENT_NONE,
+        .now_ms = 700,
+    };
+    g_async_ctx.input.ops = &(button_input_adapter_ops_t){
+        .poll_event = fake_poll_event,
+        .now_ms = fake_now_ms,
+    };
+    g_async_ctx.input.ctx = &in;
+
+    led_runtime_output_t out = {0};
+    led_runtime_init(&g_async_ctx.runtime, &g_async_ctx.core_cfg.model, LED_WAVE_SQUARE, 0, &out);
+    led_runtime_step(&g_async_ctx.runtime, 1, BLINKY_EVENT_SHORT_PRESS, &out);
+    TEST_ASSERT_EQUAL(LED_POLICY_PAUSED, g_async_ctx.runtime.state);
+    TEST_ASSERT_EQUAL(LED_WAVE_SQUARE, g_async_ctx.runtime.model.wave);
+
+    TEST_ASSERT_TRUE(led_sm_start(&g_async_ctx, LED_SM_START_RESUME));
+    vTaskDelay(1);
+
+    TEST_ASSERT_TRUE(g_async_ctx.started);
+    TEST_ASSERT_EQUAL(LED_POLICY_PAUSED, g_async_ctx.runtime.state);
+    TEST_ASSERT_EQUAL(LED_WAVE_SQUARE, g_async_ctx.runtime.model.wave);
+    TEST_ASSERT_EQUAL_UINT32(0, g_async_consumer.count);
+
+    TaskHandle_t first = g_async_ctx.consumer_task;
+    TEST_ASSERT_TRUE(led_sm_start(&g_async_ctx, LED_SM_START_RESUME));
+    TEST_ASSERT_EQUAL_PTR(first, g_async_ctx.consumer_task);
+
+    led_sm_stop(&g_async_ctx);
+}
+
+TEST_CASE("led sm start returns false when consumer task create fails", "[led_sm_idf]")
+{
+    ensure_async_task_started();
+    led_sm_consumer_task_stop(&g_async_ctx);
+    g_async_ctx.started = false;
+
+    g_force_consumer_create_fail = true;
+    TEST_ASSERT_FALSE(led_sm_start(&g_async_ctx, LED_SM_START_RESUME));
+    TEST_ASSERT_FALSE(g_async_ctx.started);
+    TEST_ASSERT_NULL(g_async_ctx.consumer_task);
+    g_force_consumer_create_fail = false;
+}
+
+TEST_CASE("led sm enqueue after stop does not dispatch until resumed and notified", "[led_sm_idf]")
+{
+    ensure_async_task_started();
+
+    led_sm_stop(&g_async_ctx);
+    TEST_ASSERT_FALSE(g_async_ctx.started);
+
+    const app_event_t ev = {.type = APP_EVENT_TICK, .timestamp_ms = 42};
+    TEST_ASSERT_TRUE(led_sm_enqueue_event(&g_async_ctx, &ev));
+    vTaskDelay(1);
+
+    TEST_ASSERT_EQUAL_UINT32(0, g_async_consumer.count);
+    TEST_ASSERT_EQUAL_UINT32(1, app_event_queue_size(&g_async_ctx.queue));
+
+    TEST_ASSERT_TRUE(led_sm_start(&g_async_ctx, LED_SM_START_RESUME));
+    led_sm_consumer_task_notify(&g_async_ctx);
+    wait_until_consumer_count(1, 10);
+    wait_until_queue_size(0, 10);
+
+    TEST_ASSERT_EQUAL_UINT32(1, g_async_consumer.count);
+    TEST_ASSERT_TRUE(app_event_queue_is_empty(&g_async_ctx.queue));
+    led_sm_stop(&g_async_ctx);
 }
