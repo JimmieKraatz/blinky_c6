@@ -435,6 +435,25 @@ Started a dedicated branch to address the remaining config/default ownership amb
   - menu exit no longer triggers startup-like reset sequence
   - line-based logging output restored in monitor
 
+## 2026-03-11 - Logging boundary slice 5: configurability and boot identity
+### Summary
+- Added framework-owned log verbosity control in Kconfig:
+  - `BLINKY_LOG_MIN_LEVEL_{ERROR,WARN,INFO,DEBUG}`
+- Mapped selected level through `_idf` config mapper into platform config.
+- Routed sink init to use mapped `log_min_level` instead of hardcoded value.
+- Added structured app boot identity log record emitted at startup:
+  - domain/event: `app:boot`
+  - message: `startup`
+  - keys: `project`, `version`, `idf`, `min_level`
+
+### Wiring detail
+- Added `esp_app_format` component dependency to `blinky_idf` for app description metadata.
+- Boot identity record is emitted immediately after sink adapter init in `led_sm_init(...)`.
+
+### Verification
+- App build passes.
+- Unit-test-app build passes.
+
 ## 2026-03-10 - Config ownership slice: mapper boundary introduced
 ### Changes
 - Added explicit `_idf` mapper functions:
