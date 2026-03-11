@@ -19,3 +19,7 @@ typedef struct {
 
 void idf_build_platform_config(led_platform_config_t *cfg);
 void idf_build_core_config(led_core_config_t *cfg);
+
+/* Testable normalization helpers for platform timing bounds. */
+blinky_time_ms_t led_config_idf_clamp_producer_poll_ms(int value);
+int led_config_idf_clamp_boot_pattern_ms(int value);

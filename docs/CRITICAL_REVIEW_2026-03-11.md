@@ -16,7 +16,7 @@ Purpose: track high-criticality findings, remediation slices, and closure eviden
 | CR-001 | High | consumer lifecycle | `led_sm_consumer_*` task ownership is singleton-style behind context-shaped API; `ctx` ignored in notify/stop path | Done |
 | CR-002 | High | startup ordering | Startup sequence has potential race between boot event consumer path and boot-pattern LED writes | Done |
 | CR-003 | High | lifecycle semantics | `stop/start` semantics can preserve stale queue/runtime state; restart behavior not explicitly defined or tested | Done |
-| CR-004 | Medium | config normalization | `_idf` timing values (`producer_poll_ms`, `boot_pattern_ms`) are not normalized at mapper boundary | Open |
+| CR-004 | Medium | config normalization | `_idf` timing values (`producer_poll_ms`, `boot_pattern_ms`) are not normalized at mapper boundary | Done |
 | CR-005 | Medium | contract drift | `led_sm_step` header comment no longer matches implementation after async split | Done |
 | CR-006 | Medium | API defensiveness | Null-safety expectations are inconsistent across core runtime/model APIs | Open |
 | CR-007 | Medium | test depth | Missing targeted assertions for async lifecycle edge cases and log adapter behavior | Open |
@@ -53,6 +53,10 @@ Purpose: track high-criticality findings, remediation slices, and closure eviden
 - Goal:
   - normalize/clamp `_idf` timing values at config mapper boundary
   - align API comments/docs with actual async behavior
+- Status:
+  - completed in this branch:
+    - mapper normalization added for `producer_poll_ms` and `boot_pattern_ms` (minimum 1 ms)
+    - Kconfig ranges added as UI guardrails for both symbols
 
 4. Core API Consistency and Test Hardening
 - Address: CR-006, CR-007

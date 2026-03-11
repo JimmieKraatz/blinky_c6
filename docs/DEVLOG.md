@@ -61,6 +61,25 @@ Addressed startup ordering race between boot-pattern LED writes and async consum
 - On-device Unity run checkpoint:
   - `82 Tests 0 Failures 0 Ignored`
 
+## 2026-03-11 - Critical review slice 3a: platform timing normalization
+### Context
+Addressed config normalization risk for platform-owned timing values.
+
+### Changes
+- Added mapper-side normalization in `idf_build_platform_config(...)`:
+  - `BLINKY_PRODUCER_POLL_MS` -> minimum `1 ms`
+  - `BLINKY_BOOT_PATTERN_MS` -> minimum `1 ms`
+- Added Kconfig UI guardrails:
+  - `BLINKY_PRODUCER_POLL_MS` range: `1..1000`
+  - `BLINKY_BOOT_PATTERN_MS` range: `1..2000`
+- Added targeted mapper clamp tests:
+  - `components/blinky_idf/test/test_led_config_idf.c`
+  - validates min clamp, max clamp, and in-range pass-through behavior
+
+### Why
+- Keeps normalization at boundary (not call-sites), consistent with ownership rules.
+- Prevents zero/invalid delays from causing tight-loop behavior or collapsed boot timing.
+
 ## 2026-03-09 - Repository structure and testing flow
 ### Context
 The codebase started with a monolithic `components/blinky` module and local/manual

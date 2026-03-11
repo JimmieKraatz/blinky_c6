@@ -45,9 +45,14 @@ menu "Blinky"
     config BLINKY_PRODUCER_POLL_MS
         int "Producer poll interval (ms)"
         default 10
+        range 1 1000
         help
             Poll interval for producer-side input sampling in the LED state machine.
             Smaller values increase responsiveness but cost more CPU.
+            Valid range is 1..1000 ms.
+            Runtime clamp bounds in code:
+            BLINKY_PRODUCER_POLL_MS_MIN / BLINKY_PRODUCER_POLL_MS_MAX
+            (components/blinky_idf/led_config_idf.c).
 
     config BLINKY_MODEL_POLL_MS
         int "Model update interval (ms)"
@@ -112,9 +117,14 @@ menu "Blinky"
     config BLINKY_BOOT_PATTERN_MS
         int "Boot pattern on/off time (ms)"
         default 120
+        range 1 2000
         depends on BLINKY_BOOT_PATTERN
         help
             Duration for each on/off pulse in the boot pattern.
+            Valid range is 1..2000 ms.
+            Runtime clamp bounds in code:
+            BLINKY_BOOT_PATTERN_MS_MIN / BLINKY_BOOT_PATTERN_MS_MAX
+            (components/blinky_idf/led_config_idf.c).
 
     config BLINKY_LOG_INTENSITY
         bool "Log intensity updates"
