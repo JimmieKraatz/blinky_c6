@@ -322,6 +322,38 @@ Started a dedicated branch to address the remaining config/default ownership amb
 - Logging behavior remains functionally equivalent at runtime.
 - Ownership docs reflect final boundary and TODOs are updated (moved to done or deferred explicitly).
 
+## 2026-03-10 - Logging boundary slice 1: callsite inventory
+### Summary
+- Inventory completed for runtime logging callsites.
+- Current state uses `printf` (not `ESP_LOG*`) in both core and `_idf`.
+- Highest-priority boundary leak: core runtime emits direct log output.
+
+### Callsites by ownership
+- `core_blinky`:
+  - `components/core_blinky/led_runtime.c`:
+    - `printf("STATE: RUNNING\\n")`
+    - `printf("SINE_STEPS_USED=%u\\n", ...)`
+    - `printf("STATE: PAUSED\\n")`
+    - `printf("MODEL: %s\\n", ...)`
+    - `printf("STATE: MENU\\n")`
+    - `printf("MENU: WAVE %s\\n", ...)` (enter)
+    - `printf("MENU: WAVE %s\\n", ...)` (change)
+    - `printf("MENU: EXIT\\n")`
+- `_idf`:
+  - `components/blinky_idf/led_sm_idf.c`:
+    - `printf("LED %u%%\\n", ...)` (gated by `log_intensity_enabled`)
+- `blinky_interfaces`:
+  - no logging callsites
+
+### Config touchpoints relevant to logging
+- `components/blinky_idf/Kconfig`: `BLINKY_LOG_INTENSITY`
+- `components/blinky_idf/led_config_idf.*`: maps and carries `log_intensity_enabled`
+
+### Implications for next slice
+- Add portable logging contract in `blinky_interfaces`.
+- Route core runtime logs through contract sink instead of direct `printf`.
+- Keep `_idf` as the concrete sink owner (stdout/ESP log backend decision stays platform-owned).
+
 ## 2026-03-10 - Config ownership slice: mapper boundary introduced
 ### Changes
 - Added explicit `_idf` mapper functions:
