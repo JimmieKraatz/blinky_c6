@@ -4,6 +4,22 @@
 This file is a diary of development progress: what changed, why, and what is next.
 For the stable technical view, see `docs/ARCHITECTURE.md`.
 
+## 2026-03-11 - Critical review branch kickoff
+### Branch
+- `review/findings-hardening-2026-03-11`
+
+### Context
+Requested a full critical review pass before further feature work.
+
+### Changes
+- Added critical findings register and remediation plan:
+  - `docs/CRITICAL_REVIEW_2026-03-11.md`
+- Captured seven findings across lifecycle, startup ordering, config hardening, and test depth.
+- Defined remediation in four focused slices with explicit closure criteria.
+
+### Notes
+- High-severity lifecycle/startup issues are prioritized ahead of new feature additions.
+
 ## 2026-03-09 - Repository structure and testing flow
 ### Context
 The codebase started with a monolithic `components/blinky` module and local/manual

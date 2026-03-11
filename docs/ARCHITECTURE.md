@@ -156,6 +156,9 @@ Unit tests run via ESP-IDF Unit Test App with this repo injected through `EXTRA_
 Recent on-device run (2026-03-10):
 - `72 Tests 0 Failures 0 Ignored`
 
+Critical hardening tracker:
+- `docs/CRITICAL_REVIEW_2026-03-11.md` (finding register + remediation slices)
+
 ## Repo Hygiene
 - `unity-app/` is local scratch/test harness and intentionally git-ignored.
 

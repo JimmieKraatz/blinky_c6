@@ -52,5 +52,5 @@ void led_sm_consumer_step(sm_led_ctx_t *ctx, size_t max_events);
 void led_sm_consumer_task_start(sm_led_ctx_t *ctx);
 void led_sm_consumer_task_stop(sm_led_ctx_t *ctx);
 void led_sm_consumer_task_notify(sm_led_ctx_t *ctx);
-/* Compatibility wrapper: delay, run producer step, then consumer step. */
+/* Compatibility wrapper: delay, run producer step (consumer runs in its task). */
 void led_sm_step(sm_led_ctx_t *ctx);
