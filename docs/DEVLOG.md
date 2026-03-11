@@ -350,6 +350,9 @@ wake ownership, and button timing policy ownership.
   - add explicit assert-contract validation for strict core APIs:
     - verify `led_policy_step(NULL, ...)` triggers assert-fail path
     - keep positive-path coverage proving no assert for valid non-null contexts
+- Runtime context ownership follow-up:
+  - readdress temporary `app_main` static `sm_led_ctx_t` workaround added to avoid main-task stack overflow
+  - align final approach with documented non-singleton lifecycle ownership decision from critical review slice 1
 - Fault/shutdown semantics (deferred):
   - define core-owned handling contract before adding platform producers
 - Pause behavior policy decision (deferred):

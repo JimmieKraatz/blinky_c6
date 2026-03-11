@@ -171,6 +171,7 @@ Recent on-device run (2026-03-10):
 
 Targeted hardening TODO:
 - add explicit assert-contract testing for strict core APIs (for example `led_policy_step(NULL, ...)` assert-fail path) while preserving positive-path non-null coverage.
+- rework temporary `app_main` static `sm_led_ctx_t` storage (used to avoid main-task stack overflow) so final runtime ownership remains consistent with non-singleton lifecycle intent.
 
 Critical hardening tracker:
 - `docs/CRITICAL_REVIEW_2026-03-11.md` (finding register + remediation slices)
