@@ -21,6 +21,13 @@ Purpose: track high-criticality findings, remediation slices, and closure eviden
 | CR-006 | Medium | API defensiveness | Null-safety expectations are inconsistent across core runtime/model APIs | Open |
 | CR-007 | Medium | test depth | Missing targeted assertions for async lifecycle edge cases and log adapter behavior | Open |
 
+### Resolution References (Done Findings)
+- `CR-001`: `77339b5`
+- `CR-002`: `ad112ac`
+- `CR-003`: `77339b5`, `4cf6574`
+- `CR-004`: `d78aecb`
+- `CR-005`: `d35edf2`
+
 ## Planned Remediation Slices
 
 1. Consumer Ownership and Lifecycle Contract
@@ -34,6 +41,7 @@ Purpose: track high-criticality findings, remediation slices, and closure eviden
     - task ownership moved to `sm_led_ctx_t` (non-singleton)
     - lifecycle API now supports `led_sm_start(..., LED_SM_START_FRESH|LED_SM_START_RESUME)`
     - targeted tests added for fresh vs resume and start idempotence
+  - commits: `77339b5`, `4cf6574`
 
 2. Startup Ordering and Output Serialization
 - Address: CR-002
@@ -47,6 +55,7 @@ Purpose: track high-criticality findings, remediation slices, and closure eviden
     - boot event is enqueued after task creation, removing startup pattern/output interleaving window
   - note:
     - on-target run is still recommended to validate visual/log ordering behavior
+  - commits: `ad112ac`
 
 3. Config Boundary Hardening
 - Address: CR-004, CR-005
@@ -55,8 +64,10 @@ Purpose: track high-criticality findings, remediation slices, and closure eviden
   - align API comments/docs with actual async behavior
 - Status:
   - completed in this branch:
-    - mapper normalization added for `producer_poll_ms` and `boot_pattern_ms` (minimum 1 ms)
+    - mapper normalization/clamp added for `producer_poll_ms` and `boot_pattern_ms` (min/max)
     - Kconfig ranges added as UI guardrails for both symbols
+    - targeted mapper clamp tests added
+  - commits: `d78aecb`
 
 4. Core API Consistency and Test Hardening
 - Address: CR-006, CR-007
