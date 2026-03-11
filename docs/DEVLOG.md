@@ -217,7 +217,7 @@ wake ownership, and button timing policy ownership.
 - This branch is now merge-ready for the extraction scope.
 
 ## Deferred TODOs
-- CI/CD rollout with hardware constraints:
+- CI/CD rollout with hardware constraints (High Priority):
   - implement cloud GitHub Actions for hardware-independent checks (build, unit-test-app build, lint/format when configured)
   - add self-hosted GitHub Actions runner on devkit host for HIL flash/smoke validation
   - promote HIL to required gate for `develop` -> `master` before release tagging
