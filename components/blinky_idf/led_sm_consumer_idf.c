@@ -3,7 +3,8 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
-#define LED_SM_CONSUMER_TASK_STACK_WORDS 2048U
+/* Logging now runs on consumer path; keep extra headroom for VFS/log call depth. */
+#define LED_SM_CONSUMER_TASK_STACK_WORDS 4096U
 #define LED_SM_CONSUMER_TASK_PRIORITY    5U
 
 static TaskHandle_t s_consumer_task = NULL;

@@ -84,7 +84,7 @@ static void idf_emit(void *ctx, const blinky_log_record_t *record)
         used = append_kv(line, sizeof(line), used, &record->kvs[i]);
     }
 
-    esp_log_write(to_esp_level(record->level), adapter->tag, "%s", line);
+    esp_log_write(to_esp_level(record->level), adapter->tag, "%s\n", line);
 }
 
 void blinky_log_adapter_idf_init(blinky_log_sink_t *sink,

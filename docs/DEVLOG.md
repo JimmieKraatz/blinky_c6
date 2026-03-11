@@ -432,6 +432,11 @@ Started a dedicated branch to address the remaining config/default ownership amb
 - Added runtime test covering structured log emission when sink is configured.
 - Unit-test-app build passes with updated API and tests.
 
+### Follow-up parity fix
+- Preserved preconfigured runtime sink across `led_runtime_init(...)` so init-time state logs are not dropped.
+- Updated `_idf` init flow to set runtime sink before `led_runtime_init(...)`.
+- Added test coverage for init-time log emission with preconfigured sink.
+
 ## 2026-03-10 - Config ownership slice: mapper boundary introduced
 ### Changes
 - Added explicit `_idf` mapper functions:

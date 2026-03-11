@@ -107,3 +107,27 @@ TEST_CASE("runtime emits structured logs when sink is configured", "[led_runtime
     TEST_ASSERT_NOT_NULL(log_ctx.last_record);
     TEST_ASSERT_EQUAL_STRING("runtime", log_ctx.last_record->domain);
 }
+
+TEST_CASE("runtime init preserves preconfigured sink and emits init log", "[led_runtime]")
+{
+    led_runtime_t rt = {0};
+    led_runtime_output_t out = {0};
+    led_model_config_t cfg = test_cfg();
+    fake_log_ctx_t log_ctx = {0};
+    const blinky_log_sink_ops_t ops = {
+        .emit = fake_emit,
+    };
+    blinky_log_sink_t sink = {
+        .ops = &ops,
+        .ctx = &log_ctx,
+    };
+
+    led_runtime_set_log_sink(&rt, &sink);
+    led_runtime_init(&rt, &cfg, LED_WAVE_SINE, 0, &out);
+
+    TEST_ASSERT_GREATER_THAN_UINT32(0, log_ctx.calls);
+    TEST_ASSERT_NOT_NULL(log_ctx.last_record);
+    TEST_ASSERT_EQUAL_STRING("runtime", log_ctx.last_record->domain);
+    TEST_ASSERT_EQUAL_STRING("state_change", log_ctx.last_record->event);
+    TEST_ASSERT_EQUAL_STRING("running", log_ctx.last_record->message);
+}

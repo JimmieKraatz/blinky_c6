@@ -74,12 +74,13 @@ void led_runtime_init(led_runtime_t *rt,
                       blinky_time_ms_t now,
                       led_runtime_output_t *out)
 {
+    blinky_log_sink_t *existing_sink = rt ? rt->log_sink : NULL;
     clear_output(out);
     led_model_init(&rt->model, cfg);
     led_model_set_wave(&rt->model, start_wave, now);
     rt->policy.menu_return_state = LED_POLICY_RUNNING;
     rt->policy.menu_wave = start_wave;
-    rt->log_sink = NULL;
+    rt->log_sink = existing_sink;
     enter_state(rt, LED_POLICY_RUNNING, now, out);
 }
 
