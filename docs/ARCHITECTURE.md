@@ -98,6 +98,7 @@ Current Kconfig defaults, ownership, and target direction:
 | `BLINKY_BOOT_PATTERN` | `_idf` | `_idf` | Platform/UI indication behavior |
 | `BLINKY_BOOT_PATTERN_MS` | `_idf` | `_idf` | Platform/UI timing |
 | `BLINKY_LOG_INTENSITY` | `_idf` | `_idf` | Platform logging gate for `_idf` sink adapter |
+| `BLINKY_LOG_MIN_LEVEL_*` | `_idf` | `_idf` | Platform logging verbosity policy for sink adapter |
 | `BLINKY_WAVE_PERIOD_MS` | `_idf` -> core model | `core_blinky` policy/config | Domain waveform behavior |
 | `BLINKY_SINE_STEPS_MAX` | `_idf` -> core model | `core_blinky` policy/config | Domain quality/perf policy |
 | `BLINKY_SAW_STEP_PCT` | `_idf` -> core model | `core_blinky` policy/config | Domain waveform shape policy |
@@ -128,6 +129,7 @@ Key knobs:
 - Startup waveform is core policy default (not Kconfig-driven)
 - Boot pattern enable and pulse duration
 - Intensity logging enable/disable
+- Minimum sink log level (`ERROR`/`WARN`/`INFO`/`DEBUG`)
 
 ## Logging Boundary Status (2026-03-11)
 - Core/runtime emits structured log records through portable sink contract (`blinky_interfaces/blinky_log.h`).

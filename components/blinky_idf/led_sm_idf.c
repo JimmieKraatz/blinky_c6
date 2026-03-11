@@ -105,7 +105,7 @@ void led_sm_init(sm_led_ctx_t *ctx)
         &ctx->log_idf,
         &(blinky_log_adapter_idf_config_t){
             .tag = "blinky",
-            .min_level = BLINKY_LOG_LEVEL_INFO,
+            .min_level = ctx->platform_cfg.log_min_level,
         });
 
     button_input_adapter_idf_init(
