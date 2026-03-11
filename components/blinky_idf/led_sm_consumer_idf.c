@@ -3,14 +3,6 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
-/* Logging now runs on consumer path; keep extra headroom for VFS/log call depth. */
-#define LED_SM_CONSUMER_TASK_STACK_WORDS 4096U
-#define LED_SM_CONSUMER_TASK_PRIORITY    5U
-
-static TaskHandle_t s_consumer_task = NULL;
-static StaticTask_t s_consumer_task_tcb;
-static StackType_t s_consumer_task_stack[LED_SM_CONSUMER_TASK_STACK_WORDS];
-
 void led_sm_consumer_step(sm_led_ctx_t *ctx, size_t max_events)
 {
     (void)app_dispatcher_drain(&ctx->dispatcher, max_events);
@@ -28,35 +20,33 @@ static void led_sm_consumer_task(void *arg)
 
 void led_sm_consumer_task_start(sm_led_ctx_t *ctx)
 {
-    if (!ctx || s_consumer_task) {
+    if (!ctx || ctx->consumer_task) {
         return;
     }
 
-    s_consumer_task = xTaskCreateStatic(
+    ctx->consumer_task = xTaskCreateStatic(
         led_sm_consumer_task,
         "led_consumer",
         LED_SM_CONSUMER_TASK_STACK_WORDS,
         ctx,
         LED_SM_CONSUMER_TASK_PRIORITY,
-        s_consumer_task_stack,
-        &s_consumer_task_tcb);
+        ctx->consumer_task_stack,
+        &ctx->consumer_task_tcb);
 }
 
 void led_sm_consumer_task_stop(sm_led_ctx_t *ctx)
 {
-    (void)ctx;
-    if (!s_consumer_task) {
+    if (!ctx || !ctx->consumer_task) {
         return;
     }
-    vTaskDelete(s_consumer_task);
-    s_consumer_task = NULL;
+    vTaskDelete(ctx->consumer_task);
+    ctx->consumer_task = NULL;
 }
 
 void led_sm_consumer_task_notify(sm_led_ctx_t *ctx)
 {
-    (void)ctx;
-    if (!s_consumer_task) {
+    if (!ctx || !ctx->consumer_task) {
         return;
     }
-    xTaskNotifyGive(s_consumer_task);
+    xTaskNotifyGive(ctx->consumer_task);
 }

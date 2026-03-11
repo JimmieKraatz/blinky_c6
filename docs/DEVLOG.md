@@ -20,6 +20,26 @@ Requested a full critical review pass before further feature work.
 ### Notes
 - High-severity lifecycle/startup issues are prioritized ahead of new feature additions.
 
+## 2026-03-11 - Critical review slice 1: non-singleton lifecycle + start modes
+### Context
+Addressed first hardening slice for lifecycle ownership and explicit restart semantics.
+
+### Changes
+- Converted consumer task ownership from file-static singleton to per-context fields on `sm_led_ctx_t`.
+- Added explicit start modes:
+  - `LED_SM_START_FRESH`
+  - `LED_SM_START_RESUME`
+- Updated `led_sm_start(...)` API to accept lifecycle mode and return success/failure.
+- `led_sm_init(...)` now starts using explicit fresh mode.
+- Added targeted lifecycle tests in `test_led_sm_idf.c`:
+  - fresh start resets runtime and emits boot event
+  - resume start preserves runtime and does not emit boot event
+  - start idempotence check on resume path
+
+### Verification
+- Unit-test-app build passes with targets:
+  - `core_sm`, `core_blinky`, `blinky_idf`, `blinky_interfaces`
+
 ## 2026-03-09 - Repository structure and testing flow
 ### Context
 The codebase started with a monolithic `components/blinky` module and local/manual

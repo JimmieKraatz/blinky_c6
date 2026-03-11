@@ -99,7 +99,7 @@ static void ensure_async_task_started(void)
     led_sm_consumer_task_stop(&g_async_ctx);
     reset_async_ctx();
     led_sm_consumer_task_start(&g_async_ctx);
-    g_async_ctx.started = true;
+    g_async_ctx.started = (g_async_ctx.consumer_task != NULL);
 }
 
 TEST_CASE("led sm producer maps short press to app event", "[led_sm_idf]")
@@ -273,4 +273,77 @@ TEST_CASE("led sm stop lifecycle is idempotent", "[led_sm_idf]")
     led_sm_consumer_task_notify(&g_async_ctx);
     vTaskDelay(1);
     TEST_ASSERT_EQUAL_UINT32(0, g_async_consumer.count);
+}
+
+TEST_CASE("led sm start fresh resets runtime and emits boot event", "[led_sm_idf]")
+{
+    ensure_async_task_started();
+    reset_async_ctx();
+    led_sm_consumer_task_stop(&g_async_ctx);
+    g_async_ctx.started = false;
+
+    fake_input_ctx_t in = {
+        .event = BLINKY_EVENT_NONE,
+        .now_ms = 500,
+    };
+    g_async_ctx.input.ops = &(button_input_adapter_ops_t){
+        .poll_event = fake_poll_event,
+        .now_ms = fake_now_ms,
+    };
+    g_async_ctx.input.ctx = &in;
+    g_async_ctx.core_cfg.startup.selector = LED_STARTUP_SELECT_TRIANGLE;
+
+    led_runtime_output_t out = {0};
+    led_runtime_init(&g_async_ctx.runtime, &g_async_ctx.core_cfg.model, LED_WAVE_SQUARE, 0, &out);
+    led_runtime_step(&g_async_ctx.runtime, 1, BLINKY_EVENT_SHORT_PRESS, &out);
+    TEST_ASSERT_EQUAL(LED_POLICY_PAUSED, g_async_ctx.runtime.state);
+
+    TEST_ASSERT_TRUE(led_sm_start(&g_async_ctx, LED_SM_START_FRESH));
+    vTaskDelay(1);
+
+    TEST_ASSERT_TRUE(g_async_ctx.started);
+    TEST_ASSERT_EQUAL(LED_POLICY_RUNNING, g_async_ctx.runtime.state);
+    TEST_ASSERT_EQUAL(LED_WAVE_TRIANGLE, g_async_ctx.runtime.model.wave);
+    TEST_ASSERT_EQUAL_UINT32(1, g_async_consumer.count);
+    TEST_ASSERT_EQUAL(APP_EVENT_BOOT, g_async_consumer.last_type);
+
+    led_sm_stop(&g_async_ctx);
+}
+
+TEST_CASE("led sm start resume preserves runtime and does not emit boot event", "[led_sm_idf]")
+{
+    ensure_async_task_started();
+    reset_async_ctx();
+    led_sm_consumer_task_stop(&g_async_ctx);
+    g_async_ctx.started = false;
+
+    fake_input_ctx_t in = {
+        .event = BLINKY_EVENT_NONE,
+        .now_ms = 700,
+    };
+    g_async_ctx.input.ops = &(button_input_adapter_ops_t){
+        .poll_event = fake_poll_event,
+        .now_ms = fake_now_ms,
+    };
+    g_async_ctx.input.ctx = &in;
+
+    led_runtime_output_t out = {0};
+    led_runtime_init(&g_async_ctx.runtime, &g_async_ctx.core_cfg.model, LED_WAVE_SQUARE, 0, &out);
+    led_runtime_step(&g_async_ctx.runtime, 1, BLINKY_EVENT_SHORT_PRESS, &out);
+    TEST_ASSERT_EQUAL(LED_POLICY_PAUSED, g_async_ctx.runtime.state);
+    TEST_ASSERT_EQUAL(LED_WAVE_SQUARE, g_async_ctx.runtime.model.wave);
+
+    TEST_ASSERT_TRUE(led_sm_start(&g_async_ctx, LED_SM_START_RESUME));
+    vTaskDelay(1);
+
+    TEST_ASSERT_TRUE(g_async_ctx.started);
+    TEST_ASSERT_EQUAL(LED_POLICY_PAUSED, g_async_ctx.runtime.state);
+    TEST_ASSERT_EQUAL(LED_WAVE_SQUARE, g_async_ctx.runtime.model.wave);
+    TEST_ASSERT_EQUAL_UINT32(0, g_async_consumer.count);
+
+    TaskHandle_t first = g_async_ctx.consumer_task;
+    TEST_ASSERT_TRUE(led_sm_start(&g_async_ctx, LED_SM_START_RESUME));
+    TEST_ASSERT_EQUAL_PTR(first, g_async_ctx.consumer_task);
+
+    led_sm_stop(&g_async_ctx);
 }

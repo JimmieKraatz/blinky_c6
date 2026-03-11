@@ -4,6 +4,9 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+
 #include "app_dispatcher.h"
 #include "app_event_queue.h"
 #include "button_input_adapter.h"
@@ -14,6 +17,14 @@
 #include "led_output_adapter.h"
 #include "led_output_adapter_idf.h"
 #include "led_config_idf.h"
+
+#define LED_SM_CONSUMER_TASK_STACK_WORDS 4096U
+#define LED_SM_CONSUMER_TASK_PRIORITY    5U
+
+typedef enum {
+    LED_SM_START_RESUME = 0,
+    LED_SM_START_FRESH = 1,
+} led_sm_start_mode_t;
 
 /* LED state machine context.
  * Owns runtime state for LED behavior and local button debounce.
@@ -33,13 +44,16 @@ typedef struct {
     const app_event_sink_ops_t *sink_ops;
     void *sink_ctx;
     app_dispatcher_t dispatcher;
+    TaskHandle_t consumer_task;
+    StaticTask_t consumer_task_tcb;
+    StackType_t consumer_task_stack[LED_SM_CONSUMER_TASK_STACK_WORDS];
     bool started;
 } sm_led_ctx_t;
 
 /* Initialize LED hardware and enter initial LED FSM state. */
 void led_sm_init(sm_led_ctx_t *ctx);
 /* Explicit lifecycle boundaries for async consumer path. */
-void led_sm_start(sm_led_ctx_t *ctx);
+bool led_sm_start(sm_led_ctx_t *ctx, led_sm_start_mode_t mode);
 void led_sm_stop(sm_led_ctx_t *ctx);
 
 /* Producer side: sample inputs and enqueue one semantic app event. */

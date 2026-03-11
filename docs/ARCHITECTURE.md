@@ -43,8 +43,8 @@ Implemented flow today (poll producer + async consumer task):
    - initializes IDF adapters (button input, LED output)
    - initializes core runtime (`led_runtime_init`)
    - initializes app queue + dispatcher
-   - starts consumer task (`led_sm_consumer_task_start`)
-   - enqueues `APP_EVENT_BOOT` and notifies consumer task
+   - starts lifecycle in fresh mode (`led_sm_start(..., LED_SM_START_FRESH)`)
+   - fresh start enqueues `APP_EVENT_BOOT` and notifies consumer task
 3. `led_sm_step` (`blinky_idf`)
    - waits `POLL_MS` (`vTaskDelay`)
    - reads semantic button event from input adapter
@@ -67,6 +67,9 @@ Notes:
 - Consumer blocks on task notification and drains queue on wake-up.
 - Producer remains time-gated at `POLL_MS` cadence.
 - Producer publish path is now wake-agnostic; enqueue sink owns notify side-effects.
+- Lifecycle modes:
+  - `LED_SM_START_FRESH`: reinitialize runtime + queue/dispatcher, emit boot event, show boot pattern
+  - `LED_SM_START_RESUME`: keep existing runtime/queue state and resume consumer task
 
 ## Core/Framework Ownership (Current)
 Defaults/config ownership after extraction slices:

@@ -13,9 +13,9 @@ Purpose: track high-criticality findings, remediation slices, and closure eviden
 
 | ID | Severity | Area | Finding | Status |
 |---|---|---|---|---|
-| CR-001 | High | consumer lifecycle | `led_sm_consumer_*` task ownership is singleton-style behind context-shaped API; `ctx` ignored in notify/stop path | Open |
+| CR-001 | High | consumer lifecycle | `led_sm_consumer_*` task ownership is singleton-style behind context-shaped API; `ctx` ignored in notify/stop path | Done |
 | CR-002 | High | startup ordering | Startup sequence has potential race between boot event consumer path and boot-pattern LED writes | Open |
-| CR-003 | High | lifecycle semantics | `stop/start` semantics can preserve stale queue/runtime state; restart behavior not explicitly defined or tested | Open |
+| CR-003 | High | lifecycle semantics | `stop/start` semantics can preserve stale queue/runtime state; restart behavior not explicitly defined or tested | Done |
 | CR-004 | Medium | config normalization | `_idf` timing values (`producer_poll_ms`, `boot_pattern_ms`) are not normalized at mapper boundary | Open |
 | CR-005 | Medium | contract drift | `led_sm_step` header comment no longer matches implementation after async split | Done |
 | CR-006 | Medium | API defensiveness | Null-safety expectations are inconsistent across core runtime/model APIs | Open |
@@ -29,6 +29,11 @@ Purpose: track high-criticality findings, remediation slices, and closure eviden
   - make ownership explicit (true singleton API, or context-owned task handle)
   - define and enforce restart semantics (`fresh` vs `resume`)
   - add deterministic tests for stop/start behavior
+- Status:
+  - completed in this branch:
+    - task ownership moved to `sm_led_ctx_t` (non-singleton)
+    - lifecycle API now supports `led_sm_start(..., LED_SM_START_FRESH|LED_SM_START_RESUME)`
+    - targeted tests added for fresh vs resume and start idempotence
 
 2. Startup Ordering and Output Serialization
 - Address: CR-002
