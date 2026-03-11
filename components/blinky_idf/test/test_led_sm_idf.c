@@ -304,8 +304,8 @@ TEST_CASE("led sm start fresh resets runtime and emits boot event", "[led_sm_idf
     TEST_ASSERT_TRUE(g_async_ctx.started);
     TEST_ASSERT_EQUAL(LED_POLICY_RUNNING, g_async_ctx.runtime.state);
     TEST_ASSERT_EQUAL(LED_WAVE_TRIANGLE, g_async_ctx.runtime.model.wave);
-    TEST_ASSERT_EQUAL_UINT32(1, g_async_consumer.count);
-    TEST_ASSERT_EQUAL(APP_EVENT_BOOT, g_async_consumer.last_type);
+    TEST_ASSERT_EQUAL_UINT32(1, app_dispatcher_dispatched(&g_async_ctx.dispatcher));
+    TEST_ASSERT_TRUE(app_event_queue_is_empty(&g_async_ctx.queue));
 
     led_sm_stop(&g_async_ctx);
 }
