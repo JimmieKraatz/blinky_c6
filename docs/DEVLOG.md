@@ -71,6 +71,20 @@ Delivery policy has been expanded in `docs/DELIVERY_WORKFLOW.md`. Next step is i
 - HIL workflow is intentionally disabled (`if: false`) while self-hosted runner infrastructure is being prepared.
 - Next slice is cloud app build gate (`idf.py set-target esp32c6` + `idf.py build`).
 
+## 2026-03-12 - CI/CD slice 2 implemented: cloud app build gate
+### Changes
+- Updated `.github/workflows/ci.yml` to replace placeholder scaffold job with an app build job.
+- Added checkout step (`actions/checkout@v4`) with submodules enabled.
+- Added ESP-IDF build step via `espressif/esp-idf-ci-action@v1`:
+  - `idf.py set-target esp32c6`
+  - `idf.py -D CCACHE_ENABLE=1 build`
+
+### Notes
+- Trigger scope remains:
+  - `pull_request` on `develop`, `master`
+  - `push` on `develop`, `master`
+- Slice 3 will add a separate unit-test-app build gate.
+
 ## 2026-03-11 - Critical review branch kickoff
 ### Branch
 - `review/findings-hardening-2026-03-11`
