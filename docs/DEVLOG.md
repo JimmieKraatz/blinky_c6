@@ -90,13 +90,14 @@ Delivery policy has been expanded in `docs/DELIVERY_WORKFLOW.md`. Next step is i
 First GitHub Actions run failed in `blinky_idf` on missing `driver/gpio.h` dependency resolution under newer ESP-IDF layout.
 
 ### Changes
-- Added `esp_driver_gpio` to `components/blinky_idf/CMakeLists.txt` `REQUIRES` list.
 - Updated CI workflow hardening:
   - `actions/checkout@v5`
   - pinned ESP-IDF version in CI action (`v5.2.2`) to avoid unplanned `-dev` toolchain drift.
+- Reverted attempted `esp_driver_gpio` requirement after validation showed it is unavailable in pinned IDF `v5.2.2`.
 
 ### Notes
-- Kept existing `driver` requirement for compatibility while adding explicit modern GPIO dependency.
+- Kept `driver` requirement for Slice 2 compatibility under pinned CI toolchain.
+- IDF 6 component migration can be handled later as a dedicated compatibility slice.
 
 ## 2026-03-11 - Critical review branch kickoff
 ### Branch
