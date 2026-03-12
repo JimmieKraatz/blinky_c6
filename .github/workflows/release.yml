@@ -1,0 +1,14 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  release-scaffold:
+    name: Release Scaffold Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Placeholder
+        run: echo "Release scaffold is in place. Artifact + release publishing will be added in later slices."

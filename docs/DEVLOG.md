@@ -55,6 +55,22 @@ Delivery policy has been expanded in `docs/DELIVERY_WORKFLOW.md`. Next step is i
 - Mandatory HIL gate before runner reliability is proven.
 - Packaging/deploy integration beyond GitHub Releases.
 
+## 2026-03-12 - CI/CD slice 1 implemented: workflow scaffolding
+### Changes
+- Added workflow scaffold files:
+  - `.github/workflows/ci.yml`
+  - `.github/workflows/release.yml`
+  - `.github/workflows/hil-smoke.yml`
+- Added safe placeholder jobs only (no ESP-IDF setup, no flash, no artifact publishing yet).
+- Configured triggers:
+  - `ci.yml`: `pull_request` + `push` on `develop` and `master`
+  - `release.yml`: `push` on tags matching `v*`
+  - `hil-smoke.yml`: `workflow_dispatch` only
+
+### Notes
+- HIL workflow is intentionally disabled (`if: false`) while self-hosted runner infrastructure is being prepared.
+- Next slice is cloud app build gate (`idf.py set-target esp32c6` + `idf.py build`).
+
 ## 2026-03-11 - Critical review branch kickoff
 ### Branch
 - `review/findings-hardening-2026-03-11`

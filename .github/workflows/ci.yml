@@ -1,0 +1,19 @@
+name: CI
+
+on:
+  pull_request:
+    branches:
+      - develop
+      - master
+  push:
+    branches:
+      - develop
+      - master
+
+jobs:
+  scaffold-check:
+    name: Workflow Scaffold Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Placeholder
+        run: echo "CI scaffold is in place. Build/test jobs will be added in later slices."

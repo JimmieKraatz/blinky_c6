@@ -1,0 +1,14 @@
+name: HIL Smoke
+
+on:
+  workflow_dispatch:
+
+jobs:
+  hil-smoke-stub:
+    name: HIL Smoke Stub (Disabled)
+    if: ${{ false }}
+    runs-on:
+      - self-hosted
+    steps:
+      - name: Placeholder
+        run: echo "HIL smoke scaffold is in place. Flash/serial verification will be added in later slices."
