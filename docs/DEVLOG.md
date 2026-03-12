@@ -340,6 +340,10 @@ wake ownership, and button timing policy ownership.
   - add self-hosted GitHub Actions runner on devkit host for HIL flash/smoke validation
   - promote HIL to required gate for `develop` -> `master` before release tagging
   - reference policy and acceptance criteria in `docs/DELIVERY_WORKFLOW.md`
+- Dev-ability/reproducibility hardening:
+  - move or mirror minimum required devcontainer/docker source into this repo
+  - ensure a new contributor can build/test without external scaffold dependencies
+  - document optional SSH agent forwarding separately from required build steps
 - Bootstrap layering split:
   - separate environment/bootstrap config concerns from runtime orchestration
   - revisit `sdkconfig` defaults vs runtime provisioning for future network features
