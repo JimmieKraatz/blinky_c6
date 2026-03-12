@@ -10,5 +10,5 @@ idf_component_register(
         "blinky_log_adapter_idf.c"
         "app_event_queue.c"
     INCLUDE_DIRS "."
-    REQUIRES driver core_sm core_blinky blinky_interfaces esp_app_format
+    REQUIRES driver esp_driver_gpio core_sm core_blinky blinky_interfaces esp_app_format
 )

@@ -16,15 +16,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           submodules: recursive
 
       - name: Build app
         uses: espressif/esp-idf-ci-action@v1
         with:
+          esp_idf_version: v5.2.2
           target: esp32c6
           path: "."
           command: |
-            idf.py set-target esp32c6
-            idf.py -D CCACHE_ENABLE=1 build
+            idf.py set-target esp32c6 build -D CCACHE_ENABLE=1

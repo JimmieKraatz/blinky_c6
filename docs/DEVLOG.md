@@ -85,6 +85,19 @@ Delivery policy has been expanded in `docs/DELIVERY_WORKFLOW.md`. Next step is i
   - `push` on `develop`, `master`
 - Slice 3 will add a separate unit-test-app build gate.
 
+## 2026-03-12 - CI/CD slice 2 follow-up: first-run failure remediation
+### Context
+First GitHub Actions run failed in `blinky_idf` on missing `driver/gpio.h` dependency resolution under newer ESP-IDF layout.
+
+### Changes
+- Added `esp_driver_gpio` to `components/blinky_idf/CMakeLists.txt` `REQUIRES` list.
+- Updated CI workflow hardening:
+  - `actions/checkout@v5`
+  - pinned ESP-IDF version in CI action (`v5.2.2`) to avoid unplanned `-dev` toolchain drift.
+
+### Notes
+- Kept existing `driver` requirement for compatibility while adding explicit modern GPIO dependency.
+
 ## 2026-03-11 - Critical review branch kickoff
 ### Branch
 - `review/findings-hardening-2026-03-11`
