@@ -52,3 +52,4 @@ Run `HIL Smoke` manually from Actions using branch `develop` and default inputs.
 - Container restarts do not re-register the runner; existing `.runner` config is reused automatically.
 - Runner startup sources `/opt/esp/idf/export.sh`, so `idf.py` is available to workflow jobs by default.
 - If flash fails with `Path '/dev/ttyACM0' is not readable`, verify `HIL_SERIAL_GID` matches host device group id and recreate container.
+- Runner status in GitHub can remain `Online/Idle` briefly after container stop. Restarting before it flips `Offline` may produce temporary `A session for this runner already exists` messages; this usually self-resolves once prior session timeout completes.

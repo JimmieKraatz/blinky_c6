@@ -253,6 +253,16 @@ Runner restarts/rebuilds could repeatedly trigger `config.sh --replace` and tran
 ### Notes
 - This eliminates routine re-registration churn and reduces startup session conflicts.
 
+## 2026-03-13 - Runner operational note: GitHub session timeout behavior
+### Observation
+- After stopping the runner container, GitHub may continue showing the runner as `Online/Idle` for a short period before transitioning to `Offline`.
+- Restarting the container during this interval can produce temporary:
+  - `A session for this runner already exists`
+
+### Conclusion
+- This is normal GitHub runner session timeout behavior, not a runner implementation defect.
+- Operational guidance: for clean reconnect logs, wait until GitHub marks runner `Offline` before restart.
+
 ## 2026-03-13 - HIL smoke follow-up: serial diagnostics and flash fallback
 ### Context
 HIL runs intermittently failed at flash with `/dev/ttyACM0` unreadable, while ad-hoc container checks appeared valid.
@@ -263,7 +273,20 @@ HIL runs intermittently failed at flash with `/dev/ttyACM0` unreadable, while ad
   - `ls -l` and `stat` on selected serial device
   - readability check output
 - Added flash log capture (`hil-logs/flash.log`) for post-failure analysis.
-- Added conditional flash fallback to `sudo -n idf.py ...` when device is not readable for current user context.
+- Reworked flash fallback to avoid running `idf.py` as root:
+  - if serial device is unreadable, use `sudo` only to repair port permissions (`chmod a+rw`)
+  - then execute `idf.py flash` as the normal runner user.
+- Updated runner image user setup to add `runner` to `dialout` group explicitly.
+
+## 2026-03-13 - HIL smoke follow-up: non-interactive monitor TTY workaround
+### Context
+HIL run reached monitor phase but failed with:
+- `Monitor requires standard input to be attached to TTY.`
+
+### Changes
+- Updated monitor capture in `.github/workflows/hil-smoke.yml` to run through `script` (pty wrapper):
+  - `script -q -c \"idf.py ... monitor\" /dev/null`
+- Kept timeout + cleaned-log pipeline unchanged.
 
 ## 2026-03-11 - Critical review branch kickoff
 ### Branch
