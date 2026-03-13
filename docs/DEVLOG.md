@@ -253,6 +253,16 @@ Runner restarts/rebuilds could repeatedly trigger `config.sh --replace` and tran
 ### Notes
 - This eliminates routine re-registration churn and reduces startup session conflicts.
 
+## 2026-03-13 - Runner operational note: GitHub session timeout behavior
+### Observation
+- After stopping the runner container, GitHub may continue showing the runner as `Online/Idle` for a short period before transitioning to `Offline`.
+- Restarting the container during this interval can produce temporary:
+  - `A session for this runner already exists`
+
+### Conclusion
+- This is normal GitHub runner session timeout behavior, not a runner implementation defect.
+- Operational guidance: for clean reconnect logs, wait until GitHub marks runner `Offline` before restart.
+
 ## 2026-03-13 - HIL smoke follow-up: serial diagnostics and flash fallback
 ### Context
 HIL runs intermittently failed at flash with `/dev/ttyACM0` unreadable, while ad-hoc container checks appeared valid.
