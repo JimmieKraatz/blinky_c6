@@ -9,6 +9,7 @@ idf_component_register(
         "led_event_consumer.c"
         "app_event_factory.c"
         "app_cli_command_map.c"
+        "app_cli_parse.c"
         "led_event_map.c"
         "led_startup_policy.c"
     INCLUDE_DIRS "."
