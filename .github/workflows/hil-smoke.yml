@@ -10,7 +10,7 @@ on:
       startup_pattern:
         description: "Regex expected in monitor output to mark startup success"
         required: true
-        default: "STATE: RUNNING|app:boot|startup"
+        default: "app:boot startup|runtime:state_change running|STATE: RUNNING|startup"
       monitor_timeout_seconds:
         description: "Max seconds to capture monitor output"
         required: true
@@ -51,11 +51,16 @@ jobs:
           timeout "${{ inputs.monitor_timeout_seconds }}"s \
             idf.py -p "${{ inputs.serial_port }}" monitor \
             > hil-logs/monitor.log 2>&1 || true
+          # Remove ANSI color/control sequences for stable regex matching.
+          sed -r 's/\x1B\[[0-9;]*[[:alpha:]]//g' hil-logs/monitor.log > hil-logs/monitor.clean.log
 
       - name: Validate startup pattern
         run: |
           set -euxo pipefail
-          grep -E "${{ inputs.startup_pattern }}" hil-logs/monitor.log
+          echo "Startup pattern: ${{ inputs.startup_pattern }}"
+          echo "--- monitor.clean.log (tail) ---"
+          tail -n 120 hil-logs/monitor.clean.log || true
+          grep -E "${{ inputs.startup_pattern }}" hil-logs/monitor.clean.log
 
       - name: Upload HIL logs
         if: always()

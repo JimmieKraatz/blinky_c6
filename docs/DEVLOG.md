@@ -225,6 +225,15 @@ HIL smoke run reached flash step but failed with:
 ### Notes
 - Runner container needs host serial device gid mapped so `runner` user can access `/dev/ttyACM0`.
 
+## 2026-03-13 - HIL smoke follow-up: startup pattern validation hardening
+### Context
+After port/flash access was fixed, HIL run failed at startup-pattern validation due log-format/pattern mismatch.
+
+### Changes
+- Updated default `startup_pattern` in `.github/workflows/hil-smoke.yml` to include structured runtime logs.
+- Added ANSI/control-sequence stripping from monitor output before pattern matching.
+- Added monitor log tail output in validation step for faster diagnosis on future failures.
+
 ## 2026-03-11 - Critical review branch kickoff
 ### Branch
 - `review/findings-hardening-2026-03-11`
