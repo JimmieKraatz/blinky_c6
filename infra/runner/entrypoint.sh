@@ -17,16 +17,24 @@ if [[ "${GH_RUNNER_REPLACE}" == "true" ]]; then
   replace_flag="--replace"
 fi
 
-echo "Configuring runner: ${GH_RUNNER_NAME}"
-./config.sh \
-  --unattended \
-  --url "${GH_REPO_URL}" \
-  --token "${GH_RUNNER_TOKEN}" \
-  --name "${GH_RUNNER_NAME}" \
-  --labels "${GH_RUNNER_LABELS}" \
-  --runnergroup "${GH_RUNNER_GROUP}" \
-  --work "${GH_RUNNER_WORKDIR}" \
-  ${replace_flag}
+# Ensure work/tool directories are present and writable for the runner user.
+mkdir -p "${GH_RUNNER_WORKDIR}" "${GH_RUNNER_WORKDIR}/_tool"
+
+# Configure only once; subsequent container starts should reuse existing config.
+if [[ ! -f .runner ]]; then
+  echo "Configuring runner: ${GH_RUNNER_NAME}"
+  ./config.sh \
+    --unattended \
+    --url "${GH_REPO_URL}" \
+    --token "${GH_RUNNER_TOKEN}" \
+    --name "${GH_RUNNER_NAME}" \
+    --labels "${GH_RUNNER_LABELS}" \
+    --runnergroup "${GH_RUNNER_GROUP}" \
+    --work "${GH_RUNNER_WORKDIR}" \
+    ${replace_flag}
+else
+  echo "Runner already configured; skipping config.sh"
+fi
 
 echo "Starting runner"
 exec ./run.sh

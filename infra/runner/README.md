@@ -34,3 +34,4 @@ Run `HIL Smoke` manually from Actions using branch `develop` and default inputs.
 - Registration tokens are short-lived. If container restart fails registration, generate a new token.
 - Keep this runner dedicated to this repo/workload.
 - Avoid mounting Docker socket unless absolutely required.
+- Container restarts do not re-register the runner; existing `.runner` config is reused automatically.
