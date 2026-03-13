@@ -99,6 +99,17 @@ First GitHub Actions run failed in `blinky_idf` on missing `driver/gpio.h` depen
 - Kept `driver` requirement for Slice 2 compatibility under pinned CI toolchain.
 - IDF 6 component migration can be handled later as a dedicated compatibility slice.
 
+## 2026-03-13 - CI/CD slice 2 follow-up: app_main link failure remediation
+### Context
+CI app build failed at link stage with `undefined reference to app_main`.
+
+### Changes
+- Removed conditional compilation guard around `app_main` in `main/main.c`.
+- `app_main` is now always compiled for this application target.
+
+### Notes
+- This avoids configuration-dependent omission of the entry symbol in cloud builds.
+
 ## 2026-03-11 - Critical review branch kickoff
 ### Branch
 - `review/findings-hardening-2026-03-11`
