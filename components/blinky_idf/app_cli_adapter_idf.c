@@ -38,6 +38,31 @@ static const char *runtime_state_name(led_policy_state_t state)
     }
 }
 
+static const char *command_name(blinky_cli_command_t cmd)
+{
+    switch (cmd) {
+    case BLINKY_CLI_CMD_HELP:
+        return "help";
+    case BLINKY_CLI_CMD_STATUS:
+        return "status";
+    case BLINKY_CLI_CMD_RUN:
+        return "run";
+    case BLINKY_CLI_CMD_PAUSE:
+        return "pause";
+    case BLINKY_CLI_CMD_RUN_PAUSE_TOGGLE:
+        return "run_pause_toggle";
+    case BLINKY_CLI_CMD_MENU_ENTER:
+        return "menu_enter";
+    case BLINKY_CLI_CMD_MENU_NEXT:
+        return "menu_next";
+    case BLINKY_CLI_CMD_MENU_EXIT:
+        return "menu_exit";
+    case BLINKY_CLI_CMD_NONE:
+    default:
+        return "none";
+    }
+}
+
 static bool should_dispatch(sm_led_ctx_t *ctx, blinky_cli_command_t cmd)
 {
     switch (cmd) {
@@ -90,6 +115,8 @@ static void handle_line(sm_led_ctx_t *ctx, const char *line)
         ESP_LOGI(TAG, "command ignored in state=%s: '%s'", runtime_state_name(ctx->runtime.state), line);
         return;
     }
+
+    ESP_LOGI(TAG, "cmd dispatch: %s", command_name(cmd));
 
     const blinky_time_ms_t now = button_input_adapter_now_ms(&ctx->input);
     const app_event_t ev = app_event_factory_from_cli_command(cmd, now);
