@@ -32,11 +32,21 @@ This folder provisions a dedicated GitHub Actions self-hosted runner container f
    ```
 6. Verify runner is `Online` in GitHub UI.
 
+## One-time migration note
+If you used an older runner compose that mounted only `_work`, do a reset once:
+```bash
+docker compose --env-file infra/runner/.env -f infra/runner/docker-compose.yml down
+docker volume rm blinky_c6_runner-data || true
+docker volume rm blinky_c6_runner-home || true
+docker compose --env-file infra/runner/.env -f infra/runner/docker-compose.yml up -d --build
+```
+
 ## Validate with HIL workflow
 Run `HIL Smoke` manually from Actions using branch `develop` and default inputs.
 
 ## Notes
 - Registration tokens are short-lived. If container restart fails registration, generate a new token.
+- `GH_RUNNER_TOKEN` is only required when runner registration is first created (or when `.runner` state is reset).
 - Keep this runner dedicated to this repo/workload.
 - Avoid mounting Docker socket unless absolutely required.
 - Container restarts do not re-register the runner; existing `.runner` config is reused automatically.

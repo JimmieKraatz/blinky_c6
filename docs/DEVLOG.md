@@ -234,6 +234,25 @@ After port/flash access was fixed, HIL run failed at startup-pattern validation 
 - Added ANSI/control-sequence stripping from monitor output before pattern matching.
 - Added monitor log tail output in validation step for faster diagnosis on future failures.
 
+## 2026-03-13 - Runner scaffold follow-up: persistent registration state (proper fix)
+### Context
+Runner restarts/rebuilds could repeatedly trigger `config.sh --replace` and transient session conflicts because only `_work` was persisted.
+
+### Changes
+- Updated runner architecture to persist full runner home state:
+  - `infra/runner/docker-compose.yml` now mounts `runner-home` to `/home/runner/actions-runner`.
+- Updated `infra/runner/Dockerfile`:
+  - keeps a template runner install at `/opt/actions-runner-template`
+  - runner home is initialized at runtime from template when volume is fresh
+- Updated `infra/runner/entrypoint.sh`:
+  - root pre-phase sets ownership for mounted runner home
+  - runner bootstrap copies template files only when needed
+  - `GH_RUNNER_TOKEN` required only for first registration (when `.runner` is absent)
+- Updated runner README with one-time migration/reset guidance.
+
+### Notes
+- This eliminates routine re-registration churn and reduces startup session conflicts.
+
 ## 2026-03-11 - Critical review branch kickoff
 ### Branch
 - `review/findings-hardening-2026-03-11`

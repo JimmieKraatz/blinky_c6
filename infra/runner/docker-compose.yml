@@ -21,7 +21,7 @@ services:
     group_add:
       - "${HIL_SERIAL_GID:-20}"
     volumes:
-      - runner-data:/home/runner/actions-runner/_work
+      - runner-home:/home/runner/actions-runner
 
 volumes:
-  runner-data:
+  runner-home:

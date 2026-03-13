@@ -21,7 +21,7 @@ RUN useradd -m -d /home/runner -s /bin/bash runner \
     && echo "runner ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/runner \
     && chmod 0440 /etc/sudoers.d/runner
 
-WORKDIR /home/runner/actions-runner
+WORKDIR /opt/actions-runner-template
 
 RUN set -eux; \
     arch="$(uname -m)"; \
@@ -39,8 +39,7 @@ RUN set -eux; \
 
 COPY infra/runner/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh \
-    && chown -R runner:runner /home/runner/actions-runner
-
-USER runner
+    && mkdir -p /home/runner/actions-runner \
+    && chown -R runner:runner /opt/actions-runner-template /home/runner/actions-runner
 
 ENTRYPOINT ["/usr/bin/tini", "--", "/entrypoint.sh"]
