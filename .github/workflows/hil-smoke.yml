@@ -1,0 +1,99 @@
+name: HIL Smoke
+
+on:
+  workflow_dispatch:
+    inputs:
+      serial_port:
+        description: "Serial port for target board (example: /dev/ttyACM0)"
+        required: true
+        default: "/dev/ttyACM0"
+      startup_pattern:
+        description: "Regex expected in monitor output to mark startup success"
+        required: true
+        default: "app:boot startup|runtime:state_change running|STATE: RUNNING|startup"
+      monitor_timeout_seconds:
+        description: "Max seconds to capture monitor output"
+        required: true
+        default: "30"
+
+jobs:
+  hil-smoke:
+    name: HIL Smoke (Self-Hosted)
+    runs-on:
+      - self-hosted
+    timeout-minutes: 20
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      - name: Preflight toolchain checks
+        run: |
+          set -euxo pipefail
+          command -v idf.py
+          idf.py --version
+
+      - name: Build app
+        run: |
+          set -euxo pipefail
+          idf.py set-target esp32c6 build -D CCACHE_ENABLE=1
+
+      - name: Diagnose serial access
+        run: |
+          set -euxo pipefail
+          mkdir -p hil-logs
+          {
+            echo "whoami: $(whoami)"
+            echo "id: $(id)"
+            echo "groups: $(groups)"
+            echo "serial: ${{ inputs.serial_port }}"
+            ls -l "${{ inputs.serial_port }}" || true
+            stat "${{ inputs.serial_port }}" || true
+            if test -r "${{ inputs.serial_port }}"; then
+              echo "serial_readable=true"
+            else
+              echo "serial_readable=false"
+            fi
+          } | tee hil-logs/serial_diag.log
+
+      - name: Flash app
+        run: |
+          set -euxo pipefail
+          mkdir -p hil-logs
+          if test -r "${{ inputs.serial_port }}"; then
+            idf.py -p "${{ inputs.serial_port }}" flash 2>&1 | tee hil-logs/flash.log
+          else
+            echo "Port not readable as current user; repairing device permissions via sudo" | tee -a hil-logs/flash.log
+            sudo -n chmod a+rw "${{ inputs.serial_port }}"
+            ls -l "${{ inputs.serial_port }}" | tee -a hil-logs/flash.log
+            test -r "${{ inputs.serial_port }}"
+            idf.py -p "${{ inputs.serial_port }}" flash 2>&1 | tee -a hil-logs/flash.log
+          fi
+
+      - name: Capture startup monitor log
+        run: |
+          set -euxo pipefail
+          mkdir -p hil-logs
+          command -v script
+          timeout "${{ inputs.monitor_timeout_seconds }}"s \
+            script -q -c "idf.py -p '${{ inputs.serial_port }}' monitor" /dev/null \
+            > hil-logs/monitor.log 2>&1 || true
+          # Remove ANSI color/control sequences for stable regex matching.
+          sed -r 's/\x1B\[[0-9;]*[[:alpha:]]//g' hil-logs/monitor.log > hil-logs/monitor.clean.log
+
+      - name: Validate startup pattern
+        run: |
+          set -euxo pipefail
+          echo "Startup pattern: ${{ inputs.startup_pattern }}"
+          echo "--- monitor.clean.log (tail) ---"
+          tail -n 120 hil-logs/monitor.clean.log || true
+          grep -E "${{ inputs.startup_pattern }}" hil-logs/monitor.clean.log
+
+      - name: Upload HIL logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hil-smoke-${{ github.run_id }}
+          path: hil-logs/*
+          if-no-files-found: warn

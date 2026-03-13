@@ -4,6 +4,305 @@
 This file is a diary of development progress: what changed, why, and what is next.
 For the stable technical view, see `docs/ARCHITECTURE.md`.
 
+## 2026-03-12 - CI/CD implementation plan (sliced)
+### Context
+Delivery policy has been expanded in `docs/DELIVERY_WORKFLOW.md`. Next step is implementation with low-risk slices so we get fast feedback without blocking on HIL infrastructure.
+
+### Scope guardrails
+- Keep first rollout cloud-only for hardware-independent checks.
+- Treat HIL as a staged/manual gate until self-hosted runner is stable.
+- Keep each slice shippable and reviewable in a single focused PR when possible.
+
+### Implementation slices
+1. Slice 1 - Workflow scaffolding
+   - Add `.github/workflows/ci.yml` with trigger skeleton only.
+   - Add `.github/workflows/release.yml` with tag trigger skeleton only.
+   - Add `.github/workflows/hil-smoke.yml` as `workflow_dispatch` + `self-hosted` stub.
+   - Acceptance: workflows parse and appear in GitHub Actions without running risky jobs.
+
+2. Slice 2 - Cloud app build gate
+   - Implement ESP-IDF setup on `ubuntu-latest`.
+   - Add `idf.py set-target esp32c6` and `idf.py -D CCACHE_ENABLE=1 build`.
+   - Wire to `pull_request` and `push` on `develop`/`master`.
+   - Acceptance: PRs show a required app build check.
+
+3. Slice 3 - Unit-test-app build gate
+   - Add unit-test-app build command with current component targets:
+     - `core_sm`, `core_blinky`, `blinky_idf`, `blinky_interfaces`
+   - Keep this as compile/integration validation (no on-device execution in cloud).
+   - Acceptance: PRs show separate required test-build check.
+
+4. Slice 4 - Release automation
+   - On tag push `v*`, build release artifacts and publish GitHub Release.
+   - Attach binaries/checksums and generated release notes.
+   - Mark `-rc` tags as pre-release.
+   - Acceptance: creating `vX.Y.Z` or `vX.Y.Z-rc.N` produces correct release output.
+
+5. Slice 5 - HIL manual smoke path
+   - Implement self-hosted flash + serial startup smoke script.
+   - Upload serial logs on failure.
+   - Keep trigger manual (`workflow_dispatch`) and non-required.
+   - Acceptance: one successful end-to-end manual HIL run is recorded.
+
+6. Slice 6 - Branch protections and policy enforcement
+   - Make cloud checks required on `develop` and `master`.
+   - Keep HIL optional until flake rate is acceptable.
+   - Add README badges/links to workflow status and policy doc.
+   - Acceptance: merge blocked when required checks fail.
+
+### Out of scope for initial rollout
+- Full scripted interaction testing of menu/button behavior in cloud.
+- Mandatory HIL gate before runner reliability is proven.
+- Packaging/deploy integration beyond GitHub Releases.
+
+## 2026-03-12 - CI/CD slice 1 implemented: workflow scaffolding
+### Changes
+- Added workflow scaffold files:
+  - `.github/workflows/ci.yml`
+  - `.github/workflows/release.yml`
+  - `.github/workflows/hil-smoke.yml`
+- Added safe placeholder jobs only (no ESP-IDF setup, no flash, no artifact publishing yet).
+- Configured triggers:
+  - `ci.yml`: `pull_request` + `push` on `develop` and `master`
+  - `release.yml`: `push` on tags matching `v*`
+  - `hil-smoke.yml`: `workflow_dispatch` only
+
+### Notes
+- HIL workflow is intentionally disabled (`if: false`) while self-hosted runner infrastructure is being prepared.
+- Next slice is cloud app build gate (`idf.py set-target esp32c6` + `idf.py build`).
+
+## 2026-03-12 - CI/CD slice 2 implemented: cloud app build gate
+### Changes
+- Updated `.github/workflows/ci.yml` to replace placeholder scaffold job with an app build job.
+- Added checkout step (`actions/checkout@v4`) with submodules enabled.
+- Added ESP-IDF build step via `espressif/esp-idf-ci-action@v1`:
+  - `idf.py set-target esp32c6`
+  - `idf.py -D CCACHE_ENABLE=1 build`
+
+### Notes
+- Trigger scope remains:
+  - `pull_request` on `develop`, `master`
+  - `push` on `develop`, `master`
+- Slice 3 will add a separate unit-test-app build gate.
+
+## 2026-03-12 - CI/CD slice 2 follow-up: first-run failure remediation
+### Context
+First GitHub Actions run failed in `blinky_idf` on missing `driver/gpio.h` dependency resolution under newer ESP-IDF layout.
+
+### Changes
+- Updated CI workflow hardening:
+  - `actions/checkout@v5`
+  - pinned ESP-IDF version in CI action (`v5.5.2`) to match local development baseline and avoid unplanned `-dev` toolchain drift.
+- Reverted attempted `esp_driver_gpio` requirement after validation showed it is unavailable in pinned IDF line used by CI gate.
+
+### Notes
+- Kept `driver` requirement for Slice 2 compatibility under pinned CI toolchain.
+- IDF 6 component migration can be handled later as a dedicated compatibility slice.
+
+## 2026-03-13 - CI/CD slice 2 follow-up: app_main link failure remediation
+### Context
+CI app build failed at link stage with `undefined reference to app_main`.
+
+### Changes
+- Removed conditional compilation guard around `app_main` in `main/main.c`.
+- `app_main` is now always compiled for this application target.
+
+### Notes
+- This avoids configuration-dependent omission of the entry symbol in cloud builds.
+
+## 2026-03-13 - CI/CD slice 3 implemented: unit-test-app build gate
+### Changes
+- Extended `.github/workflows/ci.yml` with a separate `unit-test-app-build` job.
+- Added ESP-IDF unit-test-app build commands in CI for component integration validation:
+  - `core_sm`
+  - `core_blinky`
+  - `blinky_idf`
+  - `blinky_interfaces`
+- Kept cloud scope build-only (no on-device Unity execution).
+
+### Notes
+- CI now reports two cloud gates on PR/push:
+  - `App Build (ESP-IDF)`
+  - `Unit Test App Build (ESP-IDF)`
+
+## 2026-03-13 - CI/CD slice 4 implemented: release automation
+### Changes
+- Replaced `.github/workflows/release.yml` scaffold with full tag-driven release workflow.
+- Added artifact build job on `push` tags `v*`:
+  - app build with pinned ESP-IDF `v5.5.2`
+  - collected release files:
+    - `blinky_c6.bin`
+    - `blinky_c6.elf`
+    - `bootloader.bin`
+    - `partition-table.bin`
+    - `flasher_args.json`
+    - optional `blinky_c6.map`
+  - generated `sha256sums.txt`
+- Added publish job:
+  - downloads artifacts from prior job
+  - creates GitHub Release with generated release notes
+  - marks tags containing `-rc.` as pre-release
+
+### Notes
+- Release workflow is tag-driven by design; verification requires pushing a test tag.
+
+## 2026-03-13 - CI/CD slice 4 validation: end-to-end release test
+### Changes
+- Pushed temporary validation tag: `v0.1.1-rc.0-test` (from `develop` head).
+- Confirmed release workflow execution and artifact publication.
+- Verified 9 release assets were generated (firmware, bootloader, partition table, metadata, checksums, and source archives).
+- Removed temporary release tag locally and on origin after validation.
+
+### Notes
+- Slice 4 acceptance criteria satisfied: tag-driven artifact build and release publishing works in GitHub Actions.
+
+## 2026-03-13 - CI/CD slice 5 implemented: manual self-hosted HIL smoke path
+### Changes
+- Replaced disabled HIL scaffold with executable manual workflow in `.github/workflows/hil-smoke.yml`.
+- Added `workflow_dispatch` inputs:
+  - `serial_port`
+  - `startup_pattern`
+  - `monitor_timeout_seconds`
+- Added self-hosted smoke sequence:
+  - checkout
+  - preflight `idf.py` check
+  - build (`idf.py set-target esp32c6 build`)
+  - flash (`idf.py -p <port> flash`)
+  - monitor capture with timeout
+  - startup pattern validation (`grep -E`)
+- Added log artifact upload (`actions/upload-artifact@v4`) with `if: always()`.
+
+### Notes
+- This gate remains manual and non-required until runner reliability is characterized.
+- Next operational step is one successful manual HIL run record on the self-hosted runner.
+
+## 2026-03-13 - CI/CD slice 5 validation attempt: runner provisioning gap
+### Context
+Manual `HIL Smoke` dispatch was attempted from GitHub Actions after merge.
+
+### Result
+- Workflow queued successfully.
+- Job remained pending with `Requested labels: self-hosted`.
+- No self-hosted runner was registered/online, so no HIL execution occurred.
+
+### Notes
+- This is an infrastructure readiness blocker, not a workflow-definition failure.
+- Next step is to provision and register at least one self-hosted runner, then rerun the same manual smoke workflow.
+
+## 2026-03-13 - Runner provisioning scaffold added (containerized)
+### Changes
+- Added in-repo runner scaffold under `infra/runner/`:
+  - `Dockerfile`
+  - `entrypoint.sh`
+  - `docker-compose.yml`
+  - `.env.example`
+  - `README.md`
+- Added local secret ignore for runner token file:
+  - `infra/runner/.env` in `.gitignore`
+
+### Notes
+- This keeps runner provisioning reproducible without coupling to the daily dev container.
+- Next step is operational bring-up: register runner token, start compose stack, verify runner online, rerun `HIL Smoke`.
+
+## 2026-03-13 - Runner scaffold follow-up: preload ESP-IDF environment
+### Context
+Initial HIL run on self-hosted runner failed preflight (`command -v idf.py`) because runner process environment did not include ESP-IDF exported paths.
+
+### Changes
+- Updated `infra/runner/entrypoint.sh` to source `/opt/esp/idf/export.sh` before starting runner listener.
+- Updated runner README notes to document default `idf.py` availability.
+
+## 2026-03-13 - Runner scaffold follow-up: serial device permission mapping
+### Context
+HIL smoke run reached flash step but failed with:
+- `Invalid value for --port: Path '/dev/ttyACM0' is not readable.`
+
+### Changes
+- Updated `infra/runner/docker-compose.yml` to add serial group mapping via `group_add`.
+- Added `HIL_SERIAL_GID` to `.env.example`.
+- Updated runner README with host command to capture device gid and troubleshooting note.
+
+### Notes
+- Runner container needs host serial device gid mapped so `runner` user can access `/dev/ttyACM0`.
+
+## 2026-03-13 - HIL smoke follow-up: startup pattern validation hardening
+### Context
+After port/flash access was fixed, HIL run failed at startup-pattern validation due log-format/pattern mismatch.
+
+### Changes
+- Updated default `startup_pattern` in `.github/workflows/hil-smoke.yml` to include structured runtime logs.
+- Added ANSI/control-sequence stripping from monitor output before pattern matching.
+- Added monitor log tail output in validation step for faster diagnosis on future failures.
+
+## 2026-03-13 - Runner scaffold follow-up: persistent registration state (proper fix)
+### Context
+Runner restarts/rebuilds could repeatedly trigger `config.sh --replace` and transient session conflicts because only `_work` was persisted.
+
+### Changes
+- Updated runner architecture to persist full runner home state:
+  - `infra/runner/docker-compose.yml` now mounts `runner-home` to `/home/runner/actions-runner`.
+- Updated `infra/runner/Dockerfile`:
+  - keeps a template runner install at `/opt/actions-runner-template`
+  - runner home is initialized at runtime from template when volume is fresh
+- Updated `infra/runner/entrypoint.sh`:
+  - root pre-phase sets ownership for mounted runner home
+  - runner bootstrap copies template files only when needed
+  - `GH_RUNNER_TOKEN` required only for first registration (when `.runner` is absent)
+- Updated runner README with one-time migration/reset guidance.
+
+### Notes
+- This eliminates routine re-registration churn and reduces startup session conflicts.
+
+## 2026-03-13 - Runner operational note: GitHub session timeout behavior
+### Observation
+- After stopping the runner container, GitHub may continue showing the runner as `Online/Idle` for a short period before transitioning to `Offline`.
+- Restarting the container during this interval can produce temporary:
+  - `A session for this runner already exists`
+
+### Conclusion
+- This is normal GitHub runner session timeout behavior, not a runner implementation defect.
+- Operational guidance: for clean reconnect logs, wait until GitHub marks runner `Offline` before restart.
+
+## 2026-03-13 - CI/CD slice 6 implemented: policy enforcement updates
+### Changes
+- Updated `docs/DELIVERY_WORKFLOW.md` with explicit required cloud check names:
+  - `App Build (ESP-IDF)`
+  - `Unit Test App Build (ESP-IDF)`
+- Added release-time gate policy:
+  - `HIL Smoke` must pass manually on target release commit before creating `v*` tags.
+- Updated `README.md` with CI/release/HIL workflow badges and release policy note.
+
+### Operator actions (GitHub settings)
+- Apply branch protection rules in GitHub UI:
+  - `develop`: require cloud checks + PR reviews
+  - `master`: require cloud checks + PR reviews + no direct push
+- Keep `HIL Smoke` non-required in branch protection until stability is sufficient for required-gate promotion.
+
+## 2026-03-13 - HIL smoke follow-up: serial diagnostics and flash fallback
+### Context
+HIL runs intermittently failed at flash with `/dev/ttyACM0` unreadable, while ad-hoc container checks appeared valid.
+
+### Changes
+- Added explicit serial diagnostics step in `.github/workflows/hil-smoke.yml`:
+  - `whoami`, `id`, `groups`
+  - `ls -l` and `stat` on selected serial device
+  - readability check output
+- Added flash log capture (`hil-logs/flash.log`) for post-failure analysis.
+- Reworked flash fallback to avoid running `idf.py` as root:
+  - if serial device is unreadable, use `sudo` only to repair port permissions (`chmod a+rw`)
+  - then execute `idf.py flash` as the normal runner user.
+- Updated runner image user setup to add `runner` to `dialout` group explicitly.
+
+## 2026-03-13 - HIL smoke follow-up: non-interactive monitor TTY workaround
+### Context
+HIL run reached monitor phase but failed with:
+- `Monitor requires standard input to be attached to TTY.`
+
+### Changes
+- Updated monitor capture in `.github/workflows/hil-smoke.yml` to run through `script` (pty wrapper):
+  - `script -q -c \"idf.py ... monitor\" /dev/null`
+- Kept timeout + cleaned-log pipeline unchanged.
+
 ## 2026-03-11 - Critical review branch kickoff
 ### Branch
 - `review/findings-hardening-2026-03-11`
@@ -340,6 +639,10 @@ wake ownership, and button timing policy ownership.
   - add self-hosted GitHub Actions runner on devkit host for HIL flash/smoke validation
   - promote HIL to required gate for `develop` -> `master` before release tagging
   - reference policy and acceptance criteria in `docs/DELIVERY_WORKFLOW.md`
+- Dev-ability/reproducibility hardening:
+  - move or mirror minimum required devcontainer/docker source into this repo
+  - ensure a new contributor can build/test without external scaffold dependencies
+  - document optional SSH agent forwarding separately from required build steps
 - Bootstrap layering split:
   - separate environment/bootstrap config concerns from runtime orchestration
   - revisit `sdkconfig` defaults vs runtime provisioning for future network features
@@ -644,3 +947,5 @@ Started a dedicated branch to address the remaining config/default ownership amb
 ### Why
 - Fully removes startup-wave semantic configuration from framework/Kconfig.
 - Keeps startup behavior ownership in core, with `_idf` only passing inputs and wiring outputs.
+
+

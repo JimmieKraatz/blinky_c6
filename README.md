@@ -2,10 +2,19 @@
 
 ESP-IDF app for ESP32-C6 that drives an LED using a waveform-based state machine. A single button controls run/pause and a wave-selection menu.
 
+## CI/CD Status
+[![CI](https://github.com/JimmieKraatz/blinky_c6/actions/workflows/ci.yml/badge.svg?branch=develop)](https://github.com/JimmieKraatz/blinky_c6/actions/workflows/ci.yml)
+[![Release](https://github.com/JimmieKraatz/blinky_c6/actions/workflows/release.yml/badge.svg)](https://github.com/JimmieKraatz/blinky_c6/actions/workflows/release.yml)
+[![HIL Smoke](https://github.com/JimmieKraatz/blinky_c6/actions/workflows/hil-smoke.yml/badge.svg)](https://github.com/JimmieKraatz/blinky_c6/actions/workflows/hil-smoke.yml)
+
 For deeper docs:
 - Architecture and module boundaries: `docs/ARCHITECTURE.md`
 - Refactor journey and decisions: `docs/DEVLOG.md`
 - Delivery workflow (branching, CI/CD, release/tag policy): `docs/DELIVERY_WORKFLOW.md`
+
+Release policy note:
+- Cloud checks are required for PR merges.
+- `HIL Smoke` remains manual/non-required in branch protection, but is required by release policy before creating `v*` tags.
 
 ## Quick Start
 
