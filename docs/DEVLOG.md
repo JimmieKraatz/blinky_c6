@@ -92,8 +92,8 @@ First GitHub Actions run failed in `blinky_idf` on missing `driver/gpio.h` depen
 ### Changes
 - Updated CI workflow hardening:
   - `actions/checkout@v5`
-  - pinned ESP-IDF version in CI action (`v5.2.2`) to avoid unplanned `-dev` toolchain drift.
-- Reverted attempted `esp_driver_gpio` requirement after validation showed it is unavailable in pinned IDF `v5.2.2`.
+  - pinned ESP-IDF version in CI action (`v5.5.2`) to match local development baseline and avoid unplanned `-dev` toolchain drift.
+- Reverted attempted `esp_driver_gpio` requirement after validation showed it is unavailable in pinned IDF line used by CI gate.
 
 ### Notes
 - Kept `driver` requirement for Slice 2 compatibility under pinned CI toolchain.
