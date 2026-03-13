@@ -263,6 +263,21 @@ Runner restarts/rebuilds could repeatedly trigger `config.sh --replace` and tran
 - This is normal GitHub runner session timeout behavior, not a runner implementation defect.
 - Operational guidance: for clean reconnect logs, wait until GitHub marks runner `Offline` before restart.
 
+## 2026-03-13 - CI/CD slice 6 implemented: policy enforcement updates
+### Changes
+- Updated `docs/DELIVERY_WORKFLOW.md` with explicit required cloud check names:
+  - `App Build (ESP-IDF)`
+  - `Unit Test App Build (ESP-IDF)`
+- Added release-time gate policy:
+  - `HIL Smoke` must pass manually on target release commit before creating `v*` tags.
+- Updated `README.md` with CI/release/HIL workflow badges and release policy note.
+
+### Operator actions (GitHub settings)
+- Apply branch protection rules in GitHub UI:
+  - `develop`: require cloud checks + PR reviews
+  - `master`: require cloud checks + PR reviews + no direct push
+- Keep `HIL Smoke` non-required in branch protection until stability is sufficient for required-gate promotion.
+
 ## 2026-03-13 - HIL smoke follow-up: serial diagnostics and flash fallback
 ### Context
 HIL runs intermittently failed at flash with `/dev/ttyACM0` unreadable, while ad-hoc container checks appeared valid.

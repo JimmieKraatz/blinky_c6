@@ -71,6 +71,9 @@ Planned required checks (self-hosted HIL gate):
 Merge protection:
 - Failing required checks block merge.
 - `master` requires clean checks from `develop` promotion PR.
+- Required check names:
+  - `App Build (ESP-IDF)`
+  - `Unit Test App Build (ESP-IDF)`
 
 ## Release and Tagging
 - Tag push (`v*`) triggers release workflow to:
@@ -87,6 +90,10 @@ Binary publishing guidance:
   - checksum file (for example `sha256sums.txt`)
   - short flash instructions in release notes
 - RC tags (`vX.Y.Z-rc.N`) may publish binaries marked as pre-release for validation/testing only.
+
+Release-time quality gate (current policy):
+- Before creating any release tag (`v*`), run `HIL Smoke` manually on the same commit and require success.
+- Until HIL is promoted to required automated gate, this is a mandatory operator checklist item.
 
 ## RC Mechanics (When Needed)
 - RC tags may be cut as `vX.Y.Z-rc.N` for release validation.
@@ -120,7 +127,10 @@ Near-term milestones:
 - Add `.github/workflows/release.yml` for tag-driven releases.
 - Add `.github/workflows/hil-smoke.yml` as manual self-hosted stub.
 - Document and provision self-hosted runner for HIL.
-- Promote HIL job to required check for `develop` -> `master`.
+- Enforce branch protections:
+  - `develop`: require cloud checks
+  - `master`: require cloud checks and PR-based merges only
+- Promote HIL job to required check for `develop` -> `master` after stability period.
 
 Definition of done:
 - CI workflow(s) committed and passing
