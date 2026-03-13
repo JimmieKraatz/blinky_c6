@@ -176,6 +176,19 @@ CI app build failed at link stage with `undefined reference to app_main`.
 - This gate remains manual and non-required until runner reliability is characterized.
 - Next operational step is one successful manual HIL run record on the self-hosted runner.
 
+## 2026-03-13 - CI/CD slice 5 validation attempt: runner provisioning gap
+### Context
+Manual `HIL Smoke` dispatch was attempted from GitHub Actions after merge.
+
+### Result
+- Workflow queued successfully.
+- Job remained pending with `Requested labels: self-hosted`.
+- No self-hosted runner was registered/online, so no HIL execution occurred.
+
+### Notes
+- This is an infrastructure readiness blocker, not a workflow-definition failure.
+- Next step is to provision and register at least one self-hosted runner, then rerun the same manual smoke workflow.
+
 ## 2026-03-11 - Critical review branch kickoff
 ### Branch
 - `review/findings-hardening-2026-03-11`
