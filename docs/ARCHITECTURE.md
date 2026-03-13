@@ -260,6 +260,7 @@ Dispatcher shape (text diagram):
   - button input adapter -> `APP_EVENT_BUTTON_SHORT` / `APP_EVENT_BUTTON_LONG`
   - tick source -> `APP_EVENT_TICK`
   - boot path -> `APP_EVENT_BOOT`
+  - CLI adapter (UART line reader) -> command map -> semantic app event
 - Queue (`blinky_idf`):
   - static ring buffer of `app_event_t`
   - FIFO push/pop

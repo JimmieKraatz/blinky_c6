@@ -10,6 +10,7 @@
 #include "led_sm_idf.h"
 #include "led_event_consumer.h"
 #include "app_event_factory.h"
+#include "app_cli_adapter_idf.h"
 #include "led_startup_policy.h"
 
 static inline void led_write(sm_led_ctx_t *ctx, bool on)
@@ -183,6 +184,7 @@ void led_sm_init(sm_led_ctx_t *ctx)
         &ctx->queue,
         dispatch_event,
         ctx);
+    app_cli_adapter_idf_init(ctx);
     ctx->started = false;
     (void)led_sm_start(ctx, LED_SM_START_FRESH);
 }
@@ -199,6 +201,7 @@ void led_sm_step(sm_led_ctx_t *ctx)
 {
     vTaskDelay(pdMS_TO_TICKS(ctx->platform_cfg.producer_poll_ms));
     led_sm_producer_step(ctx);
+    app_cli_adapter_idf_step(ctx);
 }
 
 bool led_sm_start(sm_led_ctx_t *ctx, led_sm_start_mode_t mode)

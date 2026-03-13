@@ -160,4 +160,19 @@ menu "Blinky"
                 Emit debug, info, warn, and error logs.
     endchoice
 
+    config BLINKY_CLI_ENABLE
+        bool "Enable UART CLI adapter"
+        default y
+        help
+            Enable a lightweight UART0 line-reader adapter that maps text
+            commands into existing app event flow.
+
+    config BLINKY_CLI_UART_RX_BUF_SIZE
+        int "CLI UART RX buffer size (bytes)"
+        default 1024
+        range 256 8192
+        depends on BLINKY_CLI_ENABLE
+        help
+            RX buffer size passed to uart_driver_install for UART0 CLI reads.
+
 endmenu

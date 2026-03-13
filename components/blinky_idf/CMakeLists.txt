@@ -9,6 +9,7 @@ idf_component_register(
         "button_input_adapter_idf.c"
         "blinky_log_adapter_idf.c"
         "app_event_queue.c"
+        "app_cli_adapter_idf.c"
     INCLUDE_DIRS "."
     REQUIRES driver core_sm core_blinky blinky_interfaces esp_app_format
 )
