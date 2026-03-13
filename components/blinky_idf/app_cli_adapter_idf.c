@@ -2,7 +2,6 @@
 
 #include <ctype.h>
 #include <stdbool.h>
-#include <string.h>
 
 #include "sdkconfig.h"
 
@@ -11,6 +10,7 @@
 #include "esp_log.h"
 
 #include "app_event_factory.h"
+#include "app_cli_parse.h"
 
 #define CLI_LINE_MAX_CHARS 96U
 #define CLI_READ_BUDGET    64U
@@ -24,65 +24,32 @@ typedef struct {
 static app_cli_adapter_state_t s_cli = {0};
 static const char *TAG = "blinky_cli";
 
-static void normalize_line(const char *in, char *out, size_t out_sz)
+static const char *runtime_state_name(led_policy_state_t state)
 {
-    if (!in || !out || out_sz == 0U) {
-        return;
+    switch (state) {
+    case LED_POLICY_RUNNING:
+        return "running";
+    case LED_POLICY_PAUSED:
+        return "paused";
+    case LED_POLICY_MENU:
+        return "menu";
+    default:
+        return "unknown";
     }
-
-    size_t oi = 0U;
-    bool have_content = false;
-    bool space_pending = false;
-
-    for (size_t i = 0U; in[i] != '\0' && oi + 1U < out_sz; ++i) {
-        const unsigned char c = (unsigned char)in[i];
-        if (isspace(c)) {
-            if (have_content) {
-                space_pending = true;
-            }
-            continue;
-        }
-
-        if (space_pending && oi + 1U < out_sz) {
-            out[oi++] = ' ';
-            space_pending = false;
-        }
-        out[oi++] = (char)tolower(c);
-        have_content = true;
-    }
-
-    out[oi] = '\0';
 }
 
-static blinky_cli_command_t parse_command(const char *line)
+static bool should_dispatch(sm_led_ctx_t *ctx, blinky_cli_command_t cmd)
 {
-    char normalized[CLI_LINE_MAX_CHARS] = {0};
-    normalize_line(line, normalized, sizeof(normalized));
-
-    if (normalized[0] == '\0') {
-        return BLINKY_CLI_CMD_NONE;
+    switch (cmd) {
+    case BLINKY_CLI_CMD_RUN:
+        return ctx->runtime.state == LED_POLICY_PAUSED;
+    case BLINKY_CLI_CMD_PAUSE:
+        return ctx->runtime.state == LED_POLICY_RUNNING;
+    case BLINKY_CLI_CMD_RUN_PAUSE_TOGGLE:
+        return ctx->runtime.state == LED_POLICY_RUNNING || ctx->runtime.state == LED_POLICY_PAUSED;
+    default:
+        return true;
     }
-    if (strcmp(normalized, "help") == 0) {
-        return BLINKY_CLI_CMD_HELP;
-    }
-    if (strcmp(normalized, "status") == 0) {
-        return BLINKY_CLI_CMD_STATUS;
-    }
-    if (strcmp(normalized, "run") == 0 || strcmp(normalized, "pause") == 0
-        || strcmp(normalized, "run pause toggle") == 0) {
-        return BLINKY_CLI_CMD_RUN_PAUSE_TOGGLE;
-    }
-    if (strcmp(normalized, "menu enter") == 0) {
-        return BLINKY_CLI_CMD_MENU_ENTER;
-    }
-    if (strcmp(normalized, "menu next") == 0) {
-        return BLINKY_CLI_CMD_MENU_NEXT;
-    }
-    if (strcmp(normalized, "menu exit") == 0) {
-        return BLINKY_CLI_CMD_MENU_EXIT;
-    }
-
-    return BLINKY_CLI_CMD_NONE;
 }
 
 static void handle_line(sm_led_ctx_t *ctx, const char *line)
@@ -101,14 +68,15 @@ static void handle_line(sm_led_ctx_t *ctx, const char *line)
         return;
     }
 
-    const blinky_cli_command_t cmd = parse_command(line);
+    const blinky_cli_command_t cmd = app_cli_parse_line(line);
     switch (cmd) {
     case BLINKY_CLI_CMD_HELP:
         ESP_LOGI(TAG, "commands: help, status, run, pause, menu enter, menu next, menu exit");
         return;
     case BLINKY_CLI_CMD_STATUS:
-        ESP_LOGI(TAG, "status: started=%s, dropped=%lu",
+        ESP_LOGI(TAG, "status: started=%s, state=%s, dropped=%lu",
                  ctx->started ? "true" : "false",
+                 runtime_state_name(ctx->runtime.state),
                  (unsigned long)app_dispatcher_dropped(&ctx->dispatcher));
         return;
     case BLINKY_CLI_CMD_NONE:
@@ -116,6 +84,11 @@ static void handle_line(sm_led_ctx_t *ctx, const char *line)
         return;
     default:
         break;
+    }
+
+    if (!should_dispatch(ctx, cmd)) {
+        ESP_LOGI(TAG, "command ignored in state=%s: '%s'", runtime_state_name(ctx->runtime.state), line);
+        return;
     }
 
     const blinky_time_ms_t now = button_input_adapter_now_ms(&ctx->input);

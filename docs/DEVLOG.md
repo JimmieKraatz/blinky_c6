@@ -59,6 +59,15 @@ Next feature direction is a user-facing CLI that mirrors button-driven behavior 
   - added Kconfig controls:
     - `BLINKY_CLI_ENABLE`
     - `BLINKY_CLI_UART_RX_BUF_SIZE`
+- Slice 3 completed (2026-03-13, code/build scope):
+  - added dedicated parser module (`app_cli_parse.*`) for CLI command vocabulary
+  - implemented command-set parity for:
+    - `run`, `pause`, `menu enter`, `menu next`, `menu exit`, `status`, `help`
+  - extended command intent model with explicit `BLINKY_CLI_CMD_RUN` / `BLINKY_CLI_CMD_PAUSE`
+  - added state-aware dispatch policy so `run`/`pause` are idempotent and ignored outside running/paused states
+  - added parser unit tests and command-map coverage updates
+  - verification: `idf.py -D CCACHE_ENABLE=1 build` pass
+  - follow-up: on-target interactive CLI validation still pending
 
 ## 2026-03-12 - CI/CD implementation plan (sliced)
 ### Context

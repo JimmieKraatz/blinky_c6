@@ -3,6 +3,8 @@
 app_event_type_t app_cli_command_map_to_app_event(blinky_cli_command_t cmd)
 {
     switch (cmd) {
+    case BLINKY_CLI_CMD_RUN:
+    case BLINKY_CLI_CMD_PAUSE:
     case BLINKY_CLI_CMD_RUN_PAUSE_TOGGLE:
         return APP_EVENT_BUTTON_SHORT;
     case BLINKY_CLI_CMD_MENU_ENTER:
@@ -22,4 +24,3 @@ bool app_cli_command_map_is_dispatchable(blinky_cli_command_t cmd)
 {
     return app_cli_command_map_to_app_event(cmd) != APP_EVENT_NONE;
 }
-

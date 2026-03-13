@@ -22,6 +22,12 @@ TEST_CASE("cli command map routes run pause toggle to button short", "[app_cli_c
                       app_cli_command_map_to_app_event(BLINKY_CLI_CMD_RUN_PAUSE_TOGGLE));
 }
 
+TEST_CASE("cli command map routes run and pause to button short", "[app_cli_command_map]")
+{
+    TEST_ASSERT_EQUAL(APP_EVENT_BUTTON_SHORT, app_cli_command_map_to_app_event(BLINKY_CLI_CMD_RUN));
+    TEST_ASSERT_EQUAL(APP_EVENT_BUTTON_SHORT, app_cli_command_map_to_app_event(BLINKY_CLI_CMD_PAUSE));
+}
+
 TEST_CASE("cli command map treats help and status as non-dispatch commands", "[app_cli_command_map]")
 {
     TEST_ASSERT_EQUAL(APP_EVENT_NONE, app_cli_command_map_to_app_event(BLINKY_CLI_CMD_HELP));
@@ -30,3 +36,9 @@ TEST_CASE("cli command map treats help and status as non-dispatch commands", "[a
     TEST_ASSERT_FALSE(app_cli_command_map_is_dispatchable(BLINKY_CLI_CMD_STATUS));
 }
 
+TEST_CASE("cli command map treats unknown enum values as non-dispatch", "[app_cli_command_map]")
+{
+    const blinky_cli_command_t unknown = (blinky_cli_command_t)999;
+    TEST_ASSERT_EQUAL(APP_EVENT_NONE, app_cli_command_map_to_app_event(unknown));
+    TEST_ASSERT_FALSE(app_cli_command_map_is_dispatchable(unknown));
+}
