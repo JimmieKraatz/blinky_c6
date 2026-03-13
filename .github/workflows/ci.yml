@@ -11,9 +11,20 @@ on:
       - master
 
 jobs:
-  scaffold-check:
-    name: Workflow Scaffold Check
+  app-build:
+    name: App Build (ESP-IDF)
     runs-on: ubuntu-latest
     steps:
-      - name: Placeholder
-        run: echo "CI scaffold is in place. Build/test jobs will be added in later slices."
+      - name: Checkout repo
+        uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      - name: Build app
+        uses: espressif/esp-idf-ci-action@v1
+        with:
+          esp_idf_version: v5.5.2
+          target: esp32c6
+          path: "."
+          command: |
+            idf.py set-target esp32c6 build -D CCACHE_ENABLE=1

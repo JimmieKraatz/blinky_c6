@@ -71,6 +71,45 @@ Delivery policy has been expanded in `docs/DELIVERY_WORKFLOW.md`. Next step is i
 - HIL workflow is intentionally disabled (`if: false`) while self-hosted runner infrastructure is being prepared.
 - Next slice is cloud app build gate (`idf.py set-target esp32c6` + `idf.py build`).
 
+## 2026-03-12 - CI/CD slice 2 implemented: cloud app build gate
+### Changes
+- Updated `.github/workflows/ci.yml` to replace placeholder scaffold job with an app build job.
+- Added checkout step (`actions/checkout@v4`) with submodules enabled.
+- Added ESP-IDF build step via `espressif/esp-idf-ci-action@v1`:
+  - `idf.py set-target esp32c6`
+  - `idf.py -D CCACHE_ENABLE=1 build`
+
+### Notes
+- Trigger scope remains:
+  - `pull_request` on `develop`, `master`
+  - `push` on `develop`, `master`
+- Slice 3 will add a separate unit-test-app build gate.
+
+## 2026-03-12 - CI/CD slice 2 follow-up: first-run failure remediation
+### Context
+First GitHub Actions run failed in `blinky_idf` on missing `driver/gpio.h` dependency resolution under newer ESP-IDF layout.
+
+### Changes
+- Updated CI workflow hardening:
+  - `actions/checkout@v5`
+  - pinned ESP-IDF version in CI action (`v5.5.2`) to match local development baseline and avoid unplanned `-dev` toolchain drift.
+- Reverted attempted `esp_driver_gpio` requirement after validation showed it is unavailable in pinned IDF line used by CI gate.
+
+### Notes
+- Kept `driver` requirement for Slice 2 compatibility under pinned CI toolchain.
+- IDF 6 component migration can be handled later as a dedicated compatibility slice.
+
+## 2026-03-13 - CI/CD slice 2 follow-up: app_main link failure remediation
+### Context
+CI app build failed at link stage with `undefined reference to app_main`.
+
+### Changes
+- Removed conditional compilation guard around `app_main` in `main/main.c`.
+- `app_main` is now always compiled for this application target.
+
+### Notes
+- This avoids configuration-dependent omission of the entry symbol in cloud builds.
+
 ## 2026-03-11 - Critical review branch kickoff
 ### Branch
 - `review/findings-hardening-2026-03-11`
