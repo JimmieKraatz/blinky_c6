@@ -125,6 +125,27 @@ CI app build failed at link stage with `undefined reference to app_main`.
   - `App Build (ESP-IDF)`
   - `Unit Test App Build (ESP-IDF)`
 
+## 2026-03-13 - CI/CD slice 4 implemented: release automation
+### Changes
+- Replaced `.github/workflows/release.yml` scaffold with full tag-driven release workflow.
+- Added artifact build job on `push` tags `v*`:
+  - app build with pinned ESP-IDF `v5.5.2`
+  - collected release files:
+    - `blinky_c6.bin`
+    - `blinky_c6.elf`
+    - `bootloader.bin`
+    - `partition-table.bin`
+    - `flasher_args.json`
+    - optional `blinky_c6.map`
+  - generated `sha256sums.txt`
+- Added publish job:
+  - downloads artifacts from prior job
+  - creates GitHub Release with generated release notes
+  - marks tags containing `-rc.` as pre-release
+
+### Notes
+- Release workflow is tag-driven by design; verification requires pushing a test tag.
+
 ## 2026-03-11 - Critical review branch kickoff
 ### Branch
 - `review/findings-hardening-2026-03-11`
