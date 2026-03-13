@@ -212,6 +212,19 @@ Initial HIL run on self-hosted runner failed preflight (`command -v idf.py`) bec
 - Updated `infra/runner/entrypoint.sh` to source `/opt/esp/idf/export.sh` before starting runner listener.
 - Updated runner README notes to document default `idf.py` availability.
 
+## 2026-03-13 - Runner scaffold follow-up: serial device permission mapping
+### Context
+HIL smoke run reached flash step but failed with:
+- `Invalid value for --port: Path '/dev/ttyACM0' is not readable.`
+
+### Changes
+- Updated `infra/runner/docker-compose.yml` to add serial group mapping via `group_add`.
+- Added `HIL_SERIAL_GID` to `.env.example`.
+- Updated runner README with host command to capture device gid and troubleshooting note.
+
+### Notes
+- Runner container needs host serial device gid mapped so `runner` user can access `/dev/ttyACM0`.
+
 ## 2026-03-11 - Critical review branch kickoff
 ### Branch
 - `review/findings-hardening-2026-03-11`

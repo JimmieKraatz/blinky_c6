@@ -16,6 +16,10 @@ services:
     # Mount only the USB serial device needed for flash/monitor operations.
     devices:
       - ${HIL_SERIAL_DEVICE:-/dev/ttyACM0}:${HIL_SERIAL_DEVICE:-/dev/ttyACM0}
+    # Ensure runner user can read/write the serial device group.
+    # Set HIL_SERIAL_GID from host: stat -c '%g' /dev/ttyACM0
+    group_add:
+      - "${HIL_SERIAL_GID:-20}"
     volumes:
       - runner-data:/home/runner/actions-runner/_work
 

@@ -21,11 +21,16 @@ This folder provisions a dedicated GitHub Actions self-hosted runner container f
    - `Settings -> Actions -> Runners -> New self-hosted runner`
    - copy a fresh registration token
 3. Paste token into `infra/runner/.env` as `GH_RUNNER_TOKEN`
-4. Start runner:
+4. Set serial device group id in `infra/runner/.env`:
+   ```bash
+   stat -c '%g' /dev/ttyACM0
+   ```
+   Put that value into `HIL_SERIAL_GID`.
+5. Start runner:
    ```bash
    docker compose --env-file infra/runner/.env -f infra/runner/docker-compose.yml up -d --build
    ```
-5. Verify runner is `Online` in GitHub UI.
+6. Verify runner is `Online` in GitHub UI.
 
 ## Validate with HIL workflow
 Run `HIL Smoke` manually from Actions using branch `develop` and default inputs.
@@ -36,3 +41,4 @@ Run `HIL Smoke` manually from Actions using branch `develop` and default inputs.
 - Avoid mounting Docker socket unless absolutely required.
 - Container restarts do not re-register the runner; existing `.runner` config is reused automatically.
 - Runner startup sources `/opt/esp/idf/export.sh`, so `idf.py` is available to workflow jobs by default.
+- If flash fails with `Path '/dev/ttyACM0' is not readable`, verify `HIL_SERIAL_GID` matches host device group id and recreate container.
