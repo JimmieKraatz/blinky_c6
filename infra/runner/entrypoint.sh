@@ -18,10 +18,11 @@ fi
 if [[ "${1:-}" != "--as-runner" ]]; then
   mkdir -p "${RUNNER_HOME}"
   chown -R runner:runner "${RUNNER_HOME}"
-  exec sudo -Eu runner /entrypoint.sh --as-runner
+  exec sudo -HEu runner /entrypoint.sh --as-runner
 fi
 
 cd "${RUNNER_HOME}"
+export HOME="/home/runner"
 
 # First start with fresh volume: copy runner binaries/scripts into persistent runner home.
 if [[ ! -x "${RUNNER_HOME}/config.sh" ]]; then
