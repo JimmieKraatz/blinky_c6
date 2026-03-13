@@ -20,6 +20,15 @@ fi
 # Ensure work/tool directories are present and writable for the runner user.
 mkdir -p "${GH_RUNNER_WORKDIR}" "${GH_RUNNER_WORKDIR}/_tool"
 
+# Load ESP-IDF environment so idf.py/tools are available to workflow steps.
+if [[ -f /opt/esp/idf/export.sh ]]; then
+  # shellcheck disable=SC1091
+  source /opt/esp/idf/export.sh >/dev/null
+else
+  echo "ERROR: /opt/esp/idf/export.sh not found in runner image"
+  exit 1
+fi
+
 # Configure only once; subsequent container starts should reuse existing config.
 if [[ ! -f .runner ]]; then
   echo "Configuring runner: ${GH_RUNNER_NAME}"

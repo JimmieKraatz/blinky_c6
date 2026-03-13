@@ -204,6 +204,14 @@ Manual `HIL Smoke` dispatch was attempted from GitHub Actions after merge.
 - This keeps runner provisioning reproducible without coupling to the daily dev container.
 - Next step is operational bring-up: register runner token, start compose stack, verify runner online, rerun `HIL Smoke`.
 
+## 2026-03-13 - Runner scaffold follow-up: preload ESP-IDF environment
+### Context
+Initial HIL run on self-hosted runner failed preflight (`command -v idf.py`) because runner process environment did not include ESP-IDF exported paths.
+
+### Changes
+- Updated `infra/runner/entrypoint.sh` to source `/opt/esp/idf/export.sh` before starting runner listener.
+- Updated runner README notes to document default `idf.py` availability.
+
 ## 2026-03-11 - Critical review branch kickoff
 ### Branch
 - `review/findings-hardening-2026-03-11`

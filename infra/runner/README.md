@@ -35,3 +35,4 @@ Run `HIL Smoke` manually from Actions using branch `develop` and default inputs.
 - Keep this runner dedicated to this repo/workload.
 - Avoid mounting Docker socket unless absolutely required.
 - Container restarts do not re-register the runner; existing `.runner` config is reused automatically.
+- Runner startup sources `/opt/esp/idf/export.sh`, so `idf.py` is available to workflow jobs by default.
