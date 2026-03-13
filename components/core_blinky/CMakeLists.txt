@@ -7,7 +7,7 @@ idf_component_register(
         "button_logic.c"
         "button_policy.c"
         "led_event_consumer.c"
-        "led_event_factory.c"
+        "app_event_factory.c"
         "led_cli_command_map.c"
         "led_event_map.c"
         "led_startup_policy.c"

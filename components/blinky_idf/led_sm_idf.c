@@ -9,7 +9,7 @@
 #include "led_config_idf.h"
 #include "led_sm_idf.h"
 #include "led_event_consumer.h"
-#include "led_event_factory.h"
+#include "app_event_factory.h"
 #include "led_startup_policy.h"
 
 static inline void led_write(sm_led_ctx_t *ctx, bool on)
@@ -230,7 +230,7 @@ bool led_sm_start(sm_led_ctx_t *ctx, led_sm_start_mode_t mode)
 
     if (mode == LED_SM_START_FRESH) {
         /* Seed boot into the same producer/consumer pipeline used at runtime. */
-        app_event_t boot = led_event_factory_boot(button_input_adapter_now_ms(&ctx->input));
+        app_event_t boot = app_event_factory_boot(button_input_adapter_now_ms(&ctx->input));
         (void)led_sm_enqueue_event(ctx, &boot);
     }
     ctx->started = true;
