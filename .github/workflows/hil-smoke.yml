@@ -75,8 +75,9 @@ jobs:
         run: |
           set -euxo pipefail
           mkdir -p hil-logs
+          command -v script
           timeout "${{ inputs.monitor_timeout_seconds }}"s \
-            idf.py -p "${{ inputs.serial_port }}" monitor \
+            script -q -c "idf.py -p '${{ inputs.serial_port }}' monitor" /dev/null \
             > hil-logs/monitor.log 2>&1 || true
           # Remove ANSI color/control sequences for stable regex matching.
           sed -r 's/\x1B\[[0-9;]*[[:alpha:]]//g' hil-logs/monitor.log > hil-logs/monitor.clean.log

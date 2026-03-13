@@ -278,6 +278,16 @@ HIL runs intermittently failed at flash with `/dev/ttyACM0` unreadable, while ad
   - then execute `idf.py flash` as the normal runner user.
 - Updated runner image user setup to add `runner` to `dialout` group explicitly.
 
+## 2026-03-13 - HIL smoke follow-up: non-interactive monitor TTY workaround
+### Context
+HIL run reached monitor phase but failed with:
+- `Monitor requires standard input to be attached to TTY.`
+
+### Changes
+- Updated monitor capture in `.github/workflows/hil-smoke.yml` to run through `script` (pty wrapper):
+  - `script -q -c \"idf.py ... monitor\" /dev/null`
+- Kept timeout + cleaned-log pipeline unchanged.
+
 ## 2026-03-11 - Critical review branch kickoff
 ### Branch
 - `review/findings-hardening-2026-03-11`
