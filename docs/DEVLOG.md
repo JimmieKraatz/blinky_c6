@@ -110,6 +110,21 @@ CI app build failed at link stage with `undefined reference to app_main`.
 ### Notes
 - This avoids configuration-dependent omission of the entry symbol in cloud builds.
 
+## 2026-03-13 - CI/CD slice 3 implemented: unit-test-app build gate
+### Changes
+- Extended `.github/workflows/ci.yml` with a separate `unit-test-app-build` job.
+- Added ESP-IDF unit-test-app build commands in CI for component integration validation:
+  - `core_sm`
+  - `core_blinky`
+  - `blinky_idf`
+  - `blinky_interfaces`
+- Kept cloud scope build-only (no on-device Unity execution).
+
+### Notes
+- CI now reports two cloud gates on PR/push:
+  - `App Build (ESP-IDF)`
+  - `Unit Test App Build (ESP-IDF)`
+
 ## 2026-03-11 - Critical review branch kickoff
 ### Branch
 - `review/findings-hardening-2026-03-11`
