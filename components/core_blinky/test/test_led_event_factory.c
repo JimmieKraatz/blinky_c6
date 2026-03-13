@@ -30,3 +30,17 @@ TEST_CASE("event factory maps none to app tick", "[led_event_factory]")
     TEST_ASSERT_EQUAL(APP_EVENT_TICK, ev.type);
     TEST_ASSERT_EQUAL_UINT32(13, ev.timestamp_ms);
 }
+
+TEST_CASE("event factory maps cli menu next to button short", "[led_event_factory]")
+{
+    app_event_t ev = led_event_factory_from_cli_command(BLINKY_CLI_CMD_MENU_NEXT, 21);
+    TEST_ASSERT_EQUAL(APP_EVENT_BUTTON_SHORT, ev.type);
+    TEST_ASSERT_EQUAL_UINT32(21, ev.timestamp_ms);
+}
+
+TEST_CASE("event factory maps cli help to non-dispatch event none", "[led_event_factory]")
+{
+    app_event_t ev = led_event_factory_from_cli_command(BLINKY_CLI_CMD_HELP, 22);
+    TEST_ASSERT_EQUAL(APP_EVENT_NONE, ev.type);
+    TEST_ASSERT_EQUAL_UINT32(22, ev.timestamp_ms);
+}
