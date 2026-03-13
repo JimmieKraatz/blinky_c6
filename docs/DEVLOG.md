@@ -189,6 +189,21 @@ Manual `HIL Smoke` dispatch was attempted from GitHub Actions after merge.
 - This is an infrastructure readiness blocker, not a workflow-definition failure.
 - Next step is to provision and register at least one self-hosted runner, then rerun the same manual smoke workflow.
 
+## 2026-03-13 - Runner provisioning scaffold added (containerized)
+### Changes
+- Added in-repo runner scaffold under `infra/runner/`:
+  - `Dockerfile`
+  - `entrypoint.sh`
+  - `docker-compose.yml`
+  - `.env.example`
+  - `README.md`
+- Added local secret ignore for runner token file:
+  - `infra/runner/.env` in `.gitignore`
+
+### Notes
+- This keeps runner provisioning reproducible without coupling to the daily dev container.
+- Next step is operational bring-up: register runner token, start compose stack, verify runner online, rerun `HIL Smoke`.
+
 ## 2026-03-11 - Critical review branch kickoff
 ### Branch
 - `review/findings-hardening-2026-03-11`

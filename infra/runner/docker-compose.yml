@@ -1,0 +1,23 @@
+services:
+  gh-runner:
+    build:
+      context: ../..
+      dockerfile: infra/runner/Dockerfile
+    container_name: blinky-gh-runner
+    restart: unless-stopped
+    environment:
+      GH_REPO_URL: ${GH_REPO_URL}
+      GH_RUNNER_TOKEN: ${GH_RUNNER_TOKEN}
+      GH_RUNNER_NAME: ${GH_RUNNER_NAME:-blinky-hil-runner}
+      GH_RUNNER_LABELS: ${GH_RUNNER_LABELS:-self-hosted,linux,hil,esp32c6}
+      GH_RUNNER_GROUP: ${GH_RUNNER_GROUP:-Default}
+      GH_RUNNER_WORKDIR: ${GH_RUNNER_WORKDIR:-_work}
+      GH_RUNNER_REPLACE: ${GH_RUNNER_REPLACE:-true}
+    # Mount only the USB serial device needed for flash/monitor operations.
+    devices:
+      - ${HIL_SERIAL_DEVICE:-/dev/ttyACM0}:${HIL_SERIAL_DEVICE:-/dev/ttyACM0}
+    volumes:
+      - runner-data:/home/runner/actions-runner/_work
+
+volumes:
+  runner-data:
