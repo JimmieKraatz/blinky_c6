@@ -4,6 +4,30 @@
 This file is a diary of development progress: what changed, why, and what is next.
 For the stable technical view, see `docs/ARCHITECTURE.md`.
 
+## 2026-03-13 - CLI control-plane kickoff (planned v0.2.0)
+### Context
+Next feature direction is a user-facing CLI that mirrors button-driven behavior and provides a reusable control surface for future transport/provisioning paths (for example BT mesh/Wi-Fi) and platform portability (ESP32 + nRF52).
+
+### Version intent
+- Target release for this feature line: `v0.2.0` (new observable feature surface).
+
+### Scope guardrails
+- Keep architecture split aligned with existing boundaries:
+  - core: parsing-independent command model + behavior mapping contracts
+  - platform (`_idf`): console/UART transport and adapter wiring
+- CLI v1 should first mirror existing button/menu behavior before adding broader config commands.
+- NVS-backed settings are planned as follow-on within CLI feature track (not required for first command loop).
+
+### Planned slices
+1. Slice A: CLI contracts + command/event mapping model (core + interfaces)
+2. Slice B: IDF CLI adapter (stdin/uart line reader + dispatch bridge)
+3. Slice C: command set v1 parity with button/menu actions:
+   - `run`, `pause`
+   - `menu enter`, `menu next`, `menu exit`
+   - `status`, `help`
+4. Slice D: persistence hooks (NVS-backed config save/load/reset) and tests
+5. Slice E: docs/release prep for `v0.2.0`
+
 ## 2026-03-12 - CI/CD implementation plan (sliced)
 ### Context
 Delivery policy has been expanded in `docs/DELIVERY_WORKFLOW.md`. Next step is implementation with low-risk slices so we get fast feedback without blocking on HIL infrastructure.
@@ -947,5 +971,4 @@ Started a dedicated branch to address the remaining config/default ownership amb
 ### Why
 - Fully removes startup-wave semantic configuration from framework/Kconfig.
 - Keeps startup behavior ownership in core, with `_idf` only passing inputs and wiring outputs.
-
 

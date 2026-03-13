@@ -80,6 +80,8 @@ Merge protection:
   - Create GitHub Release
   - Attach firmware artifacts
   - Publish release notes/changelog summary
+- Operator checklist for RC/final release flow:
+  - `docs/RELEASE_CHECKLIST.md`
 
 Binary publishing guidance:
 - Source remains the primary delivery artifact.
