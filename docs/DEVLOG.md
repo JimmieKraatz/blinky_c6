@@ -189,6 +189,82 @@ Manual `HIL Smoke` dispatch was attempted from GitHub Actions after merge.
 - This is an infrastructure readiness blocker, not a workflow-definition failure.
 - Next step is to provision and register at least one self-hosted runner, then rerun the same manual smoke workflow.
 
+## 2026-03-13 - Runner provisioning scaffold added (containerized)
+### Changes
+- Added in-repo runner scaffold under `infra/runner/`:
+  - `Dockerfile`
+  - `entrypoint.sh`
+  - `docker-compose.yml`
+  - `.env.example`
+  - `README.md`
+- Added local secret ignore for runner token file:
+  - `infra/runner/.env` in `.gitignore`
+
+### Notes
+- This keeps runner provisioning reproducible without coupling to the daily dev container.
+- Next step is operational bring-up: register runner token, start compose stack, verify runner online, rerun `HIL Smoke`.
+
+## 2026-03-13 - Runner scaffold follow-up: preload ESP-IDF environment
+### Context
+Initial HIL run on self-hosted runner failed preflight (`command -v idf.py`) because runner process environment did not include ESP-IDF exported paths.
+
+### Changes
+- Updated `infra/runner/entrypoint.sh` to source `/opt/esp/idf/export.sh` before starting runner listener.
+- Updated runner README notes to document default `idf.py` availability.
+
+## 2026-03-13 - Runner scaffold follow-up: serial device permission mapping
+### Context
+HIL smoke run reached flash step but failed with:
+- `Invalid value for --port: Path '/dev/ttyACM0' is not readable.`
+
+### Changes
+- Updated `infra/runner/docker-compose.yml` to add serial group mapping via `group_add`.
+- Added `HIL_SERIAL_GID` to `.env.example`.
+- Updated runner README with host command to capture device gid and troubleshooting note.
+
+### Notes
+- Runner container needs host serial device gid mapped so `runner` user can access `/dev/ttyACM0`.
+
+## 2026-03-13 - HIL smoke follow-up: startup pattern validation hardening
+### Context
+After port/flash access was fixed, HIL run failed at startup-pattern validation due log-format/pattern mismatch.
+
+### Changes
+- Updated default `startup_pattern` in `.github/workflows/hil-smoke.yml` to include structured runtime logs.
+- Added ANSI/control-sequence stripping from monitor output before pattern matching.
+- Added monitor log tail output in validation step for faster diagnosis on future failures.
+
+## 2026-03-13 - Runner scaffold follow-up: persistent registration state (proper fix)
+### Context
+Runner restarts/rebuilds could repeatedly trigger `config.sh --replace` and transient session conflicts because only `_work` was persisted.
+
+### Changes
+- Updated runner architecture to persist full runner home state:
+  - `infra/runner/docker-compose.yml` now mounts `runner-home` to `/home/runner/actions-runner`.
+- Updated `infra/runner/Dockerfile`:
+  - keeps a template runner install at `/opt/actions-runner-template`
+  - runner home is initialized at runtime from template when volume is fresh
+- Updated `infra/runner/entrypoint.sh`:
+  - root pre-phase sets ownership for mounted runner home
+  - runner bootstrap copies template files only when needed
+  - `GH_RUNNER_TOKEN` required only for first registration (when `.runner` is absent)
+- Updated runner README with one-time migration/reset guidance.
+
+### Notes
+- This eliminates routine re-registration churn and reduces startup session conflicts.
+
+## 2026-03-13 - HIL smoke follow-up: serial diagnostics and flash fallback
+### Context
+HIL runs intermittently failed at flash with `/dev/ttyACM0` unreadable, while ad-hoc container checks appeared valid.
+
+### Changes
+- Added explicit serial diagnostics step in `.github/workflows/hil-smoke.yml`:
+  - `whoami`, `id`, `groups`
+  - `ls -l` and `stat` on selected serial device
+  - readability check output
+- Added flash log capture (`hil-logs/flash.log`) for post-failure analysis.
+- Added conditional flash fallback to `sudo -n idf.py ...` when device is not readable for current user context.
+
 ## 2026-03-11 - Critical review branch kickoff
 ### Branch
 - `review/findings-hardening-2026-03-11`

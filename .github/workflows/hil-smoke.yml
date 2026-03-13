@@ -10,7 +10,7 @@ on:
       startup_pattern:
         description: "Regex expected in monitor output to mark startup success"
         required: true
-        default: "STATE: RUNNING|app:boot|startup"
+        default: "app:boot startup|runtime:state_change running|STATE: RUNNING|startup"
       monitor_timeout_seconds:
         description: "Max seconds to capture monitor output"
         required: true
@@ -39,10 +39,34 @@ jobs:
           set -euxo pipefail
           idf.py set-target esp32c6 build -D CCACHE_ENABLE=1
 
+      - name: Diagnose serial access
+        run: |
+          set -euxo pipefail
+          mkdir -p hil-logs
+          {
+            echo "whoami: $(whoami)"
+            echo "id: $(id)"
+            echo "groups: $(groups)"
+            echo "serial: ${{ inputs.serial_port }}"
+            ls -l "${{ inputs.serial_port }}" || true
+            stat "${{ inputs.serial_port }}" || true
+            if test -r "${{ inputs.serial_port }}"; then
+              echo "serial_readable=true"
+            else
+              echo "serial_readable=false"
+            fi
+          } | tee hil-logs/serial_diag.log
+
       - name: Flash app
         run: |
           set -euxo pipefail
-          idf.py -p "${{ inputs.serial_port }}" flash
+          mkdir -p hil-logs
+          if test -r "${{ inputs.serial_port }}"; then
+            idf.py -p "${{ inputs.serial_port }}" flash 2>&1 | tee hil-logs/flash.log
+          else
+            echo "Port not readable as current user; retrying flash via sudo" | tee -a hil-logs/flash.log
+            sudo -n idf.py -p "${{ inputs.serial_port }}" flash 2>&1 | tee -a hil-logs/flash.log
+          fi
 
       - name: Capture startup monitor log
         run: |
@@ -51,11 +75,16 @@ jobs:
           timeout "${{ inputs.monitor_timeout_seconds }}"s \
             idf.py -p "${{ inputs.serial_port }}" monitor \
             > hil-logs/monitor.log 2>&1 || true
+          # Remove ANSI color/control sequences for stable regex matching.
+          sed -r 's/\x1B\[[0-9;]*[[:alpha:]]//g' hil-logs/monitor.log > hil-logs/monitor.clean.log
 
       - name: Validate startup pattern
         run: |
           set -euxo pipefail
-          grep -E "${{ inputs.startup_pattern }}" hil-logs/monitor.log
+          echo "Startup pattern: ${{ inputs.startup_pattern }}"
+          echo "--- monitor.clean.log (tail) ---"
+          tail -n 120 hil-logs/monitor.clean.log || true
+          grep -E "${{ inputs.startup_pattern }}" hil-logs/monitor.clean.log
 
       - name: Upload HIL logs
         if: always()
