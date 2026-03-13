@@ -253,6 +253,18 @@ Runner restarts/rebuilds could repeatedly trigger `config.sh --replace` and tran
 ### Notes
 - This eliminates routine re-registration churn and reduces startup session conflicts.
 
+## 2026-03-13 - HIL smoke follow-up: serial diagnostics and flash fallback
+### Context
+HIL runs intermittently failed at flash with `/dev/ttyACM0` unreadable, while ad-hoc container checks appeared valid.
+
+### Changes
+- Added explicit serial diagnostics step in `.github/workflows/hil-smoke.yml`:
+  - `whoami`, `id`, `groups`
+  - `ls -l` and `stat` on selected serial device
+  - readability check output
+- Added flash log capture (`hil-logs/flash.log`) for post-failure analysis.
+- Added conditional flash fallback to `sudo -n idf.py ...` when device is not readable for current user context.
+
 ## 2026-03-11 - Critical review branch kickoff
 ### Branch
 - `review/findings-hardening-2026-03-11`
