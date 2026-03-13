@@ -64,9 +64,11 @@ jobs:
           if test -r "${{ inputs.serial_port }}"; then
             idf.py -p "${{ inputs.serial_port }}" flash 2>&1 | tee hil-logs/flash.log
           else
-            echo "Port not readable as current user; retrying flash via sudo" | tee -a hil-logs/flash.log
-            sudo -n bash -lc "source /opt/esp/idf/export.sh >/dev/null && idf.py -p '${{ inputs.serial_port }}' flash" \
-              2>&1 | tee -a hil-logs/flash.log
+            echo "Port not readable as current user; repairing device permissions via sudo" | tee -a hil-logs/flash.log
+            sudo -n chmod a+rw "${{ inputs.serial_port }}"
+            ls -l "${{ inputs.serial_port }}" | tee -a hil-logs/flash.log
+            test -r "${{ inputs.serial_port }}"
+            idf.py -p "${{ inputs.serial_port }}" flash 2>&1 | tee -a hil-logs/flash.log
           fi
 
       - name: Capture startup monitor log

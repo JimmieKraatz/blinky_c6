@@ -263,7 +263,10 @@ HIL runs intermittently failed at flash with `/dev/ttyACM0` unreadable, while ad
   - `ls -l` and `stat` on selected serial device
   - readability check output
 - Added flash log capture (`hil-logs/flash.log`) for post-failure analysis.
-- Added conditional flash fallback to `sudo -n idf.py ...` when device is not readable for current user context.
+- Reworked flash fallback to avoid running `idf.py` as root:
+  - if serial device is unreadable, use `sudo` only to repair port permissions (`chmod a+rw`)
+  - then execute `idf.py flash` as the normal runner user.
+- Updated runner image user setup to add `runner` to `dialout` group explicitly.
 
 ## 2026-03-11 - Critical review branch kickoff
 ### Branch
