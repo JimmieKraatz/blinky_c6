@@ -1,0 +1,32 @@
+#include "unity.h"
+
+#include "app_cli_command_map.h"
+
+TEST_CASE("cli command map routes menu enter and exit to button long", "[app_cli_command_map]")
+{
+    TEST_ASSERT_EQUAL(APP_EVENT_BUTTON_LONG,
+                      app_cli_command_map_to_app_event(BLINKY_CLI_CMD_MENU_ENTER));
+    TEST_ASSERT_EQUAL(APP_EVENT_BUTTON_LONG,
+                      app_cli_command_map_to_app_event(BLINKY_CLI_CMD_MENU_EXIT));
+}
+
+TEST_CASE("cli command map routes menu next to button short", "[app_cli_command_map]")
+{
+    TEST_ASSERT_EQUAL(APP_EVENT_BUTTON_SHORT,
+                      app_cli_command_map_to_app_event(BLINKY_CLI_CMD_MENU_NEXT));
+}
+
+TEST_CASE("cli command map routes run pause toggle to button short", "[app_cli_command_map]")
+{
+    TEST_ASSERT_EQUAL(APP_EVENT_BUTTON_SHORT,
+                      app_cli_command_map_to_app_event(BLINKY_CLI_CMD_RUN_PAUSE_TOGGLE));
+}
+
+TEST_CASE("cli command map treats help and status as non-dispatch commands", "[app_cli_command_map]")
+{
+    TEST_ASSERT_EQUAL(APP_EVENT_NONE, app_cli_command_map_to_app_event(BLINKY_CLI_CMD_HELP));
+    TEST_ASSERT_EQUAL(APP_EVENT_NONE, app_cli_command_map_to_app_event(BLINKY_CLI_CMD_STATUS));
+    TEST_ASSERT_FALSE(app_cli_command_map_is_dispatchable(BLINKY_CLI_CMD_HELP));
+    TEST_ASSERT_FALSE(app_cli_command_map_is_dispatchable(BLINKY_CLI_CMD_STATUS));
+}
+

@@ -1,6 +1,6 @@
-#include "led_cli_command_map.h"
+#include "app_cli_command_map.h"
 
-app_event_type_t led_cli_command_map_to_app_event(blinky_cli_command_t cmd)
+app_event_type_t app_cli_command_map_to_app_event(blinky_cli_command_t cmd)
 {
     switch (cmd) {
     case BLINKY_CLI_CMD_RUN_PAUSE_TOGGLE:
@@ -18,8 +18,8 @@ app_event_type_t led_cli_command_map_to_app_event(blinky_cli_command_t cmd)
     }
 }
 
-bool led_cli_command_map_is_dispatchable(blinky_cli_command_t cmd)
+bool app_cli_command_map_is_dispatchable(blinky_cli_command_t cmd)
 {
-    return led_cli_command_map_to_app_event(cmd) != APP_EVENT_NONE;
+    return app_cli_command_map_to_app_event(cmd) != APP_EVENT_NONE;
 }
 
