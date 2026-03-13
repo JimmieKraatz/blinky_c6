@@ -146,6 +146,36 @@ CI app build failed at link stage with `undefined reference to app_main`.
 ### Notes
 - Release workflow is tag-driven by design; verification requires pushing a test tag.
 
+## 2026-03-13 - CI/CD slice 4 validation: end-to-end release test
+### Changes
+- Pushed temporary validation tag: `v0.1.1-rc.0-test` (from `develop` head).
+- Confirmed release workflow execution and artifact publication.
+- Verified 9 release assets were generated (firmware, bootloader, partition table, metadata, checksums, and source archives).
+- Removed temporary release tag locally and on origin after validation.
+
+### Notes
+- Slice 4 acceptance criteria satisfied: tag-driven artifact build and release publishing works in GitHub Actions.
+
+## 2026-03-13 - CI/CD slice 5 implemented: manual self-hosted HIL smoke path
+### Changes
+- Replaced disabled HIL scaffold with executable manual workflow in `.github/workflows/hil-smoke.yml`.
+- Added `workflow_dispatch` inputs:
+  - `serial_port`
+  - `startup_pattern`
+  - `monitor_timeout_seconds`
+- Added self-hosted smoke sequence:
+  - checkout
+  - preflight `idf.py` check
+  - build (`idf.py set-target esp32c6 build`)
+  - flash (`idf.py -p <port> flash`)
+  - monitor capture with timeout
+  - startup pattern validation (`grep -E`)
+- Added log artifact upload (`actions/upload-artifact@v4`) with `if: always()`.
+
+### Notes
+- This gate remains manual and non-required until runner reliability is characterized.
+- Next operational step is one successful manual HIL run record on the self-hosted runner.
+
 ## 2026-03-11 - Critical review branch kickoff
 ### Branch
 - `review/findings-hardening-2026-03-11`
