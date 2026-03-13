@@ -4,6 +4,18 @@
 This file is a diary of development progress: what changed, why, and what is next.
 For the stable technical view, see `docs/ARCHITECTURE.md`.
 
+## 2026-03-13 - CLI naming alignment pass
+### Context
+As CLI control-plane scaffolding was added, naming drift appeared between older `led_*` mapping/factory terms and app-layer event plumbing.
+
+### Changes
+- Renamed `led_event_factory.*` -> `app_event_factory.*`.
+- Renamed `led_cli_command_map.*` -> `app_cli_command_map.*`.
+- Updated references and tests to use new app-layer naming consistently.
+
+### Notes
+- `blinky_cli_command_t` remains intentionally domain-scoped (`blinky_`), while mapping/factory modules stay app-plumbing scoped (`app_`).
+
 ## 2026-03-13 - CLI control-plane kickoff (planned v0.2.0)
 ### Context
 Next feature direction is a user-facing CLI that mirrors button-driven behavior and provides a reusable control surface for future transport/provisioning paths (for example BT mesh/Wi-Fi) and platform portability (ESP32 + nRF52).
@@ -27,6 +39,14 @@ Next feature direction is a user-facing CLI that mirrors button-driven behavior 
    - `status`, `help`
 4. Slice D: persistence hooks (NVS-backed config save/load/reset) and tests
 5. Slice E: docs/release prep for `v0.2.0`
+
+### Slice status
+- Slice A completed (2026-03-13):
+  - added CLI command contract in `blinky_interfaces` (`blinky_cli_command_t`)
+  - added core mapping module `app_cli_command_map.*`
+  - extended event factory with CLI path (`app_event_factory_from_cli_command(...)`)
+  - added/updated unit tests for command mapping and event factory behavior
+  - completed naming alignment pass (`led_*` -> `app_*` for app-layer plumbing)
 
 ## 2026-03-12 - CI/CD implementation plan (sliced)
 ### Context
@@ -644,7 +664,7 @@ Completed planned core/framework extraction slices for event wiring, startup pol
 wake ownership, and button timing policy ownership.
 
 ### Changes
-- Slice 1: extracted core event construction policy (`led_event_factory.*`) and removed inline event defaults from `_idf`.
+- Slice 1: extracted core event construction policy (`led_event_factory.*`, later renamed to `app_event_factory.*`) and removed inline event defaults from `_idf`.
 - Slice 2: extracted startup wave selection policy (`led_startup_policy.*`) behind core-facing config.
 - Slice 3: moved wake/notify side-effects behind enqueue sink boundary; producer path now only publishes.
 - Slice 4: introduced core-facing button timing contract (`button_policy.*`) and mapped `sdkconfig` through `_idf`.
@@ -971,4 +991,3 @@ Started a dedicated branch to address the remaining config/default ownership amb
 ### Why
 - Fully removes startup-wave semantic configuration from framework/Kconfig.
 - Keeps startup behavior ownership in core, with `_idf` only passing inputs and wiring outputs.
-

@@ -75,7 +75,8 @@ Notes:
 ## Core/Framework Ownership (Current)
 Defaults/config ownership after extraction slices:
 - Core-facing policy/config:
-  - `led_event_factory_*` builds boot/input semantic events (`core_blinky`)
+  - `app_event_factory_*` builds boot/input semantic events (`core_blinky`)
+  - `app_cli_command_map_*` maps CLI command intent to app events (`core_blinky`)
   - `led_startup_policy_*` selects startup waveform from core config (`core_blinky`)
   - `button_policy_timing_*` normalizes debounce/long-press timing policy (`core_blinky`)
   - `led_event_map_*` event semantic mapping (`core_blinky`)
