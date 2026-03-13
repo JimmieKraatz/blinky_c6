@@ -948,3 +948,4 @@ Started a dedicated branch to address the remaining config/default ownership amb
 - Fully removes startup-wave semantic configuration from framework/Kconfig.
 - Keeps startup behavior ownership in core, with `_idf` only passing inputs and wiring outputs.
 
+
