@@ -2,13 +2,65 @@ name: HIL Smoke
 
 on:
   workflow_dispatch:
+    inputs:
+      serial_port:
+        description: "Serial port for target board (example: /dev/ttyACM0)"
+        required: true
+        default: "/dev/ttyACM0"
+      startup_pattern:
+        description: "Regex expected in monitor output to mark startup success"
+        required: true
+        default: "STATE: RUNNING|app:boot|startup"
+      monitor_timeout_seconds:
+        description: "Max seconds to capture monitor output"
+        required: true
+        default: "30"
 
 jobs:
-  hil-smoke-stub:
-    name: HIL Smoke Stub (Disabled)
-    if: ${{ false }}
+  hil-smoke:
+    name: HIL Smoke (Self-Hosted)
     runs-on:
       - self-hosted
+    timeout-minutes: 20
     steps:
-      - name: Placeholder
-        run: echo "HIL smoke scaffold is in place. Flash/serial verification will be added in later slices."
+      - name: Checkout repo
+        uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      - name: Preflight toolchain checks
+        run: |
+          set -euxo pipefail
+          command -v idf.py
+          idf.py --version
+
+      - name: Build app
+        run: |
+          set -euxo pipefail
+          idf.py set-target esp32c6 build -D CCACHE_ENABLE=1
+
+      - name: Flash app
+        run: |
+          set -euxo pipefail
+          idf.py -p "${{ inputs.serial_port }}" flash
+
+      - name: Capture startup monitor log
+        run: |
+          set -euxo pipefail
+          mkdir -p hil-logs
+          timeout "${{ inputs.monitor_timeout_seconds }}"s \
+            idf.py -p "${{ inputs.serial_port }}" monitor \
+            > hil-logs/monitor.log 2>&1 || true
+
+      - name: Validate startup pattern
+        run: |
+          set -euxo pipefail
+          grep -E "${{ inputs.startup_pattern }}" hil-logs/monitor.log
+
+      - name: Upload HIL logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hil-smoke-${{ github.run_id }}
+          path: hil-logs/*
+          if-no-files-found: warn
