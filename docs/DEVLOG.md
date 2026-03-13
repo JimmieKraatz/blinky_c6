@@ -4,6 +4,10 @@
 This file is a diary of development progress: what changed, why, and what is next.
 For the stable technical view, see `docs/ARCHITECTURE.md`.
 
+## Logging Conventions
+- Slice naming: use numeric IDs only (`Slice 1`, `Slice 2`, ...). Avoid lettered slices for new entries.
+- Module naming: prefer `app_` for app-plumbing contracts and `blinky_` for domain behavior; treat older `led_*` orchestrator names as legacy until refactored.
+
 ## 2026-03-13 - CLI naming alignment pass
 ### Context
 As CLI control-plane scaffolding was added, naming drift appeared between older `led_*` mapping/factory terms and app-layer event plumbing.
@@ -31,22 +35,30 @@ Next feature direction is a user-facing CLI that mirrors button-driven behavior 
 - NVS-backed settings are planned as follow-on within CLI feature track (not required for first command loop).
 
 ### Planned slices
-1. Slice A: CLI contracts + command/event mapping model (core + interfaces)
-2. Slice B: IDF CLI adapter (stdin/uart line reader + dispatch bridge)
-3. Slice C: command set v1 parity with button/menu actions:
+1. Slice 1: CLI contracts + command/event mapping model (core + interfaces)
+2. Slice 2: IDF CLI adapter (stdin/uart line reader + dispatch bridge)
+3. Slice 3: command set v1 parity with button/menu actions:
    - `run`, `pause`
    - `menu enter`, `menu next`, `menu exit`
    - `status`, `help`
-4. Slice D: persistence hooks (NVS-backed config save/load/reset) and tests
-5. Slice E: docs/release prep for `v0.2.0`
+4. Slice 4: persistence hooks (NVS-backed config save/load/reset) and tests
+5. Slice 5: docs/release prep for `v0.2.0`
 
 ### Slice status
-- Slice A completed (2026-03-13):
+- Slice 1 completed (2026-03-13):
   - added CLI command contract in `blinky_interfaces` (`blinky_cli_command_t`)
   - added core mapping module `app_cli_command_map.*`
   - extended event factory with CLI path (`app_event_factory_from_cli_command(...)`)
   - added/updated unit tests for command mapping and event factory behavior
   - completed naming alignment pass (`led_*` -> `app_*` for app-layer plumbing)
+- Slice 2 completed (2026-03-13):
+  - added IDF UART CLI adapter (`app_cli_adapter_idf.*`) with non-blocking line read on UART0
+  - added command parsing bridge from text input to `blinky_cli_command_t`
+  - wired CLI command dispatch into existing app-event queue via `app_event_factory_from_cli_command(...)`
+  - integrated adapter init/step into `led_sm_init(...)` / `led_sm_step(...)`
+  - added Kconfig controls:
+    - `BLINKY_CLI_ENABLE`
+    - `BLINKY_CLI_UART_RX_BUF_SIZE`
 
 ## 2026-03-12 - CI/CD implementation plan (sliced)
 ### Context
@@ -705,6 +717,9 @@ wake ownership, and button timing policy ownership.
 - Pause behavior policy decision (deferred):
   - decide whether `PAUSED` should freeze LED at current brightness or force LED off
   - document rationale and align tests with final behavior
+- Legacy orchestrator naming cleanup:
+  - evaluate renaming `led_sm_idf.*` to `blinky_sm_idf.*` (or `app_sm_idf.*`) to match current architecture boundaries
+  - perform as a dedicated refactor slice to avoid mixing with feature work
 
 ## Done TODOs
 - Startup waveform ownership decoupling (completed 2026-03-10):
