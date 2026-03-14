@@ -27,6 +27,23 @@ typedef struct {
 static app_cli_adapter_state_t s_cli = {0};
 static const char *TAG = "blinky_cli";
 
+static void cli_echo_bytes(const char *data, size_t len)
+{
+    if (!data || len == 0U) {
+        return;
+    }
+#if CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG
+    (void)usb_serial_jtag_write_bytes(data, len, 0);
+#else
+    (void)uart_write_bytes(UART_NUM_0, data, len);
+#endif
+}
+
+static void cli_echo_char(char ch)
+{
+    cli_echo_bytes(&ch, 1U);
+}
+
 static const char *runtime_state_name(led_policy_state_t state)
 {
     switch (state) {
@@ -183,18 +200,26 @@ void app_cli_adapter_idf_step(sm_led_ctx_t *ctx)
             break;
         }
 
-        if (ch == '\r') {
-            continue;
-        }
-        if (ch == '\n') {
+        if (ch == '\r' || ch == '\n') {
+            cli_echo_bytes("\r\n", 2U);
+            if (s_cli.len == 0U) {
+                continue;
+            }
             s_cli.line[s_cli.len] = '\0';
             handle_line(ctx, s_cli.line);
             s_cli.len = 0U;
             continue;
         }
 
+        if ((ch == '\b' || ch == 0x7FU) && s_cli.len > 0U) {
+            s_cli.len--;
+            cli_echo_bytes("\b \b", 3U);
+            continue;
+        }
+
         if (isprint((unsigned char)ch) && s_cli.len + 1U < sizeof(s_cli.line)) {
             s_cli.line[s_cli.len++] = (char)ch;
+            cli_echo_char((char)ch);
             continue;
         }
 
