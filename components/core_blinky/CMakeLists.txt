@@ -1,5 +1,6 @@
 idf_component_register(
     SRCS
+        "app_settings.c"
         "led_model.c"
         "menu_logic.c"
         "led_policy.c"

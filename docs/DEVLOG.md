@@ -149,6 +149,17 @@ Next feature direction is a user-facing CLI that mirrors button-driven behavior 
   - manual on-device validation complete:
     - app flashed and ran as expected
     - unit-test-app flashed and ran with Unity result `109 / 0 / 0`
+- Slice 4B contract scaffold started (2026-03-14):
+  - added placeholder persisted-settings payload in `core_blinky`:
+    - `schema_version`
+    - `test_counter`
+    - `test_mode_enabled`
+  - added storage boundary contract in `blinky_interfaces`:
+    - `load`
+    - `save`
+    - `reset`
+  - intentionally did not wire real NVS or migrate real config values yet
+  - added unit coverage for settings defaults and schema validation
 
 ### Slice 4A draft decision memo
 #### Problem statement
@@ -272,6 +283,29 @@ Notes:
 - `boot pattern`
 - `log intensity`
 - `log min level`
+
+#### Slice 4B scaffold decision
+Before moving any real config items into persistence, scaffold the boundary with simple test data:
+- core owns the persisted payload shape and default/validation rules
+- interfaces own the storage contract (`load` / `save` / `reset`)
+- `_idf` will later own the NVS-backed implementation
+
+Initial `_idf` NVS backing direction:
+- dedicated app-owned partition
+- one namespace
+- unencrypted for now
+- simple typed keys
+- add more partitions later only when reset/security/lifecycle needs diverge
+
+Initial placeholder payload:
+- `schema_version`
+- `test_counter`
+- `test_mode_enabled`
+
+Why this comes first:
+- validates the persistence architecture without coupling early mistakes to real user-facing config
+- keeps Slice 4B focused on storage correctness before policy migration
+- gives us a schema/version foothold for future migration handling
 
 #### Explicit non-goals for first-pass NVS
 - hardware wiring/electrical values

@@ -82,6 +82,7 @@ Defaults/config ownership after extraction slices:
   - `app_event_factory_*` builds boot/input semantic events (`core_blinky`)
   - `app_cli_command_map_*` maps CLI command intent to LED-domain command intent (`core_blinky`)
   - `led_command_dispatch_*` interprets semantic blinky commands against current runtime state (`core_blinky`)
+  - `app_settings_*` defines the placeholder persisted-settings payload and default/validation rules for Slice 4B bring-up (`core_blinky`)
   - `led_startup_policy_*` selects startup waveform from core config (`core_blinky`)
   - `button_policy_timing_*` normalizes debounce/long-press timing policy (`core_blinky`)
   - `led_event_map_*` event semantic mapping (`core_blinky`)
@@ -91,9 +92,24 @@ Defaults/config ownership after extraction slices:
     - `idf_build_platform_config(...)`
     - `idf_build_core_config(...)`
   - `_idf` owns sourcing/mapping only; core contracts are defined in `core_blinky` headers (for example `led_core_config.h`)
+  - `app_settings_store_*` is the storage boundary contract; `_idf` will provide the NVS-backed implementation
   - FreeRTOS queue/task primitives and wake mechanics
   - adapter init for GPIO/LEDC/button hardware
   - queue storage/lifecycle and dispatcher wiring in `_idf`
+
+### Persistence Boundary (Slice 4B Scaffold)
+The first persistence step is intentionally split into two layers:
+- `core_blinky` owns the persisted payload shape and semantic defaults through `app_settings_t`
+- `blinky_interfaces` owns the storage contract through `app_settings_store_t` with `load`, `save`, and `reset`
+- `_idf` will later implement that contract on top of a dedicated app-owned NVS partition
+
+Current scaffold notes:
+- The payload is deliberately placeholder-only for now:
+  - `schema_version`
+  - `test_counter`
+  - `test_mode_enabled`
+- This is a plumbing-validation step, not the final migrated config surface.
+- Real config items should move onto this boundary only after NVS load/save/reset behavior is proven with the placeholder payload.
 
 ### Config Ownership Decision Table
 Current Kconfig defaults, ownership, and target direction:
