@@ -71,6 +71,11 @@ Next feature direction is a user-facing CLI that mirrors button-driven behavior 
   - platform (`_idf`): console/UART transport and adapter wiring
 - CLI v1 should first mirror existing button/menu behavior before adding broader config commands.
 - NVS-backed settings are planned as follow-on within CLI feature track (not required for first command loop).
+- Future control surfaces are likely to extend beyond local serial CLI:
+  - possible wireless provisioning path
+  - possible MQTT control path
+  - possible mesh-oriented command/control path
+- Slice 4 planning must account for that expansion so CLI/config work does not overfit a UART-only or "virtual button only" model.
 
 ### Planned slices
 1. Slice 1: CLI contracts + command/event mapping model (core + interfaces)
@@ -79,8 +84,25 @@ Next feature direction is a user-facing CLI that mirrors button-driven behavior 
    - `run`, `pause`
    - `menu enter`, `menu next`, `menu exit`
    - `status`, `help`
-4. Slice 4: persistence hooks (NVS-backed config save/load/reset) and tests
-5. Slice 5: docs/release prep for `v0.2.0`
+4. Slice 4A: CLI/persistence architecture decision
+   - decide whether runtime-control commands and config/operational commands share one path
+   - decide whether persistence belongs inside `led_sm` or in app-shell / `_idf` orchestration around it
+   - document a transport-friendly command boundary that can later support local CLI, provisioning flows, MQTT, and mesh without forcing all intents through button-style events
+5. Slice 4B: persistence design + config contract
+   - define persistable settings
+   - define ownership and source-of-truth/default override rules
+   - define lifecycle semantics for load/apply/save/reset
+6. Slice 4C: storage boundary + `_idf` adapter
+   - define storage contract (`load/save/reset`)
+   - implement NVS-backed adapter in `_idf`
+7. Slice 4D: CLI config commands
+   - start with a minimal command set such as `config show`, `config save`, `config reset`
+   - add at most one or two low-risk setters in the first pass
+8. Slice 4E: tests and HIL validation
+   - unit coverage for merge/default rules
+   - adapter tests for persistence operations
+   - on-device/HIL validation for config command behavior
+9. Slice 5: docs/release prep for `v0.2.0`
 
 ### Slice status
 - Slice 1 completed (2026-03-13):
@@ -113,6 +135,158 @@ Next feature direction is a user-facing CLI that mirrors button-driven behavior 
   - runtime validation complete: on-target `tools/hil/cli_smoke.py` passed all 7 commands on `/dev/ttyACM0`
   - post-smoke monitor validation complete: `idf.py monitor` showed stable boot to `running` and interactive typed characters were visible over USB Serial/JTAG
   - follow-up operational fix: `menu exit` no longer enters menu outside `LED_POLICY_MENU`; explicit menu commands are now gated against current runtime state
+- Slice 4A planning in progress (2026-03-14):
+  - drafted command-intent path decision memo
+  - captured persistence/config inventory candidate for Slice 4B
+  - captured small initial config-command surface proposal for Slice 4D
+  - no Slice 4A implementation work has started yet; current output is architecture/design planning
+
+### Slice 4A draft decision memo
+#### Problem statement
+Persistence/config commands are not a clean fit for the current "CLI as named button/control adapter" path. Runtime-control commands such as `run`, `pause`, `menu enter`, `menu next`, and `menu exit` map reasonably onto existing runtime semantics, but commands such as `config save`, `config reset`, provisioning actions, or future network-driven control do not.
+
+#### Options considered
+1. Keep all CLI intents flowing through the existing runtime/button-style event path.
+   - Pros: minimal new plumbing
+   - Cons: overfits semantic/config intents onto runtime events; likely to get awkward for save/reset/provisioning
+2. Keep one physical CLI adapter, but split command handling into two intent paths.
+   - runtime-control commands -> existing app/runtime event path
+   - config/operational commands -> app-shell / `_idf` command path with storage boundary
+   - Pros: preserves current runtime behavior model while creating room for persistence and future transports
+   - Cons: introduces a second command-handling lane that must be documented clearly
+3. Add a dedicated CLI state machine now.
+   - Pros: maximal flexibility for future multi-step command workflows
+   - Cons: likely premature for current scope; adds complexity before command/config boundary decisions are settled
+
+#### Current recommendation
+- Choose Option 2, but refine it further:
+  - CLI/router should classify command domain, not own LED behavior mapping
+  - `led_sm` should remain the owner of blinky runtime behavior/state transitions
+  - runtime-control commands should be forwarded to the LED domain as explicit blinky commands, not as disguised button events
+  - persistence/config/provisioning intents should not be forced through the same button-style event model
+  - persistence/storage orchestration should live in app-shell / `_idf` boundaries, with core defining contracts where semantics belong in core
+
+#### Why this recommendation fits future work
+- Leaves room for serial CLI today without baking in UART-only assumptions.
+- Scales better if provisioning is later exposed through CLI, wireless setup flows, MQTT, or mesh control.
+- Avoids teaching the runtime state machine about storage and operational concerns that are not inherently waveform/menu behavior.
+
+#### Refined command-intent path for Slice 4A
+- Keep LED runtime states small and behavioral:
+  - `running`
+  - `paused`
+  - `menu`
+- Do not expand LED states into command names such as `run`, `pause`, `menu enter`, `menu next`, or `menu exit`.
+- Introduce explicit blinky command intent separate from button input semantics:
+  - `RUN`
+  - `PAUSE`
+  - `MENU_ENTER`
+  - `MENU_NEXT`
+  - `MENU_EXIT`
+- Let the LED domain interpret those commands against current runtime state and decide whether they are:
+  - applied
+  - ignored
+  - invalid
+- Treat button input and CLI as separate producers of LED-domain intent rather than forcing CLI to masquerade as raw button input.
+
+#### Separation-of-concerns rule
+- CLI/router decides only:
+  - which domain a command belongs to (`blinky`, `config`, `diagnostic`, future provisioning/network)
+  - whether the command should be routed to a domain owner
+- LED domain decides:
+  - what a blinky command means in the current LED/menu state
+  - whether that command is appropriate right now
+  - what internal transition/action should result
+- Non-blinky commands should route to non-LED owners and should not require `led_sm` awareness.
+
+#### Planned output of Slice 4A
+- An explicit architecture note describing the command-intent split:
+  - domain routing in CLI/app shell
+  - LED-domain command interpretation in `led_sm` or adjacent LED-domain controller
+- A persistence/config contract candidate for Slice 4B.
+- A small initial config-command surface proposal for Slice 4D.
+
+#### Persistence/config inventory candidate for Slice 4B
+Notes:
+- Distinguish live runtime state from persisted user preference.
+- A possible persisted setting is instead startup behavior preference, for example:
+  - start in `running`
+  - start in `paused`
+- Likewise, "pause behavior" is a separate policy question:
+  - whether paused forces LED off
+  - or freezes current brightness
+  - that should not be conflated with startup mode or current runtime state
+
+| Item / symbol | Current source | Current owner/boundary | Persistence candidacy | Notes |
+|---|---|---|---|---|
+| `BLINKY_LED_GPIO` | Kconfig / `sdkconfig` | `_idf` platform wiring | stay in `Kconfig` | Board/hardware wiring |
+| `BLINKY_BTN_GPIO` | Kconfig / `sdkconfig` | `_idf` platform wiring | stay in `Kconfig` | Board/hardware wiring |
+| `BLINKY_BTN_ACTIVE_LOW` | Kconfig / `sdkconfig` | `_idf` electrical interface | stay in `Kconfig` | Hardware/electrical behavior |
+| `BLINKY_BTN_PULL_*` | Kconfig / `sdkconfig` | `_idf` electrical interface | stay in `Kconfig` | Hardware/electrical behavior |
+| `BLINKY_PWM_FREQ_HZ` | Kconfig / `sdkconfig` | `_idf` LEDC/platform setup | stay in `Kconfig` | Peripheral setup |
+| `BLINKY_PRODUCER_POLL_MS` | Kconfig / `sdkconfig` | `_idf` scheduler cadence | stay in `Kconfig` | Platform/task timing |
+| `BLINKY_CLI_ENABLE` | Kconfig / `sdkconfig` | `_idf` transport wiring | stay in `Kconfig` | Build/deployment choice |
+| `BLINKY_CLI_UART_RX_BUF_SIZE` | Kconfig / `sdkconfig` | `_idf` transport wiring | stay in `Kconfig` | Build/runtime buffer sizing, not user-facing |
+| `BLINKY_BOOT_PATTERN` | Kconfig / `sdkconfig` | `_idf` platform/UI behavior | first-pass NVS candidate | User-facing startup preference |
+| `BLINKY_BOOT_PATTERN_MS` | Kconfig / `sdkconfig` | `_idf` platform/UI behavior | maybe NVS later | Likely keep build-time initially |
+| `BLINKY_LOG_INTENSITY` | Kconfig / `sdkconfig` | `_idf` logging policy | first-pass NVS candidate | Operational preference |
+| `BLINKY_LOG_MIN_LEVEL_*` | Kconfig / `sdkconfig` | `_idf` logging policy | first-pass NVS candidate | Operational preference |
+| `BLINKY_WAVE_PERIOD_MS` | Kconfig -> core config | `core_blinky` model policy | maybe NVS | User-facing if waveform tuning becomes a feature |
+| `BLINKY_MODEL_POLL_MS` | Kconfig -> core config | `core_blinky` model cadence | maybe NVS later | More advanced tuning knob; not first-pass |
+| `BLINKY_SINE_STEPS_MAX` | Kconfig -> core config | `core_blinky` quality/perf policy | maybe NVS later | Advanced tuning; probably not first-pass |
+| `BLINKY_SAW_STEP_PCT` | Kconfig -> core config | `core_blinky` waveform shape policy | maybe NVS later | Advanced tuning; probably not first-pass |
+| `BLINKY_DEBOUNCE_COUNT` | Kconfig -> core config | `core_blinky` button timing policy | stay in `Kconfig` | Not a user-facing operational preference |
+| `BLINKY_LONG_PRESS_MS` | Kconfig -> core config | `core_blinky` button timing policy | stay in `Kconfig` | Not a user-facing operational preference |
+| Startup wave preference | Core default today | `core_blinky` startup policy | first-pass NVS candidate | Strong user-facing preference |
+| Startup mode preference (`running` vs `paused`) | Not yet modeled | LED-domain startup policy | first-pass NVS candidate | Separate from live runtime state |
+| Pause output behavior (`LED off` vs `freeze brightness`) | Deferred policy decision | LED-domain pause policy | decide before NVS | Policy choice, not current-state persistence |
+
+#### Provisional first-pass NVS surface
+- `startup wave preference`
+- `startup mode preference` (`running` vs `paused`)
+- `boot pattern`
+- `log intensity`
+- `log min level`
+
+#### Explicit non-goals for first-pass NVS
+- hardware wiring/electrical values
+- task/transport buffer sizing
+- debounce/long-press timing
+- broad waveform tuning/perf knobs unless a user-facing requirement emerges
+
+#### Small initial config-command surface proposal for Slice 4D
+Goals:
+- Keep the first config surface small, explicit, and easy to validate on-device.
+- Prefer commands that expose the first-pass NVS items without opening a broad generic settings language yet.
+
+Proposed read-only commands:
+- `config show`
+  - dumps persisted/effective config summary
+- `config show startup`
+  - shows startup wave, startup mode, and boot-pattern enable
+- `config show logging`
+  - shows log intensity and min log level
+
+Proposed mutating commands:
+- `config startup wave <square|saw_up|saw_down|triangle|sine>`
+- `config startup mode <running|paused>`
+- `config boot-pattern <on|off>`
+- `config log intensity <on|off>`
+- `config log level <error|warn|info|debug>`
+
+Proposed persistence/lifecycle commands:
+- `config save`
+- `config reset`
+
+Deferred from initial config command surface:
+- free-form key/value command grammar
+- direct editing of timing/performance knobs
+- GPIO/electrical/platform transport settings
+- provisioning/network commands
+
+Command-surface note:
+- `config reset` should reset persisted config/preferences, not live runtime state.
+- `config show` should present both effective values and, when useful, whether they came from defaults or persisted overrides.
 
 ## 2026-03-12 - CI/CD implementation plan (sliced)
 ### Context
@@ -775,6 +949,9 @@ wake ownership, and button timing policy ownership.
 - Pause behavior policy decision (deferred):
   - decide whether `PAUSED` should freeze LED at current brightness or force LED off
   - document rationale and align tests with final behavior
+- Pause output behavior enhancement:
+  - implement the chosen `PAUSED` output policy in `led_sm` / LED-domain behavior once the decision is locked
+  - keep this separate from startup mode preference and persistence work
 - Legacy orchestrator naming cleanup:
   - evaluate renaming `led_sm_idf.*` to `blinky_sm_idf.*` (or `app_sm_idf.*`) to match current architecture boundaries
   - perform as a dedicated refactor slice to avoid mixing with feature work
