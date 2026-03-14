@@ -70,8 +70,10 @@ Next feature direction is a user-facing CLI that mirrors button-driven behavior 
   - verification: `idf.py -D CCACHE_ENABLE=1 build` pass
   - added repeatable on-target helper: `tools/hil/cli_smoke.py`
   - fixed console transport mismatch by adding USB Serial/JTAG input backend when `CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG=y` (UART fallback preserved)
+  - added interactive console echo/edit behavior in IDF CLI adapter (typed character echo, backspace handling, CR/LF submit compatibility)
   - improved smoke helper serial write/read behavior for deterministic timeout handling in containerized dev environments
   - runtime validation complete: on-target `tools/hil/cli_smoke.py` passed all 7 commands on `/dev/ttyACM0`
+  - post-smoke monitor validation complete: `idf.py monitor` showed stable boot to `running` and interactive typed characters were visible over USB Serial/JTAG
 
 ## 2026-03-12 - CI/CD implementation plan (sliced)
 ### Context
