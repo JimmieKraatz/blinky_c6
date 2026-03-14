@@ -84,11 +84,6 @@ static const char *command_name(blinky_cli_command_t cmd)
     }
 }
 
-static bool should_dispatch(sm_led_ctx_t *ctx, blinky_cli_command_t cmd)
-{
-    return ctx && app_cli_command_map_is_allowed_in_state(cmd, ctx->runtime.state);
-}
-
 static void handle_line(sm_led_ctx_t *ctx, const char *line)
 {
     if (!ctx || !line) {
@@ -123,7 +118,7 @@ static void handle_line(sm_led_ctx_t *ctx, const char *line)
         break;
     }
 
-    if (!should_dispatch(ctx, cmd)) {
+    if (!app_cli_command_map_is_dispatchable(cmd)) {
         ESP_LOGI(TAG, "command ignored in state=%s: '%s'", runtime_state_name(ctx->runtime.state), line);
         return;
     }

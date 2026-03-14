@@ -29,7 +29,8 @@ Migration map:
   - Short press: pause/resume waveform.
   - Long press (~3 s): enter/exit wave selection menu.
   - In menu: short press cycles wave type (square, saw up/down, triangle, sine).
-- CLI v1 reuses these runtime semantics, but named CLI commands are additionally gated by current runtime state so commands like `menu exit` are only accepted while already in `menu`.
+- CLI v1 now routes explicit blinky control commands (`run`, `pause`, `menu enter`, `menu next`, `menu exit`) into the LED domain.
+- The LED domain interprets those commands against current runtime state, so command acceptance and ignore behavior live with LED/menu semantics rather than in the CLI adapter.
 
 Default pins:
 - LED output: `GPIO_NUM_14` (PWM, active-low, 5 kHz)
@@ -52,12 +53,14 @@ Implemented flow today (poll producer + async consumer task):
    - maps to one app event (`APP_EVENT_BUTTON_SHORT`, `APP_EVENT_BUTTON_LONG`, or `APP_EVENT_TICK`)
    - enqueues event into `app_event_queue`
    - notifies consumer task on successful enqueue
+   - also polls CLI transport and enqueues `APP_EVENT_BLINKY_COMMAND` for runtime-control commands
 4. `app_dispatcher` (`blinky_interfaces`)
    - runs in consumer task context
    - drains queued events from source ops
    - invokes consumer callback per event
 5. `led_event_consumer` (`core_blinky`)
-   - maps app events to runtime semantic events
+   - maps button/tick app events to runtime semantic events
+   - dispatches `APP_EVENT_BLINKY_COMMAND` through LED-domain command interpretation
    - calls `led_runtime_step`
 6. Output application (`blinky_idf`)
    - applies runtime output intents via LED output adapter
@@ -77,7 +80,8 @@ Notes:
 Defaults/config ownership after extraction slices:
 - Core-facing policy/config:
   - `app_event_factory_*` builds boot/input semantic events (`core_blinky`)
-  - `app_cli_command_map_*` maps CLI command intent to app events and validates command/state compatibility (`core_blinky`)
+  - `app_cli_command_map_*` maps CLI command intent to LED-domain command intent (`core_blinky`)
+  - `led_command_dispatch_*` interprets semantic blinky commands against current runtime state (`core_blinky`)
   - `led_startup_policy_*` selects startup waveform from core config (`core_blinky`)
   - `button_policy_timing_*` normalizes debounce/long-press timing policy (`core_blinky`)
   - `led_event_map_*` event semantic mapping (`core_blinky`)

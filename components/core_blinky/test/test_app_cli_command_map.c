@@ -2,36 +2,46 @@
 
 #include "app_cli_command_map.h"
 
-TEST_CASE("cli command map routes menu enter and exit to button long", "[app_cli_command_map]")
+TEST_CASE("cli command map routes menu enter and exit to explicit blinky commands",
+          "[app_cli_command_map]")
 {
-    TEST_ASSERT_EQUAL(APP_EVENT_BUTTON_LONG,
-                      app_cli_command_map_to_app_event(BLINKY_CLI_CMD_MENU_ENTER));
-    TEST_ASSERT_EQUAL(APP_EVENT_BUTTON_LONG,
-                      app_cli_command_map_to_app_event(BLINKY_CLI_CMD_MENU_EXIT));
+    blinky_control_command_t cmd = BLINKY_CONTROL_CMD_NONE;
+    TEST_ASSERT_TRUE(app_cli_command_map_to_blinky_command(BLINKY_CLI_CMD_MENU_ENTER, &cmd));
+    TEST_ASSERT_EQUAL(BLINKY_CONTROL_CMD_MENU_ENTER, cmd);
+    TEST_ASSERT_TRUE(app_cli_command_map_to_blinky_command(BLINKY_CLI_CMD_MENU_EXIT, &cmd));
+    TEST_ASSERT_EQUAL(BLINKY_CONTROL_CMD_MENU_EXIT, cmd);
 }
 
-TEST_CASE("cli command map routes menu next to button short", "[app_cli_command_map]")
+TEST_CASE("cli command map routes menu next to explicit blinky command", "[app_cli_command_map]")
 {
-    TEST_ASSERT_EQUAL(APP_EVENT_BUTTON_SHORT,
-                      app_cli_command_map_to_app_event(BLINKY_CLI_CMD_MENU_NEXT));
+    blinky_control_command_t cmd = BLINKY_CONTROL_CMD_NONE;
+    TEST_ASSERT_TRUE(app_cli_command_map_to_blinky_command(BLINKY_CLI_CMD_MENU_NEXT, &cmd));
+    TEST_ASSERT_EQUAL(BLINKY_CONTROL_CMD_MENU_NEXT, cmd);
 }
 
-TEST_CASE("cli command map routes run pause toggle to button short", "[app_cli_command_map]")
+TEST_CASE("cli command map routes run pause toggle to explicit blinky command", "[app_cli_command_map]")
 {
-    TEST_ASSERT_EQUAL(APP_EVENT_BUTTON_SHORT,
-                      app_cli_command_map_to_app_event(BLINKY_CLI_CMD_RUN_PAUSE_TOGGLE));
+    blinky_control_command_t cmd = BLINKY_CONTROL_CMD_NONE;
+    TEST_ASSERT_TRUE(app_cli_command_map_to_blinky_command(BLINKY_CLI_CMD_RUN_PAUSE_TOGGLE, &cmd));
+    TEST_ASSERT_EQUAL(BLINKY_CONTROL_CMD_RUN_PAUSE_TOGGLE, cmd);
 }
 
-TEST_CASE("cli command map routes run and pause to button short", "[app_cli_command_map]")
+TEST_CASE("cli command map routes run and pause to explicit blinky commands", "[app_cli_command_map]")
 {
-    TEST_ASSERT_EQUAL(APP_EVENT_BUTTON_SHORT, app_cli_command_map_to_app_event(BLINKY_CLI_CMD_RUN));
-    TEST_ASSERT_EQUAL(APP_EVENT_BUTTON_SHORT, app_cli_command_map_to_app_event(BLINKY_CLI_CMD_PAUSE));
+    blinky_control_command_t cmd = BLINKY_CONTROL_CMD_NONE;
+    TEST_ASSERT_TRUE(app_cli_command_map_to_blinky_command(BLINKY_CLI_CMD_RUN, &cmd));
+    TEST_ASSERT_EQUAL(BLINKY_CONTROL_CMD_RUN, cmd);
+    TEST_ASSERT_TRUE(app_cli_command_map_to_blinky_command(BLINKY_CLI_CMD_PAUSE, &cmd));
+    TEST_ASSERT_EQUAL(BLINKY_CONTROL_CMD_PAUSE, cmd);
 }
 
 TEST_CASE("cli command map treats help and status as non-dispatch commands", "[app_cli_command_map]")
 {
-    TEST_ASSERT_EQUAL(APP_EVENT_NONE, app_cli_command_map_to_app_event(BLINKY_CLI_CMD_HELP));
-    TEST_ASSERT_EQUAL(APP_EVENT_NONE, app_cli_command_map_to_app_event(BLINKY_CLI_CMD_STATUS));
+    blinky_control_command_t cmd = BLINKY_CONTROL_CMD_MENU_ENTER;
+    TEST_ASSERT_FALSE(app_cli_command_map_to_blinky_command(BLINKY_CLI_CMD_HELP, &cmd));
+    TEST_ASSERT_EQUAL(BLINKY_CONTROL_CMD_NONE, cmd);
+    TEST_ASSERT_FALSE(app_cli_command_map_to_blinky_command(BLINKY_CLI_CMD_STATUS, &cmd));
+    TEST_ASSERT_EQUAL(BLINKY_CONTROL_CMD_NONE, cmd);
     TEST_ASSERT_FALSE(app_cli_command_map_is_dispatchable(BLINKY_CLI_CMD_HELP));
     TEST_ASSERT_FALSE(app_cli_command_map_is_dispatchable(BLINKY_CLI_CMD_STATUS));
 }
@@ -39,52 +49,13 @@ TEST_CASE("cli command map treats help and status as non-dispatch commands", "[a
 TEST_CASE("cli command map treats unknown enum values as non-dispatch", "[app_cli_command_map]")
 {
     const blinky_cli_command_t unknown = (blinky_cli_command_t)999;
-    TEST_ASSERT_EQUAL(APP_EVENT_NONE, app_cli_command_map_to_app_event(unknown));
+    blinky_control_command_t cmd = BLINKY_CONTROL_CMD_MENU_ENTER;
+    TEST_ASSERT_FALSE(app_cli_command_map_to_blinky_command(unknown, &cmd));
+    TEST_ASSERT_EQUAL(BLINKY_CONTROL_CMD_NONE, cmd);
     TEST_ASSERT_FALSE(app_cli_command_map_is_dispatchable(unknown));
 }
 
-TEST_CASE("cli command map gates explicit commands by runtime state", "[app_cli_command_map]")
+TEST_CASE("cli command map null output is non-dispatch", "[app_cli_command_map]")
 {
-    TEST_ASSERT_TRUE(
-        app_cli_command_map_is_allowed_in_state(BLINKY_CLI_CMD_MENU_ENTER, LED_POLICY_RUNNING));
-    TEST_ASSERT_TRUE(
-        app_cli_command_map_is_allowed_in_state(BLINKY_CLI_CMD_MENU_ENTER, LED_POLICY_PAUSED));
-    TEST_ASSERT_FALSE(
-        app_cli_command_map_is_allowed_in_state(BLINKY_CLI_CMD_MENU_ENTER, LED_POLICY_MENU));
-
-    TEST_ASSERT_FALSE(
-        app_cli_command_map_is_allowed_in_state(BLINKY_CLI_CMD_MENU_EXIT, LED_POLICY_RUNNING));
-    TEST_ASSERT_FALSE(
-        app_cli_command_map_is_allowed_in_state(BLINKY_CLI_CMD_MENU_EXIT, LED_POLICY_PAUSED));
-    TEST_ASSERT_TRUE(
-        app_cli_command_map_is_allowed_in_state(BLINKY_CLI_CMD_MENU_EXIT, LED_POLICY_MENU));
-
-    TEST_ASSERT_FALSE(
-        app_cli_command_map_is_allowed_in_state(BLINKY_CLI_CMD_MENU_NEXT, LED_POLICY_RUNNING));
-    TEST_ASSERT_TRUE(
-        app_cli_command_map_is_allowed_in_state(BLINKY_CLI_CMD_MENU_NEXT, LED_POLICY_MENU));
-}
-
-TEST_CASE("cli command map rejects run pause commands outside named states", "[app_cli_command_map]")
-{
-    TEST_ASSERT_FALSE(
-        app_cli_command_map_is_allowed_in_state(BLINKY_CLI_CMD_RUN, LED_POLICY_RUNNING));
-    TEST_ASSERT_TRUE(
-        app_cli_command_map_is_allowed_in_state(BLINKY_CLI_CMD_RUN, LED_POLICY_PAUSED));
-    TEST_ASSERT_FALSE(
-        app_cli_command_map_is_allowed_in_state(BLINKY_CLI_CMD_RUN, LED_POLICY_MENU));
-
-    TEST_ASSERT_TRUE(
-        app_cli_command_map_is_allowed_in_state(BLINKY_CLI_CMD_PAUSE, LED_POLICY_RUNNING));
-    TEST_ASSERT_FALSE(
-        app_cli_command_map_is_allowed_in_state(BLINKY_CLI_CMD_PAUSE, LED_POLICY_PAUSED));
-    TEST_ASSERT_FALSE(
-        app_cli_command_map_is_allowed_in_state(BLINKY_CLI_CMD_PAUSE, LED_POLICY_MENU));
-
-    TEST_ASSERT_TRUE(app_cli_command_map_is_allowed_in_state(BLINKY_CLI_CMD_RUN_PAUSE_TOGGLE,
-                                                             LED_POLICY_RUNNING));
-    TEST_ASSERT_TRUE(app_cli_command_map_is_allowed_in_state(BLINKY_CLI_CMD_RUN_PAUSE_TOGGLE,
-                                                             LED_POLICY_PAUSED));
-    TEST_ASSERT_FALSE(app_cli_command_map_is_allowed_in_state(BLINKY_CLI_CMD_RUN_PAUSE_TOGGLE,
-                                                              LED_POLICY_MENU));
+    TEST_ASSERT_FALSE(app_cli_command_map_to_blinky_command(BLINKY_CLI_CMD_RUN, NULL));
 }

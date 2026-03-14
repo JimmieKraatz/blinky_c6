@@ -19,19 +19,20 @@ CLI v1 originally mirrored physical button semantics by mapping named commands o
 - Root cause: the CLI surface had grown beyond a pure "virtual button" model, but command validity rules had not been updated to match the more explicit command vocabulary.
 
 ### Changes
-- Added shared CLI state-gating helper:
+- Added a temporary shared CLI state-gating helper:
   - `app_cli_command_map_is_allowed_in_state(...)`
-- Centralized command validity rules in core app-plumbing:
-  - `menu enter` allowed only in `running` or `paused`
-  - `menu next` and `menu exit` allowed only in `menu`
-  - `run`, `pause`, and `run pause toggle` retain explicit state gating
-- Updated IDF CLI adapter to use the shared helper instead of partial local checks.
+- Centralized command validity rules in core app-plumbing while CLI v1 still mapped commands directly onto short/long press app events.
+- Updated the IDF CLI adapter to use the shared helper instead of partial local checks.
 - Added command-map tests covering runtime-state gating for menu commands.
 
 ### Why
 - This preserves a single runtime/menu state machine as the behavioral source of truth while making the CLI adapter semantics match the named commands users actually type.
 - The fix is intentionally a state-conditioned adapter rule, not a new CLI state machine.
 - A future cleanup may introduce explicit semantic app events for `menu enter` / `menu exit` / `run` / `pause`, but that is not required to make CLI v1 correct and predictable.
+
+### Superseded by later Slice 4A work
+- The state-gating helper above was an intermediate corrective step.
+- Slice 4A is now refactoring this path so CLI routes explicit blinky command intents and the LED domain decides whether those commands apply in the current runtime state.
 
 ### Verification
 - `idf.py -D CCACHE_ENABLE=1 build` pass
@@ -135,11 +136,19 @@ Next feature direction is a user-facing CLI that mirrors button-driven behavior 
   - runtime validation complete: on-target `tools/hil/cli_smoke.py` passed all 7 commands on `/dev/ttyACM0`
   - post-smoke monitor validation complete: `idf.py monitor` showed stable boot to `running` and interactive typed characters were visible over USB Serial/JTAG
   - follow-up operational fix: `menu exit` no longer enters menu outside `LED_POLICY_MENU`; explicit menu commands are now gated against current runtime state
-- Slice 4A planning in progress (2026-03-14):
+- Slice 4A implementation in progress (2026-03-14):
   - drafted command-intent path decision memo
   - captured persistence/config inventory candidate for Slice 4B
   - captured small initial config-command surface proposal for Slice 4D
-  - no Slice 4A implementation work has started yet; current output is architecture/design planning
+  - introduced explicit blinky command intent contract
+  - refactored CLI/runtime path so CLI routes blinky-domain commands without mapping directly to raw button events
+  - moved current-state acceptance rules into LED-domain command interpretation
+  - added direct Unity coverage for `led_command_dispatch(...)` state/command behavior
+  - updated unit-test-app and app builds to compile with the new event/command split
+  - reran on-device CLI smoke validation after the refactor; all 14 checks passed on `/dev/ttyACM0`
+  - manual on-device validation complete:
+    - app flashed and ran as expected
+    - unit-test-app flashed and ran with Unity result `109 / 0 / 0`
 
 ### Slice 4A draft decision memo
 #### Problem statement
@@ -210,17 +219,17 @@ Persistence/config commands are not a clean fit for the current "CLI as named bu
 
 | Status | Item |
 |---|---|
-| Open | Refactor current CLI flow without adding any new commands. |
-| Open | Preserve the existing user-visible command set: `help`, `status`, `run`, `pause`, `menu enter`, `menu next`, `menu exit`. |
-| Open | Introduce an explicit blinky command intent contract separate from button/raw blinky events. |
-| Open | Update CLI/app-shell routing so CLI identifies blinky-domain commands without mapping them directly to button events. |
-| Open | Update LED-domain handling so blinky commands are interpreted by the LED domain against current runtime state (`running`, `paused`, `menu`). |
-| Open | Keep button input as a separate producer path; do not force CLI to masquerade as raw button input. |
-| Open | Update parser/command tests to reflect command-intent routing rather than direct CLI-to-button mapping assumptions. |
-| Open | Add LED-domain command interpretation tests for current-state handling. |
-| Open | Preserve negative-path coverage for invalid command/state combinations. |
-| Open | Re-run app build and unit-test-app build after the refactor. |
-| Open | Re-run on-device CLI smoke validation after the refactor. |
+| Done | Refactor current CLI flow without adding any new commands. |
+| Done | Preserve the existing user-visible command set: `help`, `status`, `run`, `pause`, `menu enter`, `menu next`, `menu exit`. |
+| Done | Introduce an explicit blinky command intent contract separate from button/raw blinky events. |
+| Done | Update CLI/app-shell routing so CLI identifies blinky-domain commands without mapping them directly to button events. |
+| Done | Update LED-domain handling so blinky commands are interpreted by the LED domain against current runtime state (`running`, `paused`, `menu`). |
+| Done | Keep button input as a separate producer path; do not force CLI to masquerade as raw button input. |
+| Done | Update parser/command tests to reflect command-intent routing rather than direct CLI-to-button mapping assumptions. |
+| Done | Add LED-domain command interpretation tests for current-state handling. |
+| Done | Preserve negative-path coverage for invalid command/state combinations. |
+| Done | Re-run app build and unit-test-app build after the refactor. |
+| Done | Re-run on-device CLI smoke validation after the refactor. |
 
 #### Persistence/config inventory candidate for Slice 4B
 Notes:

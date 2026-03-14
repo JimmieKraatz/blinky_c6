@@ -2,6 +2,7 @@
 
 #include <stdint.h>
 
+#include "blinky_control_command.h"
 #include "blinky_time.h"
 
 typedef enum {
@@ -10,6 +11,7 @@ typedef enum {
     APP_EVENT_TICK,
     APP_EVENT_BUTTON_SHORT,
     APP_EVENT_BUTTON_LONG,
+    APP_EVENT_BLINKY_COMMAND,
     APP_EVENT_MENU_TIMEOUT,
     APP_EVENT_MODEL_STEP_DUE,
     APP_EVENT_FAULT,
