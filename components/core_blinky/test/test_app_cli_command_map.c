@@ -42,3 +42,25 @@ TEST_CASE("cli command map treats unknown enum values as non-dispatch", "[app_cl
     TEST_ASSERT_EQUAL(APP_EVENT_NONE, app_cli_command_map_to_app_event(unknown));
     TEST_ASSERT_FALSE(app_cli_command_map_is_dispatchable(unknown));
 }
+
+TEST_CASE("cli command map gates explicit commands by runtime state", "[app_cli_command_map]")
+{
+    TEST_ASSERT_TRUE(
+        app_cli_command_map_is_allowed_in_state(BLINKY_CLI_CMD_MENU_ENTER, LED_POLICY_RUNNING));
+    TEST_ASSERT_TRUE(
+        app_cli_command_map_is_allowed_in_state(BLINKY_CLI_CMD_MENU_ENTER, LED_POLICY_PAUSED));
+    TEST_ASSERT_FALSE(
+        app_cli_command_map_is_allowed_in_state(BLINKY_CLI_CMD_MENU_ENTER, LED_POLICY_MENU));
+
+    TEST_ASSERT_FALSE(
+        app_cli_command_map_is_allowed_in_state(BLINKY_CLI_CMD_MENU_EXIT, LED_POLICY_RUNNING));
+    TEST_ASSERT_FALSE(
+        app_cli_command_map_is_allowed_in_state(BLINKY_CLI_CMD_MENU_EXIT, LED_POLICY_PAUSED));
+    TEST_ASSERT_TRUE(
+        app_cli_command_map_is_allowed_in_state(BLINKY_CLI_CMD_MENU_EXIT, LED_POLICY_MENU));
+
+    TEST_ASSERT_FALSE(
+        app_cli_command_map_is_allowed_in_state(BLINKY_CLI_CMD_MENU_NEXT, LED_POLICY_RUNNING));
+    TEST_ASSERT_TRUE(
+        app_cli_command_map_is_allowed_in_state(BLINKY_CLI_CMD_MENU_NEXT, LED_POLICY_MENU));
+}

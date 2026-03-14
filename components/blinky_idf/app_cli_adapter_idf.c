@@ -13,6 +13,7 @@
 #include "esp_log.h"
 
 #include "app_event_factory.h"
+#include "app_cli_command_map.h"
 #include "app_cli_parse.h"
 
 #define CLI_LINE_MAX_CHARS 96U
@@ -85,16 +86,7 @@ static const char *command_name(blinky_cli_command_t cmd)
 
 static bool should_dispatch(sm_led_ctx_t *ctx, blinky_cli_command_t cmd)
 {
-    switch (cmd) {
-    case BLINKY_CLI_CMD_RUN:
-        return ctx->runtime.state == LED_POLICY_PAUSED;
-    case BLINKY_CLI_CMD_PAUSE:
-        return ctx->runtime.state == LED_POLICY_RUNNING;
-    case BLINKY_CLI_CMD_RUN_PAUSE_TOGGLE:
-        return ctx->runtime.state == LED_POLICY_RUNNING || ctx->runtime.state == LED_POLICY_PAUSED;
-    default:
-        return true;
-    }
+    return ctx && app_cli_command_map_is_allowed_in_state(cmd, ctx->runtime.state);
 }
 
 static void handle_line(sm_led_ctx_t *ctx, const char *line)

@@ -29,6 +29,7 @@ Migration map:
   - Short press: pause/resume waveform.
   - Long press (~3 s): enter/exit wave selection menu.
   - In menu: short press cycles wave type (square, saw up/down, triangle, sine).
+- CLI v1 reuses these runtime semantics, but named CLI commands are additionally gated by current runtime state so commands like `menu exit` are only accepted while already in `menu`.
 
 Default pins:
 - LED output: `GPIO_NUM_14` (PWM, active-low, 5 kHz)
@@ -76,7 +77,7 @@ Notes:
 Defaults/config ownership after extraction slices:
 - Core-facing policy/config:
   - `app_event_factory_*` builds boot/input semantic events (`core_blinky`)
-  - `app_cli_command_map_*` maps CLI command intent to app events (`core_blinky`)
+  - `app_cli_command_map_*` maps CLI command intent to app events and validates command/state compatibility (`core_blinky`)
   - `led_startup_policy_*` selects startup waveform from core config (`core_blinky`)
   - `button_policy_timing_*` normalizes debounce/long-press timing policy (`core_blinky`)
   - `led_event_map_*` event semantic mapping (`core_blinky`)
@@ -260,7 +261,7 @@ Dispatcher shape (text diagram):
   - button input adapter -> `APP_EVENT_BUTTON_SHORT` / `APP_EVENT_BUTTON_LONG`
   - tick source -> `APP_EVENT_TICK`
   - boot path -> `APP_EVENT_BOOT`
-  - CLI adapter (UART line reader) -> command map -> semantic app event
+  - CLI adapter (UART line reader) -> command parse -> command/state gate -> command map -> semantic app event
 - Queue (`blinky_idf`):
   - static ring buffer of `app_event_t`
   - FIFO push/pop
@@ -285,6 +286,7 @@ Struct ownership:
 
 Boundary rules:
 - `_idf` may create/queue events, but should not encode core transition policy.
+- `_idf` may reject a CLI command when core-owned command/state rules say its named semantics are invalid in the current runtime state.
 - core may interpret events, but should not include platform headers or queue internals.
 - payloads must remain POD/fixed-size; no dynamic allocation in dispatch path.
 

@@ -8,6 +8,38 @@ For the stable technical view, see `docs/ARCHITECTURE.md`.
 - Slice naming: use numeric IDs only (`Slice 1`, `Slice 2`, ...). Avoid lettered slices for new entries.
 - Module naming: prefer `app_` for app-plumbing contracts and `blinky_` for domain behavior; treat older `led_*` orchestrator names as legacy until refactored.
 
+## 2026-03-14 - CLI menu command semantics corrected
+### Context
+CLI v1 originally mirrored physical button semantics by mapping named commands onto existing short/long press events. That was sufficient for initial bring-up, but it exposed an operational mismatch once the CLI surface included explicit menu commands such as `menu enter` and `menu exit`.
+
+### Finding
+- `menu enter` and `menu exit` both mapped to the same long-press app event.
+- Adapter-side dispatch policy only gated `run`, `pause`, and `run pause toggle`.
+- As a result, `menu exit` was still accepted while `running` or `paused`, then interpreted by runtime policy as a long press, which entered the menu instead of exiting it.
+- Root cause: the CLI surface had grown beyond a pure "virtual button" model, but command validity rules had not been updated to match the more explicit command vocabulary.
+
+### Changes
+- Added shared CLI state-gating helper:
+  - `app_cli_command_map_is_allowed_in_state(...)`
+- Centralized command validity rules in core app-plumbing:
+  - `menu enter` allowed only in `running` or `paused`
+  - `menu next` and `menu exit` allowed only in `menu`
+  - `run`, `pause`, and `run pause toggle` retain explicit state gating
+- Updated IDF CLI adapter to use the shared helper instead of partial local checks.
+- Added command-map tests covering runtime-state gating for menu commands.
+
+### Why
+- This preserves a single runtime/menu state machine as the behavioral source of truth while making the CLI adapter semantics match the named commands users actually type.
+- The fix is intentionally a state-conditioned adapter rule, not a new CLI state machine.
+- A future cleanup may introduce explicit semantic app events for `menu enter` / `menu exit` / `run` / `pause`, but that is not required to make CLI v1 correct and predictable.
+
+### Verification
+- `idf.py -D CCACHE_ENABLE=1 build` pass
+- unit-test-app targeted build for `core_blinky` + `blinky_idf` pass
+- on-device app validation pass
+- on-device unit-test-app validation pass
+- Unity result: `100 / 0 / 0`
+
 ## 2026-03-13 - CLI naming alignment pass
 ### Context
 As CLI control-plane scaffolding was added, naming drift appeared between older `led_*` mapping/factory terms and app-layer event plumbing.
@@ -65,7 +97,7 @@ Next feature direction is a user-facing CLI that mirrors button-driven behavior 
   - implemented command-set parity for:
     - `run`, `pause`, `menu enter`, `menu next`, `menu exit`, `status`, `help`
   - extended command intent model with explicit `BLINKY_CLI_CMD_RUN` / `BLINKY_CLI_CMD_PAUSE`
-  - added state-aware dispatch policy so `run`/`pause` are idempotent and ignored outside running/paused states
+  - added state-aware dispatch policy so named CLI commands are only accepted in runtime states where their semantics match user intent
   - added parser unit tests and command-map coverage updates
   - verification: `idf.py -D CCACHE_ENABLE=1 build` pass
   - added repeatable on-target helper: `tools/hil/cli_smoke.py`
@@ -74,6 +106,7 @@ Next feature direction is a user-facing CLI that mirrors button-driven behavior 
   - improved smoke helper serial write/read behavior for deterministic timeout handling in containerized dev environments
   - runtime validation complete: on-target `tools/hil/cli_smoke.py` passed all 7 commands on `/dev/ttyACM0`
   - post-smoke monitor validation complete: `idf.py monitor` showed stable boot to `running` and interactive typed characters were visible over USB Serial/JTAG
+  - follow-up operational fix: `menu exit` no longer enters menu outside `LED_POLICY_MENU`; explicit menu commands are now gated against current runtime state
 
 ## 2026-03-12 - CI/CD implementation plan (sliced)
 ### Context
