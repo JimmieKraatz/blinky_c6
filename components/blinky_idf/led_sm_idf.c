@@ -11,6 +11,7 @@
 #include "led_event_consumer.h"
 #include "app_event_factory.h"
 #include "app_cli_adapter_idf.h"
+#include "app_settings_store_idf.h"
 #include "led_startup_policy.h"
 
 static inline void led_write(sm_led_ctx_t *ctx, bool on)
@@ -171,6 +172,14 @@ void led_sm_init(sm_led_ctx_t *ctx)
             .active_low = ctx->platform_cfg.button_active_low,
             .pull = ctx->platform_cfg.button_pull,
             .timing = ctx->core_cfg.button_timing,
+        });
+
+    (void)app_settings_store_idf_init(
+        &ctx->settings_store,
+        &ctx->settings_store_idf,
+        &(app_settings_store_idf_config_t){
+            .partition_label = ctx->platform_cfg.settings_partition_label,
+            .namespace_name = ctx->platform_cfg.settings_namespace,
         });
 
     led_runtime_set_log_sink(&ctx->runtime, &ctx->log_sink);

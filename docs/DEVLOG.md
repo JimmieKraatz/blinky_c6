@@ -160,6 +160,19 @@ Next feature direction is a user-facing CLI that mirrors button-driven behavior 
     - `reset`
   - intentionally did not wire real NVS or migrate real config values yet
   - added unit coverage for settings defaults and schema validation
+- Slice 4B `_idf` framework implementation started (2026-03-14):
+  - added `_idf` NVS-backed adapter for `app_settings_store_t`
+  - app build now targets a dedicated app-owned NVS partition:
+    - label `appcfg`
+    - one namespace `blinky`
+    - unencrypted for now
+    - simple typed keys `schema_ver`, `test_count`, `test_mode`
+  - unit-test adapter coverage uses the default `nvs` partition with a test namespace so the store contract can be validated in unit-test-app without changing its partition layout
+  - real config values have still not been migrated onto the store boundary yet
+  - manual on-device validation complete:
+    - app build, flash, and run passed
+    - unit-test-app build, flash, and run passed
+    - Unity result `114 / 0 / 0`
 
 ### Slice 4A draft decision memo
 #### Problem statement

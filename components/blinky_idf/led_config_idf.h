@@ -15,6 +15,8 @@ typedef struct {
     bool boot_pattern_enabled;
     bool log_intensity_enabled;
     blinky_log_level_t log_min_level;
+    const char *settings_partition_label;
+    const char *settings_namespace;
 } led_platform_config_t;
 
 void idf_build_platform_config(led_platform_config_t *cfg);

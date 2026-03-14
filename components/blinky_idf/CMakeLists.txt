@@ -1,6 +1,7 @@
 idf_component_register(
     SRCS
         "led_config_idf.c"
+        "app_settings_store_idf.c"
         "button_idf.c"
         "led_sm_idf.c"
         "led_sm_producer_idf.c"
@@ -11,5 +12,5 @@ idf_component_register(
         "app_event_queue.c"
         "app_cli_adapter_idf.c"
     INCLUDE_DIRS "."
-    REQUIRES driver esp_driver_usb_serial_jtag core_sm core_blinky blinky_interfaces esp_app_format
+    REQUIRES driver esp_driver_usb_serial_jtag core_sm core_blinky blinky_interfaces esp_app_format nvs_flash
 )

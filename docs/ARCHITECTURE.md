@@ -93,6 +93,7 @@ Defaults/config ownership after extraction slices:
     - `idf_build_core_config(...)`
   - `_idf` owns sourcing/mapping only; core contracts are defined in `core_blinky` headers (for example `led_core_config.h`)
   - `app_settings_store_*` is the storage boundary contract; `_idf` will provide the NVS-backed implementation
+  - `app_settings_store_idf_*` owns the current NVS-backed implementation in `_idf`
   - FreeRTOS queue/task primitives and wake mechanics
   - adapter init for GPIO/LEDC/button hardware
   - queue storage/lifecycle and dispatcher wiring in `_idf`
@@ -110,6 +111,16 @@ Current scaffold notes:
   - `test_mode_enabled`
 - This is a plumbing-validation step, not the final migrated config surface.
 - Real config items should move onto this boundary only after NVS load/save/reset behavior is proven with the placeholder payload.
+
+Current `_idf` implementation direction:
+- dedicated app-owned NVS partition label: `appcfg`
+- one namespace in the app build: `blinky`
+- unencrypted for now
+- simple typed keys:
+  - `schema_ver`
+  - `test_count`
+  - `test_mode`
+- unit-test-app adapter tests currently exercise the same store API against the default `nvs` partition with a test namespace so the contract can be validated without changing the upstream unit-test-app partition layout
 
 ### Config Ownership Decision Table
 Current Kconfig defaults, ownership, and target direction:
