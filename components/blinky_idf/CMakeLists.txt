@@ -11,5 +11,5 @@ idf_component_register(
         "app_event_queue.c"
         "app_cli_adapter_idf.c"
     INCLUDE_DIRS "."
-    REQUIRES driver core_sm core_blinky blinky_interfaces esp_app_format
+    REQUIRES driver esp_driver_usb_serial_jtag core_sm core_blinky blinky_interfaces esp_app_format
 )

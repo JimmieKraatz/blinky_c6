@@ -27,26 +27,38 @@ def wait_for(ser: serial.Serial, needle: str, timeout_s: float) -> bool:
     deadline = time.monotonic() + timeout_s
     buf = ""
     while time.monotonic() < deadline:
-        data = ser.read(256)
+        available = ser.in_waiting
+        if available <= 0:
+            time.sleep(0.02)
+            continue
+        data = ser.read(min(available, 256))
         if data:
             chunk = data.decode(errors="ignore")
             buf += chunk
             if needle in buf:
                 return True
-        else:
-            time.sleep(0.02)
     return False
 
 
 def run_checks(ser: serial.Serial, checks: List[Check], timeout_s: float) -> int:
     failures = 0
-    for cmd, expect in checks:
+    total = len(checks)
+    for idx, (cmd, expect) in enumerate(checks, start=1):
+        print(f"[{idx}/{total}] SEND cmd='{cmd}' expect='{expect}'", flush=True)
         wire = f"{cmd}\n"
-        ser.write(wire.encode())
-        ser.flush()
+        try:
+            written = ser.write(wire.encode())
+            if written <= 0:
+                print(f"[FAIL] cmd='{cmd}' write failed (0 bytes)", flush=True)
+                failures += 1
+                continue
+        except serial.SerialTimeoutException:
+            print(f"[FAIL] cmd='{cmd}' write timeout", flush=True)
+            failures += 1
+            continue
         ok = wait_for(ser, expect, timeout_s)
         status = "PASS" if ok else "FAIL"
-        print(f"[{status}] cmd='{cmd}' expect='{expect}'")
+        print(f"[{status}] cmd='{cmd}' expect='{expect}'", flush=True)
         if not ok:
             failures += 1
     return failures
@@ -74,7 +86,20 @@ def main() -> int:
         ("run", "cmd dispatch: run"),
     ]
 
-    with serial.Serial(args.port, args.baud, timeout=0.1) as ser:
+    print(
+        f"opening serial port={args.port} baud={args.baud} timeout={args.timeout}s",
+        flush=True,
+    )
+    with serial.Serial(
+        args.port,
+        args.baud,
+        timeout=0,
+        write_timeout=0.5,
+        rtscts=False,
+        dsrdtr=False,
+        xonxoff=False,
+    ) as ser:
+        print(f"connected; settling for {args.boot_settle:.1f}s", flush=True)
         time.sleep(args.boot_settle)
         ser.reset_input_buffer()
         failures = run_checks(ser, checks, args.timeout)

@@ -59,7 +59,7 @@ Next feature direction is a user-facing CLI that mirrors button-driven behavior 
   - added Kconfig controls:
     - `BLINKY_CLI_ENABLE`
     - `BLINKY_CLI_UART_RX_BUF_SIZE`
-- Slice 3 completed (2026-03-13, code/build scope):
+- Slice 3 completed (2026-03-13 to 2026-03-14):
   - added dedicated parser module (`app_cli_parse.*`) for CLI command vocabulary
   - moved parser ownership to `core_blinky` (platform-agnostic placement)
   - implemented command-set parity for:
@@ -69,7 +69,9 @@ Next feature direction is a user-facing CLI that mirrors button-driven behavior 
   - added parser unit tests and command-map coverage updates
   - verification: `idf.py -D CCACHE_ENABLE=1 build` pass
   - added repeatable on-target helper: `tools/hil/cli_smoke.py`
-  - follow-up: run `tools/hil/cli_smoke.py` on target to complete runtime validation
+  - fixed console transport mismatch by adding USB Serial/JTAG input backend when `CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG=y` (UART fallback preserved)
+  - improved smoke helper serial write/read behavior for deterministic timeout handling in containerized dev environments
+  - runtime validation complete: on-target `tools/hil/cli_smoke.py` passed all 7 commands on `/dev/ttyACM0`
 
 ## 2026-03-12 - CI/CD implementation plan (sliced)
 ### Context

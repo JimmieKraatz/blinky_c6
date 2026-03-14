@@ -6,6 +6,9 @@
 #include "sdkconfig.h"
 
 #include "driver/uart.h"
+#if CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG
+#include "driver/usb_serial_jtag.h"
+#endif
 #include "esp_err.h"
 #include "esp_log.h"
 
@@ -133,6 +136,20 @@ void app_cli_adapter_idf_init(sm_led_ctx_t *ctx)
 {
     (void)ctx;
 #if CONFIG_BLINKY_CLI_ENABLE
+#if CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG
+    usb_serial_jtag_driver_config_t cfg = USB_SERIAL_JTAG_DRIVER_CONFIG_DEFAULT();
+    cfg.rx_buffer_size = CONFIG_BLINKY_CLI_UART_RX_BUF_SIZE;
+    const esp_err_t err = usb_serial_jtag_driver_install(&cfg);
+    if (err == ESP_OK || err == ESP_ERR_INVALID_STATE) {
+        s_cli.ready = true;
+        s_cli.len = 0U;
+        ESP_LOGI(TAG, "cli adapter ready on USB Serial/JTAG");
+    } else {
+        s_cli.ready = false;
+        ESP_LOGW(TAG, "cli adapter disabled (usb_serial_jtag_driver_install err=0x%x)",
+                 (unsigned)err);
+    }
+#else
     const esp_err_t err = uart_driver_install(
         UART_NUM_0, CONFIG_BLINKY_CLI_UART_RX_BUF_SIZE, 0, 0, NULL, 0);
     if (err == ESP_OK || err == ESP_ERR_INVALID_STATE) {
@@ -143,6 +160,7 @@ void app_cli_adapter_idf_init(sm_led_ctx_t *ctx)
         s_cli.ready = false;
         ESP_LOGW(TAG, "cli adapter disabled (uart_driver_install err=0x%x)", (unsigned)err);
     }
+#endif
 #endif
 }
 
@@ -156,7 +174,11 @@ void app_cli_adapter_idf_step(sm_led_ctx_t *ctx)
 
     for (size_t i = 0U; i < CLI_READ_BUDGET; ++i) {
         uint8_t ch = 0U;
+#if CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG
+        const int got = usb_serial_jtag_read_bytes(&ch, 1, 0);
+#else
         const int got = uart_read_bytes(UART_NUM_0, &ch, 1, 0);
+#endif
         if (got <= 0) {
             break;
         }
