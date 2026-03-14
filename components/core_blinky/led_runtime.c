@@ -116,6 +116,7 @@ void led_runtime_step(led_runtime_t *rt,
     }
 
     if (step.next_state != rt->state) {
+        clear_output(out);
         if (rt->state == LED_POLICY_MENU) {
             runtime_log(rt, BLINKY_LOG_LEVEL_INFO, "menu", "exit", NULL, 0);
         }

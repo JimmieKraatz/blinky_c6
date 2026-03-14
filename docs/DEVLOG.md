@@ -972,6 +972,19 @@ Started a dedicated branch to address the remaining config/default ownership amb
 - Keeps `sdkconfig` as source-of-truth in `_idf` while making ownership boundaries explicit.
 - Establishes the handoff point where core-owned semantics can be fed by framework-sourced values.
 
+## 2026-03-14 - Runtime pause freeze root cause documented
+### Changes
+- Recorded the root cause of the sine-mode button pause freeze in `led_runtime_step(...)`.
+- Captured that the runtime could publish a brightness update earlier in the same step, then transition to `PAUSED` and also request LED-off level output.
+- Noted the fix: clear any pending output before applying the state-transition side effects so pause/menu transitions cannot leak stale brightness writes.
+- Added a regression test for the pause path:
+  - `runtime pause suppresses same-step brightness update`
+
+### Why
+- The freeze symptom was not a button debouncing failure; it was an output-ordering bug during runtime state transitions.
+- Sine mode made the issue easier to hit because it frequently emits brightness writes, so a short press could collide with an in-flight brightness update on the same step.
+- Documenting the exact cause makes it easier to recognize this class of bug later: state transitions must invalidate previously computed output from the old state.
+
 ## 2026-03-10 - Config ownership slice: button timing remapped to core config
 ### Changes
 - Updated mapper contracts so button timing is no longer carried in platform config.
