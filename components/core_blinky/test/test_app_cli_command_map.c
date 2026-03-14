@@ -64,3 +64,27 @@ TEST_CASE("cli command map gates explicit commands by runtime state", "[app_cli_
     TEST_ASSERT_TRUE(
         app_cli_command_map_is_allowed_in_state(BLINKY_CLI_CMD_MENU_NEXT, LED_POLICY_MENU));
 }
+
+TEST_CASE("cli command map rejects run pause commands outside named states", "[app_cli_command_map]")
+{
+    TEST_ASSERT_FALSE(
+        app_cli_command_map_is_allowed_in_state(BLINKY_CLI_CMD_RUN, LED_POLICY_RUNNING));
+    TEST_ASSERT_TRUE(
+        app_cli_command_map_is_allowed_in_state(BLINKY_CLI_CMD_RUN, LED_POLICY_PAUSED));
+    TEST_ASSERT_FALSE(
+        app_cli_command_map_is_allowed_in_state(BLINKY_CLI_CMD_RUN, LED_POLICY_MENU));
+
+    TEST_ASSERT_TRUE(
+        app_cli_command_map_is_allowed_in_state(BLINKY_CLI_CMD_PAUSE, LED_POLICY_RUNNING));
+    TEST_ASSERT_FALSE(
+        app_cli_command_map_is_allowed_in_state(BLINKY_CLI_CMD_PAUSE, LED_POLICY_PAUSED));
+    TEST_ASSERT_FALSE(
+        app_cli_command_map_is_allowed_in_state(BLINKY_CLI_CMD_PAUSE, LED_POLICY_MENU));
+
+    TEST_ASSERT_TRUE(app_cli_command_map_is_allowed_in_state(BLINKY_CLI_CMD_RUN_PAUSE_TOGGLE,
+                                                             LED_POLICY_RUNNING));
+    TEST_ASSERT_TRUE(app_cli_command_map_is_allowed_in_state(BLINKY_CLI_CMD_RUN_PAUSE_TOGGLE,
+                                                             LED_POLICY_PAUSED));
+    TEST_ASSERT_FALSE(app_cli_command_map_is_allowed_in_state(BLINKY_CLI_CMD_RUN_PAUSE_TOGGLE,
+                                                              LED_POLICY_MENU));
+}

@@ -40,6 +40,12 @@ CLI v1 originally mirrored physical button semantics by mapping named commands o
 - on-device unit-test-app validation pass
 - Unity result: `100 / 0 / 0`
 
+### Follow-up note
+- Future CI/CD improvement should land in `.github/workflows/hil-smoke.yml`, not runner container plumbing:
+  - add `tools/hil/cli_smoke.py`
+  - add automated Unity execution/report capture on hardware
+  - upload richer CLI/Unity artifacts on failure
+
 ## 2026-03-13 - CLI naming alignment pass
 ### Context
 As CLI control-plane scaffolding was added, naming drift appeared between older `led_*` mapping/factory terms and app-layer event plumbing.
@@ -741,6 +747,10 @@ wake ownership, and button timing policy ownership.
 - CI/CD rollout with hardware constraints (High Priority):
   - implement cloud GitHub Actions for hardware-independent checks (build, unit-test-app build, lint/format when configured)
   - add self-hosted GitHub Actions runner on devkit host for HIL flash/smoke validation
+  - expand `.github/workflows/hil-smoke.yml` beyond startup smoke:
+    - run `tools/hil/cli_smoke.py`
+    - capture automated Unity execution/report output on hardware
+    - upload richer CLI/Unity artifacts on failure
   - promote HIL to required gate for `develop` -> `master` before release tagging
   - reference policy and acceptance criteria in `docs/DELIVERY_WORKFLOW.md`
 - Dev-ability/reproducibility hardening:

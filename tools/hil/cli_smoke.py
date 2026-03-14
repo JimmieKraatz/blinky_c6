@@ -79,11 +79,18 @@ def main() -> int:
     checks: List[Check] = [
         ("help", "commands: help, status, run, pause, menu enter, menu next, menu exit"),
         ("status", "status: started="),
+        ("menu exit", "command ignored in state=running"),
+        ("menu next", "command ignored in state=running"),
         ("menu enter", "cmd dispatch: menu_enter"),
+        ("menu enter", "command ignored in state=menu"),
         ("menu next", "cmd dispatch: menu_next"),
+        ("run", "command ignored in state=menu"),
+        ("pause", "command ignored in state=menu"),
         ("menu exit", "cmd dispatch: menu_exit"),
         ("pause", "cmd dispatch: pause"),
+        ("pause", "command ignored in state=paused"),
         ("run", "cmd dispatch: run"),
+        ("run", "command ignored in state=running"),
     ]
 
     print(
