@@ -206,6 +206,22 @@ Persistence/config commands are not a clean fit for the current "CLI as named bu
 - A persistence/config contract candidate for Slice 4B.
 - A small initial config-command surface proposal for Slice 4D.
 
+#### Slice 4A implementation checklist
+
+| Status | Item |
+|---|---|
+| Open | Refactor current CLI flow without adding any new commands. |
+| Open | Preserve the existing user-visible command set: `help`, `status`, `run`, `pause`, `menu enter`, `menu next`, `menu exit`. |
+| Open | Introduce an explicit blinky command intent contract separate from button/raw blinky events. |
+| Open | Update CLI/app-shell routing so CLI identifies blinky-domain commands without mapping them directly to button events. |
+| Open | Update LED-domain handling so blinky commands are interpreted by the LED domain against current runtime state (`running`, `paused`, `menu`). |
+| Open | Keep button input as a separate producer path; do not force CLI to masquerade as raw button input. |
+| Open | Update parser/command tests to reflect command-intent routing rather than direct CLI-to-button mapping assumptions. |
+| Open | Add LED-domain command interpretation tests for current-state handling. |
+| Open | Preserve negative-path coverage for invalid command/state combinations. |
+| Open | Re-run app build and unit-test-app build after the refactor. |
+| Open | Re-run on-device CLI smoke validation after the refactor. |
+
 #### Persistence/config inventory candidate for Slice 4B
 Notes:
 - Distinguish live runtime state from persisted user preference.
