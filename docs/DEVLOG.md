@@ -312,6 +312,7 @@ Initial `_idf` NVS backing direction:
 
 Initial placeholder payload:
 - `schema_version`
+- `boot_pattern_enabled`
 - `test_counter`
 - `test_mode_enabled`
 
@@ -319,6 +320,21 @@ Why this comes first:
 - validates the persistence architecture without coupling early mistakes to real user-facing config
 - keeps Slice 4B focused on storage correctness before policy migration
 - gives us a schema/version foothold for future migration handling
+
+#### Slice 4B first migrated setting
+- `boot_pattern_enabled`, `log_intensity_enabled`, and `log_min_level` are the first real settings moved onto the app settings boundary.
+- Effective defaults still come from the existing `_idf` config path (`BLINKY_BOOT_PATTERN`, `BLINKY_LOG_INTENSITY`, and `BLINKY_LOG_MIN_LEVEL_*` via `idf_build_platform_config`).
+- If no persisted settings exist yet, startup seeds the settings store from that current default layer.
+- If persisted settings exist, startup applies the stored settings overrides before the boot pattern is shown and before runtime logging behavior begins.
+- `BLINKY_BOOT_PATTERN_MS` remains Kconfig-backed for now.
+
+#### Slice 4B migrated key set
+- `schema_ver`
+- `boot_pattern`
+- `log_intensity`
+- `log_level`
+- `test_count`
+- `test_mode`
 
 #### Explicit non-goals for first-pass NVS
 - hardware wiring/electrical values

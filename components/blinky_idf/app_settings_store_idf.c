@@ -62,7 +62,19 @@ static app_settings_store_status_t store_load(void *ctx, app_settings_t *out)
 
     app_settings_t cfg = {0};
     uint8_t mode = 0U;
+    uint8_t boot_pattern = 0U;
+    uint8_t log_intensity = 0U;
+    uint8_t log_min_level = 0U;
     err = nvs_get_u32(handle, "schema_ver", &cfg.schema_version);
+    if (err == ESP_OK) {
+        err = nvs_get_u8(handle, "boot_pattern", &boot_pattern);
+    }
+    if (err == ESP_OK) {
+        err = nvs_get_u8(handle, "log_intensity", &log_intensity);
+    }
+    if (err == ESP_OK) {
+        err = nvs_get_u8(handle, "log_level", &log_min_level);
+    }
     if (err == ESP_OK) {
         err = nvs_get_u32(handle, "test_count", &cfg.test_counter);
     }
@@ -74,6 +86,9 @@ static app_settings_store_status_t store_load(void *ctx, app_settings_t *out)
         return status_from_esp_err(err);
     }
 
+    cfg.boot_pattern_enabled = (boot_pattern != 0U);
+    cfg.log_intensity_enabled = (log_intensity != 0U);
+    cfg.log_min_level = (blinky_log_level_t)log_min_level;
     cfg.test_mode_enabled = (mode != 0U);
     if (!app_settings_is_valid(&cfg)) {
         return APP_SETTINGS_STORE_ERR_INVALID_DATA;
@@ -105,6 +120,15 @@ static app_settings_store_status_t store_save(void *ctx, const app_settings_t *c
     }
 
     err = nvs_set_u32(handle, "schema_ver", cfg->schema_version);
+    if (err == ESP_OK) {
+        err = nvs_set_u8(handle, "boot_pattern", cfg->boot_pattern_enabled ? 1U : 0U);
+    }
+    if (err == ESP_OK) {
+        err = nvs_set_u8(handle, "log_intensity", cfg->log_intensity_enabled ? 1U : 0U);
+    }
+    if (err == ESP_OK) {
+        err = nvs_set_u8(handle, "log_level", (uint8_t)cfg->log_min_level);
+    }
     if (err == ESP_OK) {
         err = nvs_set_u32(handle, "test_count", cfg->test_counter);
     }

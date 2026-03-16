@@ -105,12 +105,15 @@ The first persistence step is intentionally split into two layers:
 - `_idf` will later implement that contract on top of a dedicated app-owned NVS partition
 
 Current scaffold notes:
-- The payload is deliberately placeholder-only for now:
+- The payload is still scaffold-first, but it now includes the first real migrated preferences:
   - `schema_version`
+  - `boot_pattern_enabled`
+  - `log_intensity_enabled`
+  - `log_min_level`
   - `test_counter`
   - `test_mode_enabled`
-- This is a plumbing-validation step, not the final migrated config surface.
-- Real config items should move onto this boundary only after NVS load/save/reset behavior is proven with the placeholder payload.
+- `boot_pattern_enabled`, `log_intensity_enabled`, and `log_min_level` seed from the existing `_idf` config defaults and can be overridden from persisted settings at startup.
+- Remaining fields are still plumbing-validation placeholders, not the final migrated config surface.
 
 Current `_idf` implementation direction:
 - dedicated app-owned NVS partition label: `appcfg`
@@ -118,6 +121,9 @@ Current `_idf` implementation direction:
 - unencrypted for now
 - simple typed keys:
   - `schema_ver`
+  - `boot_pattern`
+  - `log_intensity`
+  - `log_level`
   - `test_count`
   - `test_mode`
 - unit-test-app adapter tests currently exercise the same store API against the default `nvs` partition with a test namespace so the contract can be validated without changing the upstream unit-test-app partition layout
@@ -132,10 +138,10 @@ Current Kconfig defaults, ownership, and target direction:
 | `BLINKY_BTN_ACTIVE_LOW` | `_idf` | `_idf` | Electrical interface behavior |
 | `BLINKY_BTN_PULL_*` | `_idf` | `_idf` | GPIO electrical configuration |
 | `BLINKY_PWM_FREQ_HZ` | `_idf` | `_idf` | LEDC/peripheral setup |
-| `BLINKY_BOOT_PATTERN` | `_idf` | `_idf` | Platform/UI indication behavior |
+| `BLINKY_BOOT_PATTERN` | `_idf` default + app settings override | `_idf` app-settings-backed platform preference | Platform/UI indication behavior |
 | `BLINKY_BOOT_PATTERN_MS` | `_idf` | `_idf` | Platform/UI timing |
-| `BLINKY_LOG_INTENSITY` | `_idf` | `_idf` | Platform logging gate for `_idf` sink adapter |
-| `BLINKY_LOG_MIN_LEVEL_*` | `_idf` | `_idf` | Platform logging verbosity policy for sink adapter |
+| `BLINKY_LOG_INTENSITY` | `_idf` default + app settings override | `_idf` app-settings-backed logging preference | Platform logging gate for `_idf` sink adapter |
+| `BLINKY_LOG_MIN_LEVEL_*` | `_idf` default + app settings override | `_idf` app-settings-backed logging preference | Platform logging verbosity policy for sink adapter |
 | `BLINKY_WAVE_PERIOD_MS` | `_idf` -> core model | `core_blinky` policy/config | Domain waveform behavior |
 | `BLINKY_SINE_STEPS_MAX` | `_idf` -> core model | `core_blinky` policy/config | Domain quality/perf policy |
 | `BLINKY_SAW_STEP_PCT` | `_idf` -> core model | `core_blinky` policy/config | Domain waveform shape policy |

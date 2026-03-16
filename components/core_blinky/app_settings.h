@@ -3,17 +3,24 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-/* Placeholder persisted settings payload for Slice 4B contract bring-up.
- * These fields are intentionally simple so we can validate storage plumbing
- * before migrating real config items into NVS.
- */
+#include "blinky_log.h"
+
 typedef struct {
     uint32_t schema_version;
+    bool boot_pattern_enabled;
+    bool log_intensity_enabled;
+    blinky_log_level_t log_min_level;
     uint32_t test_counter;
     bool test_mode_enabled;
 } app_settings_t;
 
+typedef struct {
+    bool boot_pattern_enabled;
+    bool log_intensity_enabled;
+    blinky_log_level_t log_min_level;
+} app_settings_defaults_t;
+
 #define APP_SETTINGS_SCHEMA_VERSION 1U
 
-void app_settings_defaults(app_settings_t *cfg);
+void app_settings_defaults(app_settings_t *cfg, const app_settings_defaults_t *defaults);
 bool app_settings_is_valid(const app_settings_t *cfg);

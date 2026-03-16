@@ -81,6 +81,94 @@ static void log_boot_identity(sm_led_ctx_t *ctx)
     blinky_log_emit(&ctx->log_sink, &record);
 }
 
+static void log_settings_probe(sm_led_ctx_t *ctx,
+                               blinky_log_level_t level,
+                               const char *message,
+                               const char *source,
+                               const app_settings_t *cfg)
+{
+    if (!ctx) {
+        return;
+    }
+
+    blinky_log_kv_t kvs[6] = {
+        blinky_log_kv_str("source", source ? source : ""),
+        blinky_log_kv_uint("schema_ver", cfg ? cfg->schema_version : 0U),
+        blinky_log_kv_uint("boot_pattern", (cfg && cfg->boot_pattern_enabled) ? 1U : 0U),
+        blinky_log_kv_uint("log_intensity", (cfg && cfg->log_intensity_enabled) ? 1U : 0U),
+        blinky_log_kv_str("log_level", cfg ? log_level_name(cfg->log_min_level) : ""),
+        blinky_log_kv_uint("test_count", cfg ? cfg->test_counter : 0U),
+    };
+    const blinky_log_record_t record = {
+        .level = level,
+        .domain = "settings",
+        .event = "probe",
+        .message = message,
+        .kvs = kvs,
+        .kv_count = 6,
+    };
+    blinky_log_emit(&ctx->log_sink, &record);
+}
+
+static app_settings_defaults_t app_settings_platform_defaults(const sm_led_ctx_t *ctx)
+{
+    return (app_settings_defaults_t){
+        .boot_pattern_enabled = ctx ? ctx->platform_cfg.boot_pattern_enabled : false,
+        .log_intensity_enabled = ctx ? ctx->platform_cfg.log_intensity_enabled : false,
+        .log_min_level = ctx ? ctx->platform_cfg.log_min_level : BLINKY_LOG_LEVEL_INFO,
+    };
+}
+
+static void app_settings_apply_platform_overrides(sm_led_ctx_t *ctx, const app_settings_t *cfg)
+{
+    if (!ctx || !cfg) {
+        return;
+    }
+
+    ctx->platform_cfg.boot_pattern_enabled = cfg->boot_pattern_enabled;
+    ctx->platform_cfg.log_intensity_enabled = cfg->log_intensity_enabled;
+    ctx->platform_cfg.log_min_level = cfg->log_min_level;
+    ctx->log_idf.min_level = cfg->log_min_level;
+}
+
+static void app_settings_probe(sm_led_ctx_t *ctx)
+{
+    if (!ctx || !ctx->settings_store.ops || !ctx->settings_store.ops->load ||
+        !ctx->settings_store.ops->save) {
+        return;
+    }
+
+    app_settings_t cfg = {0};
+    const app_settings_defaults_t defaults = app_settings_platform_defaults(ctx);
+    app_settings_store_status_t status = ctx->settings_store.ops->load(ctx->settings_store.ctx, &cfg);
+    if (status == APP_SETTINGS_STORE_OK) {
+        app_settings_apply_platform_overrides(ctx, &cfg);
+        log_settings_probe(ctx, BLINKY_LOG_LEVEL_INFO, "loaded placeholder settings", "persisted", &cfg);
+        return;
+    }
+
+    if (status != APP_SETTINGS_STORE_ERR_NOT_FOUND) {
+        log_settings_probe(ctx, BLINKY_LOG_LEVEL_WARN, "placeholder settings load failed", "error", NULL);
+        return;
+    }
+
+    app_settings_defaults(&cfg, &defaults);
+    status = ctx->settings_store.ops->save(ctx->settings_store.ctx, &cfg);
+    if (status != APP_SETTINGS_STORE_OK) {
+        log_settings_probe(ctx, BLINKY_LOG_LEVEL_WARN, "placeholder settings seed failed", "seed", &cfg);
+        return;
+    }
+
+    status = ctx->settings_store.ops->load(ctx->settings_store.ctx, &cfg);
+    if (status != APP_SETTINGS_STORE_OK) {
+        log_settings_probe(ctx, BLINKY_LOG_LEVEL_WARN, "placeholder settings verify failed", "seed", NULL);
+        return;
+    }
+
+    app_settings_apply_platform_overrides(ctx, &cfg);
+    log_settings_probe(ctx, BLINKY_LOG_LEVEL_INFO, "seeded placeholder settings", "seed", &cfg);
+}
+
 static void dispatch_event(void *ctx, const app_event_t *ev)
 {
     sm_led_ctx_t *sm = (sm_led_ctx_t *)ctx;
@@ -181,6 +269,7 @@ void led_sm_init(sm_led_ctx_t *ctx)
             .partition_label = ctx->platform_cfg.settings_partition_label,
             .namespace_name = ctx->platform_cfg.settings_namespace,
         });
+    app_settings_probe(ctx);
 
     led_runtime_set_log_sink(&ctx->runtime, &ctx->log_sink);
 
