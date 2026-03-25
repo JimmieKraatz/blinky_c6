@@ -31,3 +31,6 @@ __pycache__/
 
 # Runner local secrets
 infra/runner/.env
+
+# Local scratch space
+scratch_pad/

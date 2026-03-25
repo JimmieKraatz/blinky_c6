@@ -781,7 +781,7 @@ Next feature direction is a user-facing CLI that mirrors button-driven behavior 
 - [x] Slice 4: CLI/persistence foundation
   - Goal: define a transport-friendly split between runtime-control commands and persistence/config concerns, then scaffold the first persistence path behind explicit storage contracts.
   - Includes: command-intent routing decision, app settings contract, `_idf` NVS-backed store scaffold, and the first migrated persisted settings for startup and logging preferences.
-  - Commit(s): `9a3437d`, `59d5a94`, `845a020`, `97ce003`, `8f1fc19`, `b85d5e6`
+  - Commit(s): `9a3437d`, `59d5a94`, `845a020`, `97ce003`, `8f1fc19`, `b85d5e6`, `13810d9`
   - Sub-slices:
     - [x] Slice 4a: command-intent path decision and LED-domain routing cleanup
       - Notes: CLI now routes explicit blinky command intent and the LED domain owns current-state acceptance/ignore behavior instead of forcing CLI to masquerade as raw button input.
@@ -819,13 +819,13 @@ Next feature direction is a user-facing CLI that mirrors button-driven behavior 
         - completed: add unit coverage for config parse behavior, command handling/dispatch, and targeted persistence-path validation
       - Notes: keep startup mode out of this slice until it has a concrete modeled representation; do not introduce a generic key/value grammar or broad hardware/timing/perf config surface here.
       - Validation follow-through landed in Slice 4e without requiring an artificial extra commit boundary.
-      - Commit(s): `TBD`
+      - Commit(s): `13810d9`
     - [x] Slice 4e: persistence validation and HIL follow-through
       - Notes: completed merge/default-rule coverage, adapter validation, and on-device config-command validation for read/write/save/reset behavior with observed NVS writes.
       - Validation:
         - targeted unit-test-app run: `127 / 0 / 0`
         - on-device app validation: `help`, `help config`, `config show`, `config show startup`, `config show logging`, setter commands, `config save`, and `config reset` behaved as expected
-      - Commit(s): `TBD`
+      - Commit(s): `13810d9`
 - [ ] Slice 5: docs and release prep for `v0.2.0`
   - Goal: close the loop on user-facing docs and release framing once config-command scope is stable.
   - Includes: README/devlog/architecture alignment for the CLI+persistence surface and release-prep cleanup.
