@@ -103,6 +103,7 @@ The first persistence step is intentionally split into two layers:
 - `core_blinky` owns the persisted payload shape and semantic defaults through `app_settings_t`
 - `blinky_interfaces` owns the storage contract through `app_settings_store_t` with `load`, `save`, and `reset`
 - `_idf` will later implement that contract on top of a dedicated app-owned NVS partition
+- schema details live in [docs/PERSISTENCE_SCHEMA.md](/workspaces/blinky_c6/docs/PERSISTENCE_SCHEMA.md)
 
 Current scaffold notes:
 - The payload is still scaffold-first, but it now includes the first real migrated preferences:
@@ -110,9 +111,10 @@ Current scaffold notes:
   - `boot_pattern_enabled`
   - `log_intensity_enabled`
   - `log_min_level`
+  - `startup_selector`
   - `test_counter`
   - `test_mode_enabled`
-- `boot_pattern_enabled`, `log_intensity_enabled`, and `log_min_level` seed from the existing `_idf` config defaults and can be overridden from persisted settings at startup.
+- `boot_pattern_enabled`, `log_intensity_enabled`, `log_min_level`, and `startup_selector` seed from the existing default layers and can be overridden from persisted settings at startup.
 - Remaining fields are still plumbing-validation placeholders, not the final migrated config surface.
 
 Current `_idf` implementation direction:
@@ -124,6 +126,7 @@ Current `_idf` implementation direction:
   - `boot_pattern`
   - `log_intensity`
   - `log_level`
+  - `startup_wave`
   - `test_count`
   - `test_mode`
 - unit-test-app adapter tests currently exercise the same store API against the default `nvs` partition with a test namespace so the contract can be validated without changing the upstream unit-test-app partition layout
@@ -142,6 +145,7 @@ Current Kconfig defaults, ownership, and target direction:
 | `BLINKY_BOOT_PATTERN_MS` | `_idf` | `_idf` | Platform/UI timing |
 | `BLINKY_LOG_INTENSITY` | `_idf` default + app settings override | `_idf` app-settings-backed logging preference | Platform logging gate for `_idf` sink adapter |
 | `BLINKY_LOG_MIN_LEVEL_*` | `_idf` default + app settings override | `_idf` app-settings-backed logging preference | Platform logging verbosity policy for sink adapter |
+| Startup wave selector | core default + app settings override | `core_blinky` app-settings-backed startup preference | Core-owned startup behavior selection |
 | `BLINKY_WAVE_PERIOD_MS` | `_idf` -> core model | `core_blinky` policy/config | Domain waveform behavior |
 | `BLINKY_SINE_STEPS_MAX` | `_idf` -> core model | `core_blinky` policy/config | Domain quality/perf policy |
 | `BLINKY_SAW_STEP_PCT` | `_idf` -> core model | `core_blinky` policy/config | Domain waveform shape policy |

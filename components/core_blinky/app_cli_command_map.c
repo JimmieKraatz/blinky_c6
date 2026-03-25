@@ -27,6 +27,7 @@ bool app_cli_command_map_to_blinky_command(blinky_cli_command_t cmd, blinky_cont
         return true;
     case BLINKY_CLI_CMD_NONE:
     case BLINKY_CLI_CMD_HELP:
+    case BLINKY_CLI_CMD_HELP_CONFIG:
     case BLINKY_CLI_CMD_STATUS:
     default:
         *out = BLINKY_CONTROL_CMD_NONE;

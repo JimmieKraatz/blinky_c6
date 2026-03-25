@@ -14,6 +14,7 @@
 
 #include "app_event_factory.h"
 #include "app_cli_command_map.h"
+#include "app_cli_config_idf.h"
 #include "app_cli_parse.h"
 
 #define CLI_LINE_MAX_CHARS 96U
@@ -64,6 +65,8 @@ static const char *command_name(blinky_cli_command_t cmd)
     switch (cmd) {
     case BLINKY_CLI_CMD_HELP:
         return "help";
+    case BLINKY_CLI_CMD_HELP_CONFIG:
+        return "help_config";
     case BLINKY_CLI_CMD_STATUS:
         return "status";
     case BLINKY_CLI_CMD_RUN:
@@ -84,6 +87,28 @@ static const char *command_name(blinky_cli_command_t cmd)
     }
 }
 
+static void cli_report(void *ctx, blinky_log_level_t level, const char *line)
+{
+    const char *tag = ctx ? (const char *)ctx : TAG;
+    if (!line) {
+        return;
+    }
+
+    switch (level) {
+    case BLINKY_LOG_LEVEL_ERROR:
+        ESP_LOGE(tag, "%s", line);
+        break;
+    case BLINKY_LOG_LEVEL_WARN:
+        ESP_LOGW(tag, "%s", line);
+        break;
+    case BLINKY_LOG_LEVEL_DEBUG:
+    case BLINKY_LOG_LEVEL_INFO:
+    default:
+        ESP_LOGI(tag, "%s", line);
+        break;
+    }
+}
+
 static void handle_line(sm_led_ctx_t *ctx, const char *line)
 {
     if (!ctx || !line) {
@@ -100,10 +125,22 @@ static void handle_line(sm_led_ctx_t *ctx, const char *line)
         return;
     }
 
+    blinky_config_command_t config_cmd = {0};
+    if (app_cli_parse_config_command(line, &config_cmd)) {
+        ctx->cli_config.report = cli_report;
+        ctx->cli_config.report_ctx = (void *)TAG;
+        (void)app_cli_config_idf_handle(&ctx->cli_config, &config_cmd);
+        return;
+    }
+
     const blinky_cli_command_t cmd = app_cli_parse_line(line);
     switch (cmd) {
     case BLINKY_CLI_CMD_HELP:
-        ESP_LOGI(TAG, "commands: help, status, run, pause, menu enter, menu next, menu exit");
+        ESP_LOGI(TAG, "commands: help, help config, status, run, pause, menu enter, menu next, menu exit, config ...");
+        return;
+    case BLINKY_CLI_CMD_HELP_CONFIG:
+        ESP_LOGI(TAG,
+                 "config commands: config show, config show startup, config show logging, config startup wave <square|saw_up|saw_down|triangle|sine>, config boot-pattern <on|off>, config log intensity <on|off>, config log level <error|warn|info|debug>, config save, config reset");
         return;
     case BLINKY_CLI_CMD_STATUS:
         ESP_LOGI(TAG, "status: started=%s, state=%s, dropped=%lu",

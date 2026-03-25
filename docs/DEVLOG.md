@@ -7,791 +7,12 @@ For the stable technical view, see `docs/ARCHITECTURE.md`.
 ## Logging Conventions
 - Slice naming: use numeric IDs only (`Slice 1`, `Slice 2`, ...). Avoid lettered slices for new entries.
 - Module naming: prefer `app_` for app-plumbing contracts and `blinky_` for domain behavior; treat older `led_*` orchestrator names as legacy until refactored.
-
-## 2026-03-14 - CLI menu command semantics corrected
-### Context
-CLI v1 originally mirrored physical button semantics by mapping named commands onto existing short/long press events. That was sufficient for initial bring-up, but it exposed an operational mismatch once the CLI surface included explicit menu commands such as `menu enter` and `menu exit`.
-
-### Finding
-- `menu enter` and `menu exit` both mapped to the same long-press app event.
-- Adapter-side dispatch policy only gated `run`, `pause`, and `run pause toggle`.
-- As a result, `menu exit` was still accepted while `running` or `paused`, then interpreted by runtime policy as a long press, which entered the menu instead of exiting it.
-- Root cause: the CLI surface had grown beyond a pure "virtual button" model, but command validity rules had not been updated to match the more explicit command vocabulary.
-
-### Changes
-- Added a temporary shared CLI state-gating helper:
-  - `app_cli_command_map_is_allowed_in_state(...)`
-- Centralized command validity rules in core app-plumbing while CLI v1 still mapped commands directly onto short/long press app events.
-- Updated the IDF CLI adapter to use the shared helper instead of partial local checks.
-- Added command-map tests covering runtime-state gating for menu commands.
-
-### Why
-- This preserves a single runtime/menu state machine as the behavioral source of truth while making the CLI adapter semantics match the named commands users actually type.
-- The fix is intentionally a state-conditioned adapter rule, not a new CLI state machine.
-- A future cleanup may introduce explicit semantic app events for `menu enter` / `menu exit` / `run` / `pause`, but that is not required to make CLI v1 correct and predictable.
-
-### Superseded by later Slice 4A work
-- The state-gating helper above was an intermediate corrective step.
-- Slice 4A is now refactoring this path so CLI routes explicit blinky command intents and the LED domain decides whether those commands apply in the current runtime state.
-
-### Verification
-- `idf.py -D CCACHE_ENABLE=1 build` pass
-- unit-test-app targeted build for `core_blinky` + `blinky_idf` pass
-- on-device app validation pass
-- on-device unit-test-app validation pass
-- Unity result: `100 / 0 / 0`
-
-### Follow-up note
-- Future CI/CD improvement should land in `.github/workflows/hil-smoke.yml`, not runner container plumbing:
-  - add `tools/hil/cli_smoke.py`
-  - add automated Unity execution/report capture on hardware
-  - upload richer CLI/Unity artifacts on failure
-
-## 2026-03-13 - CLI naming alignment pass
-### Context
-As CLI control-plane scaffolding was added, naming drift appeared between older `led_*` mapping/factory terms and app-layer event plumbing.
-
-### Changes
-- Renamed `led_event_factory.*` -> `app_event_factory.*`.
-- Renamed `led_cli_command_map.*` -> `app_cli_command_map.*`.
-- Updated references and tests to use new app-layer naming consistently.
-
-### Notes
-- `blinky_cli_command_t` remains intentionally domain-scoped (`blinky_`), while mapping/factory modules stay app-plumbing scoped (`app_`).
-
-## 2026-03-13 - CLI control-plane kickoff (planned v0.2.0)
-### Context
-Next feature direction is a user-facing CLI that mirrors button-driven behavior and provides a reusable control surface for future transport/provisioning paths (for example BT mesh/Wi-Fi) and platform portability (ESP32 + nRF52).
-
-### Version intent
-- Target release for this feature line: `v0.2.0` (new observable feature surface).
-
-### Scope guardrails
-- Keep architecture split aligned with existing boundaries:
-  - core: parsing-independent command model + behavior mapping contracts
-  - platform (`_idf`): console/UART transport and adapter wiring
-- CLI v1 should first mirror existing button/menu behavior before adding broader config commands.
-- NVS-backed settings are planned as follow-on within CLI feature track (not required for first command loop).
-- Future control surfaces are likely to extend beyond local serial CLI:
-  - possible wireless provisioning path
-  - possible MQTT control path
-  - possible mesh-oriented command/control path
-- Slice 4 planning must account for that expansion so CLI/config work does not overfit a UART-only or "virtual button only" model.
-
-### Planned slices
-1. Slice 1: CLI contracts + command/event mapping model (core + interfaces)
-2. Slice 2: IDF CLI adapter (stdin/uart line reader + dispatch bridge)
-3. Slice 3: command set v1 parity with button/menu actions:
-   - `run`, `pause`
-   - `menu enter`, `menu next`, `menu exit`
-   - `status`, `help`
-4. Slice 4A: CLI/persistence architecture decision
-   - decide whether runtime-control commands and config/operational commands share one path
-   - decide whether persistence belongs inside `led_sm` or in app-shell / `_idf` orchestration around it
-   - document a transport-friendly command boundary that can later support local CLI, provisioning flows, MQTT, and mesh without forcing all intents through button-style events
-5. Slice 4B: persistence design + config contract
-   - define persistable settings
-   - define ownership and source-of-truth/default override rules
-   - define lifecycle semantics for load/apply/save/reset
-6. Slice 4C: storage boundary + `_idf` adapter
-   - define storage contract (`load/save/reset`)
-   - implement NVS-backed adapter in `_idf`
-7. Slice 4D: CLI config commands
-   - start with a minimal command set such as `config show`, `config save`, `config reset`
-   - add at most one or two low-risk setters in the first pass
-8. Slice 4E: tests and HIL validation
-   - unit coverage for merge/default rules
-   - adapter tests for persistence operations
-   - on-device/HIL validation for config command behavior
-9. Slice 5: docs/release prep for `v0.2.0`
-
-### Slice status
-- Slice 1 completed (2026-03-13):
-  - added CLI command contract in `blinky_interfaces` (`blinky_cli_command_t`)
-  - added core mapping module `app_cli_command_map.*`
-  - extended event factory with CLI path (`app_event_factory_from_cli_command(...)`)
-  - added/updated unit tests for command mapping and event factory behavior
-  - completed naming alignment pass (`led_*` -> `app_*` for app-layer plumbing)
-- Slice 2 completed (2026-03-13):
-  - added IDF UART CLI adapter (`app_cli_adapter_idf.*`) with non-blocking line read on UART0
-  - added command parsing bridge from text input to `blinky_cli_command_t`
-  - wired CLI command dispatch into existing app-event queue via `app_event_factory_from_cli_command(...)`
-  - integrated adapter init/step into `led_sm_init(...)` / `led_sm_step(...)`
-  - added Kconfig controls:
-    - `BLINKY_CLI_ENABLE`
-    - `BLINKY_CLI_UART_RX_BUF_SIZE`
-- Slice 3 completed (2026-03-13 to 2026-03-14):
-  - added dedicated parser module (`app_cli_parse.*`) for CLI command vocabulary
-  - moved parser ownership to `core_blinky` (platform-agnostic placement)
-  - implemented command-set parity for:
-    - `run`, `pause`, `menu enter`, `menu next`, `menu exit`, `status`, `help`
-  - extended command intent model with explicit `BLINKY_CLI_CMD_RUN` / `BLINKY_CLI_CMD_PAUSE`
-  - added state-aware dispatch policy so named CLI commands are only accepted in runtime states where their semantics match user intent
-  - added parser unit tests and command-map coverage updates
-  - verification: `idf.py -D CCACHE_ENABLE=1 build` pass
-  - added repeatable on-target helper: `tools/hil/cli_smoke.py`
-  - fixed console transport mismatch by adding USB Serial/JTAG input backend when `CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG=y` (UART fallback preserved)
-  - added interactive console echo/edit behavior in IDF CLI adapter (typed character echo, backspace handling, CR/LF submit compatibility)
-  - improved smoke helper serial write/read behavior for deterministic timeout handling in containerized dev environments
-  - runtime validation complete: on-target `tools/hil/cli_smoke.py` passed all 7 commands on `/dev/ttyACM0`
-  - post-smoke monitor validation complete: `idf.py monitor` showed stable boot to `running` and interactive typed characters were visible over USB Serial/JTAG
-  - follow-up operational fix: `menu exit` no longer enters menu outside `LED_POLICY_MENU`; explicit menu commands are now gated against current runtime state
-- Slice 4A implementation in progress (2026-03-14):
-  - drafted command-intent path decision memo
-  - captured persistence/config inventory candidate for Slice 4B
-  - captured small initial config-command surface proposal for Slice 4D
-  - introduced explicit blinky command intent contract
-  - refactored CLI/runtime path so CLI routes blinky-domain commands without mapping directly to raw button events
-  - moved current-state acceptance rules into LED-domain command interpretation
-  - added direct Unity coverage for `led_command_dispatch(...)` state/command behavior
-  - updated unit-test-app and app builds to compile with the new event/command split
-  - reran on-device CLI smoke validation after the refactor; all 14 checks passed on `/dev/ttyACM0`
-  - manual on-device validation complete:
-    - app flashed and ran as expected
-    - unit-test-app flashed and ran with Unity result `109 / 0 / 0`
-- Slice 4B contract scaffold started (2026-03-14):
-  - added placeholder persisted-settings payload in `core_blinky`:
-    - `schema_version`
-    - `test_counter`
-    - `test_mode_enabled`
-  - added storage boundary contract in `blinky_interfaces`:
-    - `load`
-    - `save`
-    - `reset`
-  - intentionally did not wire real NVS or migrate real config values yet
-  - added unit coverage for settings defaults and schema validation
-- Slice 4B `_idf` framework implementation started (2026-03-14):
-  - added `_idf` NVS-backed adapter for `app_settings_store_t`
-  - app build now targets a dedicated app-owned NVS partition:
-    - label `appcfg`
-    - one namespace `blinky`
-    - unencrypted for now
-    - simple typed keys `schema_ver`, `test_count`, `test_mode`
-  - unit-test adapter coverage uses the default `nvs` partition with a test namespace so the store contract can be validated in unit-test-app without changing its partition layout
-  - real config values have still not been migrated onto the store boundary yet
-  - manual on-device validation complete:
-    - app build, flash, and run passed
-    - unit-test-app build, flash, and run passed
-    - Unity result `114 / 0 / 0`
-
-### Slice 4A draft decision memo
-#### Problem statement
-Persistence/config commands are not a clean fit for the current "CLI as named button/control adapter" path. Runtime-control commands such as `run`, `pause`, `menu enter`, `menu next`, and `menu exit` map reasonably onto existing runtime semantics, but commands such as `config save`, `config reset`, provisioning actions, or future network-driven control do not.
-
-#### Options considered
-1. Keep all CLI intents flowing through the existing runtime/button-style event path.
-   - Pros: minimal new plumbing
-   - Cons: overfits semantic/config intents onto runtime events; likely to get awkward for save/reset/provisioning
-2. Keep one physical CLI adapter, but split command handling into two intent paths.
-   - runtime-control commands -> existing app/runtime event path
-   - config/operational commands -> app-shell / `_idf` command path with storage boundary
-   - Pros: preserves current runtime behavior model while creating room for persistence and future transports
-   - Cons: introduces a second command-handling lane that must be documented clearly
-3. Add a dedicated CLI state machine now.
-   - Pros: maximal flexibility for future multi-step command workflows
-   - Cons: likely premature for current scope; adds complexity before command/config boundary decisions are settled
-
-#### Current recommendation
-- Choose Option 2, but refine it further:
-  - CLI/router should classify command domain, not own LED behavior mapping
-  - `led_sm` should remain the owner of blinky runtime behavior/state transitions
-  - runtime-control commands should be forwarded to the LED domain as explicit blinky commands, not as disguised button events
-  - persistence/config/provisioning intents should not be forced through the same button-style event model
-  - persistence/storage orchestration should live in app-shell / `_idf` boundaries, with core defining contracts where semantics belong in core
-
-#### Why this recommendation fits future work
-- Leaves room for serial CLI today without baking in UART-only assumptions.
-- Scales better if provisioning is later exposed through CLI, wireless setup flows, MQTT, or mesh control.
-- Avoids teaching the runtime state machine about storage and operational concerns that are not inherently waveform/menu behavior.
-
-#### Refined command-intent path for Slice 4A
-- Keep LED runtime states small and behavioral:
-  - `running`
-  - `paused`
-  - `menu`
-- Do not expand LED states into command names such as `run`, `pause`, `menu enter`, `menu next`, or `menu exit`.
-- Introduce explicit blinky command intent separate from button input semantics:
-  - `RUN`
-  - `PAUSE`
-  - `MENU_ENTER`
-  - `MENU_NEXT`
-  - `MENU_EXIT`
-- Let the LED domain interpret those commands against current runtime state and decide whether they are:
-  - applied
-  - ignored
-  - invalid
-- Treat button input and CLI as separate producers of LED-domain intent rather than forcing CLI to masquerade as raw button input.
-
-#### Separation-of-concerns rule
-- CLI/router decides only:
-  - which domain a command belongs to (`blinky`, `config`, `diagnostic`, future provisioning/network)
-  - whether the command should be routed to a domain owner
-- LED domain decides:
-  - what a blinky command means in the current LED/menu state
-  - whether that command is appropriate right now
-  - what internal transition/action should result
-- Non-blinky commands should route to non-LED owners and should not require `led_sm` awareness.
-
-#### Planned output of Slice 4A
-- An explicit architecture note describing the command-intent split:
-  - domain routing in CLI/app shell
-  - LED-domain command interpretation in `led_sm` or adjacent LED-domain controller
-- A persistence/config contract candidate for Slice 4B.
-- A small initial config-command surface proposal for Slice 4D.
-
-#### Slice 4A implementation checklist
-
-| Status | Item |
-|---|---|
-| Done | Refactor current CLI flow without adding any new commands. |
-| Done | Preserve the existing user-visible command set: `help`, `status`, `run`, `pause`, `menu enter`, `menu next`, `menu exit`. |
-| Done | Introduce an explicit blinky command intent contract separate from button/raw blinky events. |
-| Done | Update CLI/app-shell routing so CLI identifies blinky-domain commands without mapping them directly to button events. |
-| Done | Update LED-domain handling so blinky commands are interpreted by the LED domain against current runtime state (`running`, `paused`, `menu`). |
-| Done | Keep button input as a separate producer path; do not force CLI to masquerade as raw button input. |
-| Done | Update parser/command tests to reflect command-intent routing rather than direct CLI-to-button mapping assumptions. |
-| Done | Add LED-domain command interpretation tests for current-state handling. |
-| Done | Preserve negative-path coverage for invalid command/state combinations. |
-| Done | Re-run app build and unit-test-app build after the refactor. |
-| Done | Re-run on-device CLI smoke validation after the refactor. |
-
-#### Persistence/config inventory candidate for Slice 4B
-Notes:
-- Distinguish live runtime state from persisted user preference.
-- A possible persisted setting is instead startup behavior preference, for example:
-  - start in `running`
-  - start in `paused`
-- Likewise, "pause behavior" is a separate policy question:
-  - whether paused forces LED off
-  - or freezes current brightness
-  - that should not be conflated with startup mode or current runtime state
-
-| Item / symbol | Current source | Current owner/boundary | Persistence candidacy | Notes |
-|---|---|---|---|---|
-| `BLINKY_LED_GPIO` | Kconfig / `sdkconfig` | `_idf` platform wiring | stay in `Kconfig` | Board/hardware wiring |
-| `BLINKY_BTN_GPIO` | Kconfig / `sdkconfig` | `_idf` platform wiring | stay in `Kconfig` | Board/hardware wiring |
-| `BLINKY_BTN_ACTIVE_LOW` | Kconfig / `sdkconfig` | `_idf` electrical interface | stay in `Kconfig` | Hardware/electrical behavior |
-| `BLINKY_BTN_PULL_*` | Kconfig / `sdkconfig` | `_idf` electrical interface | stay in `Kconfig` | Hardware/electrical behavior |
-| `BLINKY_PWM_FREQ_HZ` | Kconfig / `sdkconfig` | `_idf` LEDC/platform setup | stay in `Kconfig` | Peripheral setup |
-| `BLINKY_PRODUCER_POLL_MS` | Kconfig / `sdkconfig` | `_idf` scheduler cadence | stay in `Kconfig` | Platform/task timing |
-| `BLINKY_CLI_ENABLE` | Kconfig / `sdkconfig` | `_idf` transport wiring | stay in `Kconfig` | Build/deployment choice |
-| `BLINKY_CLI_UART_RX_BUF_SIZE` | Kconfig / `sdkconfig` | `_idf` transport wiring | stay in `Kconfig` | Build/runtime buffer sizing, not user-facing |
-| `BLINKY_BOOT_PATTERN` | Kconfig / `sdkconfig` | `_idf` platform/UI behavior | first-pass NVS candidate | User-facing startup preference |
-| `BLINKY_BOOT_PATTERN_MS` | Kconfig / `sdkconfig` | `_idf` platform/UI behavior | maybe NVS later | Likely keep build-time initially |
-| `BLINKY_LOG_INTENSITY` | Kconfig / `sdkconfig` | `_idf` logging policy | first-pass NVS candidate | Operational preference |
-| `BLINKY_LOG_MIN_LEVEL_*` | Kconfig / `sdkconfig` | `_idf` logging policy | first-pass NVS candidate | Operational preference |
-| `BLINKY_WAVE_PERIOD_MS` | Kconfig -> core config | `core_blinky` model policy | maybe NVS | User-facing if waveform tuning becomes a feature |
-| `BLINKY_MODEL_POLL_MS` | Kconfig -> core config | `core_blinky` model cadence | maybe NVS later | More advanced tuning knob; not first-pass |
-| `BLINKY_SINE_STEPS_MAX` | Kconfig -> core config | `core_blinky` quality/perf policy | maybe NVS later | Advanced tuning; probably not first-pass |
-| `BLINKY_SAW_STEP_PCT` | Kconfig -> core config | `core_blinky` waveform shape policy | maybe NVS later | Advanced tuning; probably not first-pass |
-| `BLINKY_DEBOUNCE_COUNT` | Kconfig -> core config | `core_blinky` button timing policy | stay in `Kconfig` | Not a user-facing operational preference |
-| `BLINKY_LONG_PRESS_MS` | Kconfig -> core config | `core_blinky` button timing policy | stay in `Kconfig` | Not a user-facing operational preference |
-| Startup wave preference | Core default today | `core_blinky` startup policy | first-pass NVS candidate | Strong user-facing preference |
-| Startup mode preference (`running` vs `paused`) | Not yet modeled | LED-domain startup policy | first-pass NVS candidate | Separate from live runtime state |
-| Pause output behavior (`LED off` vs `freeze brightness`) | Deferred policy decision | LED-domain pause policy | decide before NVS | Policy choice, not current-state persistence |
-
-#### Provisional first-pass NVS surface
-- `startup wave preference`
-- `startup mode preference` (`running` vs `paused`)
-- `boot pattern`
-- `log intensity`
-- `log min level`
-
-#### Slice 4B scaffold decision
-Before moving any real config items into persistence, scaffold the boundary with simple test data:
-- core owns the persisted payload shape and default/validation rules
-- interfaces own the storage contract (`load` / `save` / `reset`)
-- `_idf` will later own the NVS-backed implementation
-
-Initial `_idf` NVS backing direction:
-- dedicated app-owned partition
-- one namespace
-- unencrypted for now
-- simple typed keys
-- add more partitions later only when reset/security/lifecycle needs diverge
-
-Initial placeholder payload:
-- `schema_version`
-- `boot_pattern_enabled`
-- `test_counter`
-- `test_mode_enabled`
-
-Why this comes first:
-- validates the persistence architecture without coupling early mistakes to real user-facing config
-- keeps Slice 4B focused on storage correctness before policy migration
-- gives us a schema/version foothold for future migration handling
-
-#### Slice 4B first migrated setting
-- `boot_pattern_enabled`, `log_intensity_enabled`, and `log_min_level` are the first real settings moved onto the app settings boundary.
-- Effective defaults still come from the existing `_idf` config path (`BLINKY_BOOT_PATTERN`, `BLINKY_LOG_INTENSITY`, and `BLINKY_LOG_MIN_LEVEL_*` via `idf_build_platform_config`).
-- If no persisted settings exist yet, startup seeds the settings store from that current default layer.
-- If persisted settings exist, startup applies the stored settings overrides before the boot pattern is shown and before runtime logging behavior begins.
-- `BLINKY_BOOT_PATTERN_MS` remains Kconfig-backed for now.
-
-#### Slice 4B migrated key set
-- `schema_ver`
-- `boot_pattern`
-- `log_intensity`
-- `log_level`
-- `test_count`
-- `test_mode`
-
-#### Explicit non-goals for first-pass NVS
-- hardware wiring/electrical values
-- task/transport buffer sizing
-- debounce/long-press timing
-- broad waveform tuning/perf knobs unless a user-facing requirement emerges
-
-#### Small initial config-command surface proposal for Slice 4D
-Goals:
-- Keep the first config surface small, explicit, and easy to validate on-device.
-- Prefer commands that expose the first-pass NVS items without opening a broad generic settings language yet.
-
-Proposed read-only commands:
-- `config show`
-  - dumps persisted/effective config summary
-- `config show startup`
-  - shows startup wave, startup mode, and boot-pattern enable
-- `config show logging`
-  - shows log intensity and min log level
-
-Proposed mutating commands:
-- `config startup wave <square|saw_up|saw_down|triangle|sine>`
-- `config startup mode <running|paused>`
-- `config boot-pattern <on|off>`
-- `config log intensity <on|off>`
-- `config log level <error|warn|info|debug>`
-
-Proposed persistence/lifecycle commands:
-- `config save`
-- `config reset`
-
-Deferred from initial config command surface:
-- free-form key/value command grammar
-- direct editing of timing/performance knobs
-- GPIO/electrical/platform transport settings
-- provisioning/network commands
-
-Command-surface note:
-- `config reset` should reset persisted config/preferences, not live runtime state.
-- `config show` should present both effective values and, when useful, whether they came from defaults or persisted overrides.
-
-## 2026-03-12 - CI/CD implementation plan (sliced)
-### Context
-Delivery policy has been expanded in `docs/DELIVERY_WORKFLOW.md`. Next step is implementation with low-risk slices so we get fast feedback without blocking on HIL infrastructure.
-
-### Scope guardrails
-- Keep first rollout cloud-only for hardware-independent checks.
-- Treat HIL as a staged/manual gate until self-hosted runner is stable.
-- Keep each slice shippable and reviewable in a single focused PR when possible.
-
-### Implementation slices
-1. Slice 1 - Workflow scaffolding
-   - Add `.github/workflows/ci.yml` with trigger skeleton only.
-   - Add `.github/workflows/release.yml` with tag trigger skeleton only.
-   - Add `.github/workflows/hil-smoke.yml` as `workflow_dispatch` + `self-hosted` stub.
-   - Acceptance: workflows parse and appear in GitHub Actions without running risky jobs.
-
-2. Slice 2 - Cloud app build gate
-   - Implement ESP-IDF setup on `ubuntu-latest`.
-   - Add `idf.py set-target esp32c6` and `idf.py -D CCACHE_ENABLE=1 build`.
-   - Wire to `pull_request` and `push` on `develop`/`master`.
-   - Acceptance: PRs show a required app build check.
-
-3. Slice 3 - Unit-test-app build gate
-   - Add unit-test-app build command with current component targets:
-     - `core_sm`, `core_blinky`, `blinky_idf`, `blinky_interfaces`
-   - Keep this as compile/integration validation (no on-device execution in cloud).
-   - Acceptance: PRs show separate required test-build check.
-
-4. Slice 4 - Release automation
-   - On tag push `v*`, build release artifacts and publish GitHub Release.
-   - Attach binaries/checksums and generated release notes.
-   - Mark `-rc` tags as pre-release.
-   - Acceptance: creating `vX.Y.Z` or `vX.Y.Z-rc.N` produces correct release output.
-
-5. Slice 5 - HIL manual smoke path
-   - Implement self-hosted flash + serial startup smoke script.
-   - Upload serial logs on failure.
-   - Keep trigger manual (`workflow_dispatch`) and non-required.
-   - Acceptance: one successful end-to-end manual HIL run is recorded.
-
-6. Slice 6 - Branch protections and policy enforcement
-   - Make cloud checks required on `develop` and `master`.
-   - Keep HIL optional until flake rate is acceptable.
-   - Add README badges/links to workflow status and policy doc.
-   - Acceptance: merge blocked when required checks fail.
-
-### Out of scope for initial rollout
-- Full scripted interaction testing of menu/button behavior in cloud.
-- Mandatory HIL gate before runner reliability is proven.
-- Packaging/deploy integration beyond GitHub Releases.
-
-## 2026-03-12 - CI/CD slice 1 implemented: workflow scaffolding
-### Changes
-- Added workflow scaffold files:
-  - `.github/workflows/ci.yml`
-  - `.github/workflows/release.yml`
-  - `.github/workflows/hil-smoke.yml`
-- Added safe placeholder jobs only (no ESP-IDF setup, no flash, no artifact publishing yet).
-- Configured triggers:
-  - `ci.yml`: `pull_request` + `push` on `develop` and `master`
-  - `release.yml`: `push` on tags matching `v*`
-  - `hil-smoke.yml`: `workflow_dispatch` only
-
-### Notes
-- HIL workflow is intentionally disabled (`if: false`) while self-hosted runner infrastructure is being prepared.
-- Next slice is cloud app build gate (`idf.py set-target esp32c6` + `idf.py build`).
-
-## 2026-03-12 - CI/CD slice 2 implemented: cloud app build gate
-### Changes
-- Updated `.github/workflows/ci.yml` to replace placeholder scaffold job with an app build job.
-- Added checkout step (`actions/checkout@v4`) with submodules enabled.
-- Added ESP-IDF build step via `espressif/esp-idf-ci-action@v1`:
-  - `idf.py set-target esp32c6`
-  - `idf.py -D CCACHE_ENABLE=1 build`
-
-### Notes
-- Trigger scope remains:
-  - `pull_request` on `develop`, `master`
-  - `push` on `develop`, `master`
-- Slice 3 will add a separate unit-test-app build gate.
-
-## 2026-03-12 - CI/CD slice 2 follow-up: first-run failure remediation
-### Context
-First GitHub Actions run failed in `blinky_idf` on missing `driver/gpio.h` dependency resolution under newer ESP-IDF layout.
-
-### Changes
-- Updated CI workflow hardening:
-  - `actions/checkout@v5`
-  - pinned ESP-IDF version in CI action (`v5.5.2`) to match local development baseline and avoid unplanned `-dev` toolchain drift.
-- Reverted attempted `esp_driver_gpio` requirement after validation showed it is unavailable in pinned IDF line used by CI gate.
-
-### Notes
-- Kept `driver` requirement for Slice 2 compatibility under pinned CI toolchain.
-- IDF 6 component migration can be handled later as a dedicated compatibility slice.
-
-## 2026-03-13 - CI/CD slice 2 follow-up: app_main link failure remediation
-### Context
-CI app build failed at link stage with `undefined reference to app_main`.
-
-### Changes
-- Removed conditional compilation guard around `app_main` in `main/main.c`.
-- `app_main` is now always compiled for this application target.
-
-### Notes
-- This avoids configuration-dependent omission of the entry symbol in cloud builds.
-
-## 2026-03-13 - CI/CD slice 3 implemented: unit-test-app build gate
-### Changes
-- Extended `.github/workflows/ci.yml` with a separate `unit-test-app-build` job.
-- Added ESP-IDF unit-test-app build commands in CI for component integration validation:
-  - `core_sm`
-  - `core_blinky`
-  - `blinky_idf`
-  - `blinky_interfaces`
-- Kept cloud scope build-only (no on-device Unity execution).
-
-### Notes
-- CI now reports two cloud gates on PR/push:
-  - `App Build (ESP-IDF)`
-  - `Unit Test App Build (ESP-IDF)`
-
-## 2026-03-13 - CI/CD slice 4 implemented: release automation
-### Changes
-- Replaced `.github/workflows/release.yml` scaffold with full tag-driven release workflow.
-- Added artifact build job on `push` tags `v*`:
-  - app build with pinned ESP-IDF `v5.5.2`
-  - collected release files:
-    - `blinky_c6.bin`
-    - `blinky_c6.elf`
-    - `bootloader.bin`
-    - `partition-table.bin`
-    - `flasher_args.json`
-    - optional `blinky_c6.map`
-  - generated `sha256sums.txt`
-- Added publish job:
-  - downloads artifacts from prior job
-  - creates GitHub Release with generated release notes
-  - marks tags containing `-rc.` as pre-release
-
-### Notes
-- Release workflow is tag-driven by design; verification requires pushing a test tag.
-
-## 2026-03-13 - CI/CD slice 4 validation: end-to-end release test
-### Changes
-- Pushed temporary validation tag: `v0.1.1-rc.0-test` (from `develop` head).
-- Confirmed release workflow execution and artifact publication.
-- Verified 9 release assets were generated (firmware, bootloader, partition table, metadata, checksums, and source archives).
-- Removed temporary release tag locally and on origin after validation.
-
-### Notes
-- Slice 4 acceptance criteria satisfied: tag-driven artifact build and release publishing works in GitHub Actions.
-
-## 2026-03-13 - CI/CD slice 5 implemented: manual self-hosted HIL smoke path
-### Changes
-- Replaced disabled HIL scaffold with executable manual workflow in `.github/workflows/hil-smoke.yml`.
-- Added `workflow_dispatch` inputs:
-  - `serial_port`
-  - `startup_pattern`
-  - `monitor_timeout_seconds`
-- Added self-hosted smoke sequence:
-  - checkout
-  - preflight `idf.py` check
-  - build (`idf.py set-target esp32c6 build`)
-  - flash (`idf.py -p <port> flash`)
-  - monitor capture with timeout
-  - startup pattern validation (`grep -E`)
-- Added log artifact upload (`actions/upload-artifact@v4`) with `if: always()`.
-
-### Notes
-- This gate remains manual and non-required until runner reliability is characterized.
-- Next operational step is one successful manual HIL run record on the self-hosted runner.
-
-## 2026-03-13 - CI/CD slice 5 validation attempt: runner provisioning gap
-### Context
-Manual `HIL Smoke` dispatch was attempted from GitHub Actions after merge.
-
-### Result
-- Workflow queued successfully.
-- Job remained pending with `Requested labels: self-hosted`.
-- No self-hosted runner was registered/online, so no HIL execution occurred.
-
-### Notes
-- This is an infrastructure readiness blocker, not a workflow-definition failure.
-- Next step is to provision and register at least one self-hosted runner, then rerun the same manual smoke workflow.
-
-## 2026-03-13 - Runner provisioning scaffold added (containerized)
-### Changes
-- Added in-repo runner scaffold under `infra/runner/`:
-  - `Dockerfile`
-  - `entrypoint.sh`
-  - `docker-compose.yml`
-  - `.env.example`
-  - `README.md`
-- Added local secret ignore for runner token file:
-  - `infra/runner/.env` in `.gitignore`
-
-### Notes
-- This keeps runner provisioning reproducible without coupling to the daily dev container.
-- Next step is operational bring-up: register runner token, start compose stack, verify runner online, rerun `HIL Smoke`.
-
-## 2026-03-13 - Runner scaffold follow-up: preload ESP-IDF environment
-### Context
-Initial HIL run on self-hosted runner failed preflight (`command -v idf.py`) because runner process environment did not include ESP-IDF exported paths.
-
-### Changes
-- Updated `infra/runner/entrypoint.sh` to source `/opt/esp/idf/export.sh` before starting runner listener.
-- Updated runner README notes to document default `idf.py` availability.
-
-## 2026-03-13 - Runner scaffold follow-up: serial device permission mapping
-### Context
-HIL smoke run reached flash step but failed with:
-- `Invalid value for --port: Path '/dev/ttyACM0' is not readable.`
-
-### Changes
-- Updated `infra/runner/docker-compose.yml` to add serial group mapping via `group_add`.
-- Added `HIL_SERIAL_GID` to `.env.example`.
-- Updated runner README with host command to capture device gid and troubleshooting note.
-
-### Notes
-- Runner container needs host serial device gid mapped so `runner` user can access `/dev/ttyACM0`.
-
-## 2026-03-13 - HIL smoke follow-up: startup pattern validation hardening
-### Context
-After port/flash access was fixed, HIL run failed at startup-pattern validation due log-format/pattern mismatch.
-
-### Changes
-- Updated default `startup_pattern` in `.github/workflows/hil-smoke.yml` to include structured runtime logs.
-- Added ANSI/control-sequence stripping from monitor output before pattern matching.
-- Added monitor log tail output in validation step for faster diagnosis on future failures.
-
-## 2026-03-13 - Runner scaffold follow-up: persistent registration state (proper fix)
-### Context
-Runner restarts/rebuilds could repeatedly trigger `config.sh --replace` and transient session conflicts because only `_work` was persisted.
-
-### Changes
-- Updated runner architecture to persist full runner home state:
-  - `infra/runner/docker-compose.yml` now mounts `runner-home` to `/home/runner/actions-runner`.
-- Updated `infra/runner/Dockerfile`:
-  - keeps a template runner install at `/opt/actions-runner-template`
-  - runner home is initialized at runtime from template when volume is fresh
-- Updated `infra/runner/entrypoint.sh`:
-  - root pre-phase sets ownership for mounted runner home
-  - runner bootstrap copies template files only when needed
-  - `GH_RUNNER_TOKEN` required only for first registration (when `.runner` is absent)
-- Updated runner README with one-time migration/reset guidance.
-
-### Notes
-- This eliminates routine re-registration churn and reduces startup session conflicts.
-
-## 2026-03-13 - Runner operational note: GitHub session timeout behavior
-### Observation
-- After stopping the runner container, GitHub may continue showing the runner as `Online/Idle` for a short period before transitioning to `Offline`.
-- Restarting the container during this interval can produce temporary:
-  - `A session for this runner already exists`
-
-### Conclusion
-- This is normal GitHub runner session timeout behavior, not a runner implementation defect.
-- Operational guidance: for clean reconnect logs, wait until GitHub marks runner `Offline` before restart.
-
-## 2026-03-13 - CI/CD slice 6 implemented: policy enforcement updates
-### Changes
-- Updated `docs/DELIVERY_WORKFLOW.md` with explicit required cloud check names:
-  - `App Build (ESP-IDF)`
-  - `Unit Test App Build (ESP-IDF)`
-- Added release-time gate policy:
-  - `HIL Smoke` must pass manually on target release commit before creating `v*` tags.
-- Updated `README.md` with CI/release/HIL workflow badges and release policy note.
-
-### Operator actions (GitHub settings)
-- Apply branch protection rules in GitHub UI:
-  - `develop`: require cloud checks + PR reviews
-  - `master`: require cloud checks + PR reviews + no direct push
-- Keep `HIL Smoke` non-required in branch protection until stability is sufficient for required-gate promotion.
-
-## 2026-03-13 - HIL smoke follow-up: serial diagnostics and flash fallback
-### Context
-HIL runs intermittently failed at flash with `/dev/ttyACM0` unreadable, while ad-hoc container checks appeared valid.
-
-### Changes
-- Added explicit serial diagnostics step in `.github/workflows/hil-smoke.yml`:
-  - `whoami`, `id`, `groups`
-  - `ls -l` and `stat` on selected serial device
-  - readability check output
-- Added flash log capture (`hil-logs/flash.log`) for post-failure analysis.
-- Reworked flash fallback to avoid running `idf.py` as root:
-  - if serial device is unreadable, use `sudo` only to repair port permissions (`chmod a+rw`)
-  - then execute `idf.py flash` as the normal runner user.
-- Updated runner image user setup to add `runner` to `dialout` group explicitly.
-
-## 2026-03-13 - HIL smoke follow-up: non-interactive monitor TTY workaround
-### Context
-HIL run reached monitor phase but failed with:
-- `Monitor requires standard input to be attached to TTY.`
-
-### Changes
-- Updated monitor capture in `.github/workflows/hil-smoke.yml` to run through `script` (pty wrapper):
-  - `script -q -c \"idf.py ... monitor\" /dev/null`
-- Kept timeout + cleaned-log pipeline unchanged.
-
-## 2026-03-11 - Critical review branch kickoff
-### Branch
-- `review/findings-hardening-2026-03-11`
-
-### Context
-Requested a full critical review pass before further feature work.
-
-### Changes
-- Added critical findings register and remediation plan:
-  - `docs/reviews/CRITICAL_REVIEW_2026-03-11.md`
-- Captured seven findings across lifecycle, startup ordering, config hardening, and test depth.
-- Defined remediation in four focused slices with explicit closure criteria.
-
-### Notes
-- High-severity lifecycle/startup issues are prioritized ahead of new feature additions.
-
-## 2026-03-11 - Critical review slice 1: non-singleton lifecycle + start modes
-### Context
-Addressed first hardening slice for lifecycle ownership and explicit restart semantics.
-
-### Changes
-- Converted consumer task ownership from file-static singleton to per-context fields on `sm_led_ctx_t`.
-- Added explicit start modes:
-  - `LED_SM_START_FRESH`
-  - `LED_SM_START_RESUME`
-- Updated `led_sm_start(...)` API to accept lifecycle mode and return success/failure.
-- `led_sm_init(...)` now starts using explicit fresh mode.
-- Added targeted lifecycle tests in `test_led_sm_idf.c`:
-  - fresh start resets runtime and emits boot event
-  - resume start preserves runtime and does not emit boot event
-  - start idempotence check on resume path
-
-### Verification
-- Unit-test-app build passes with targets:
-  - `core_sm`, `core_blinky`, `blinky_idf`, `blinky_interfaces`
-
-## 2026-03-11 - Critical review slice 2: startup ordering race hardening
-### Context
-Addressed startup ordering race between boot-pattern LED writes and async consumer output path.
-
-### Changes
-- Reordered fresh-start flow in `led_sm_start(...)`:
-  - run runtime fresh init
-  - run boot pattern
-  - start consumer task
-  - enqueue boot event
-- Removed duplicate runtime reinit in `led_sm_init(...)` so fresh-start owns initialization sequencing.
-
-### Why
-- Prevents consumer-driven LED output from interleaving with synchronous startup pattern writes.
-
-### Verification
-- Unit-test-app build passes with targets:
-  - `core_sm`, `core_blinky`, `blinky_idf`, `blinky_interfaces`
-- On-device Unity run checkpoint:
-  - `82 Tests 0 Failures 0 Ignored`
-
-## 2026-03-11 - Critical review slice 3a: platform timing normalization
-### Context
-Addressed config normalization risk for platform-owned timing values.
-
-### Changes
-- Added mapper-side normalization in `idf_build_platform_config(...)`:
-  - `BLINKY_PRODUCER_POLL_MS` -> minimum `1 ms`
-  - `BLINKY_BOOT_PATTERN_MS` -> minimum `1 ms`
-- Added Kconfig UI guardrails:
-  - `BLINKY_PRODUCER_POLL_MS` range: `1..1000`
-  - `BLINKY_BOOT_PATTERN_MS` range: `1..2000`
-- Added targeted mapper clamp tests:
-  - `components/blinky_idf/test/test_led_config_idf.c`
-  - validates min clamp, max clamp, and in-range pass-through behavior
-
-### Why
-- Keeps normalization at boundary (not call-sites), consistent with ownership rules.
-- Prevents zero/invalid delays from causing tight-loop behavior or collapsed boot timing.
-
-## 2026-03-11 - Critical review slice 4 decision: null-contract policy
-### Context
-CR-006 identified inconsistent null-safety behavior across module surfaces and mixed strict/defensive handling in some core APIs.
-
-### Decision
-- This is an architectural decision at module-boundary level, not a local style preference.
-- `core_*` APIs will use strict/fail-fast contracts for required pointers and invariants.
-- `blinky_interfaces` and `blinky_idf` APIs will remain defensive and return status on invalid arguments/state.
-- Optional pointers must be documented explicitly in headers.
-- Lifecycle APIs should validate state transitions, not only pointer presence.
-
-### Next implementation targets
-- Normalize `led_runtime_*` contract behavior to remove mixed partial null handling.
-- Add/update header contract notes (`required` vs `optional`) on affected APIs.
-- Add targeted tests for CR-007 lifecycle and log-adapter depth items.
-
-## 2026-03-11 - Critical review slice 4 implementation: contract alignment + test hardening
-### Summary
-- Implemented the slice 4 policy decision and closed CR-006/CR-007 implementation scope.
-
-### Changes
-- Core contract alignment:
-  - enforced strict required-pointer assertions in core runtime/model/policy/menu/button/consumer APIs
-  - removed mixed partial-null handling patterns in core APIs
-  - documented required vs optional pointer contracts in core headers
-- Async lifecycle test hardening (`test_led_sm_idf.c`):
-  - added start failure path test by forcing consumer task create to return null
-  - added post-stop enqueue behavior test (no dispatch until resumed + notified)
-- Log adapter test hardening (`test_blinky_log_adapter_idf.c`):
-  - added min-level filtering test
-  - added structured formatting test for domain/event/message + typed key-values
-  - added log-write test seam to capture emitted line/tag/level in unit tests
-
-### Verification
-- Unit-test-app build passes with targets:
-  - `core_blinky`, `blinky_idf`, `blinky_interfaces`
-- command used:
-  - `idf.py -C $IDF_PATH/tools/unit-test-app -B $PWD/build/unit-test-app -D EXTRA_COMPONENT_DIRS=$PWD/components -D SDKCONFIG=$PWD/build/unit-test-app/sdkconfig -D "SDKCONFIG_DEFAULTS=$IDF_PATH/tools/unit-test-app/sdkconfig.defaults;$PWD/test/unit-test-app.sdkconfig.defaults" -D CCACHE_ENABLE=1 -T core_blinky -T blinky_idf -T blinky_interfaces build`
-
-### Commit
-- `643f9bf`
+- For active feature lines, prefer a checklist slice summary with:
+  - status checkbox
+  - `Goal`
+  - `Includes`
+  - `Commit(s)`
+  - `Sub-slices` when the parent slice spans multiple focused implementation steps
 
 ## 2026-03-09 - Repository structure and testing flow
 ### Context
@@ -1005,40 +226,8 @@ wake ownership, and button timing policy ownership.
 ### Notes
 - This branch is now merge-ready for the extraction scope.
 
-## Deferred TODOs
-- CI/CD rollout with hardware constraints (High Priority):
-  - implement cloud GitHub Actions for hardware-independent checks (build, unit-test-app build, lint/format when configured)
-  - add self-hosted GitHub Actions runner on devkit host for HIL flash/smoke validation
-  - expand `.github/workflows/hil-smoke.yml` beyond startup smoke:
-    - run `tools/hil/cli_smoke.py`
-    - capture automated Unity execution/report output on hardware
-    - upload richer CLI/Unity artifacts on failure
-  - promote HIL to required gate for `develop` -> `master` before release tagging
-  - reference policy and acceptance criteria in `docs/DELIVERY_WORKFLOW.md`
-- Dev-ability/reproducibility hardening:
-  - move or mirror minimum required devcontainer/docker source into this repo
-  - ensure a new contributor can build/test without external scaffold dependencies
-  - document optional SSH agent forwarding separately from required build steps
-- Bootstrap layering split:
-  - separate environment/bootstrap config concerns from runtime orchestration
-  - revisit `sdkconfig` defaults vs runtime provisioning for future network features
-- Dedicated test-hardening branch:
-  - strengthen async timing/overflow assertions without expanding refactor branch scope
-  - split build/link validation vs on-target assertion validation in workflow/docs
-  - require at least one on-device Unity run (`flash monitor` + `*`) before branch merge
-  - add explicit assert-contract validation for strict core APIs:
-    - verify `led_policy_step(NULL, ...)` triggers assert-fail path
-    - keep positive-path coverage proving no assert for valid non-null contexts
-- Runtime context ownership follow-up:
-  - readdress temporary `app_main` static `sm_led_ctx_t` workaround added to avoid main-task stack overflow
-  - align final approach with documented non-singleton lifecycle ownership decision from critical review slice 1
-- Fault/shutdown semantics (deferred):
-  - define core-owned handling contract before adding platform producers
-- Pause behavior policy decision (deferred):
-  - decide whether `PAUSED` should freeze LED at current brightness or force LED off
-  - document rationale and align tests with final behavior
-- Pause output behavior enhancement:
-  - implement the chosen `PAUSED` output policy in `led_sm` / LED-domain behavior once the decision is locked
+## Deferred Items
+Open deferred work is tracked in `docs/deferred_items_log.md`.
   - keep this separate from startup mode preference and persistence work
 - Legacy orchestrator naming cleanup:
   - evaluate renaming `led_sm_idf.*` to `blinky_sm_idf.*` (or `app_sm_idf.*`) to match current architecture boundaries
@@ -1177,6 +366,185 @@ Started a dedicated branch to address the remaining config/default ownership amb
 - Route core runtime logs through contract sink instead of direct `printf`.
 - Keep `_idf` as the concrete sink owner (stdout/ESP log backend decision stays platform-owned).
 
+## 2026-03-10 - Config ownership slice: mapper boundary introduced
+### Changes
+- Added explicit `_idf` mapper functions:
+  - `idf_build_platform_config(...)`
+  - `idf_build_core_config(...)`
+- Added mapper-backed config contracts in `components/blinky_idf/led_config_idf.*`.
+- Routed `led_sm_init(...)` and producer delay path through mapped config values with no behavior change.
+
+### Why
+- Keeps `sdkconfig` as source-of-truth in `_idf` while making ownership boundaries explicit.
+- Establishes the handoff point where core-owned semantics can be fed by framework-sourced values.
+
+## 2026-03-10 - Config ownership slice: button timing remapped to core config
+### Changes
+- Updated mapper contracts so button timing is no longer carried in platform config.
+- `idf_build_core_config(...)` now owns normalized `button_timing` construction.
+- `led_sm_init(...)` now composes `button_input_adapter_idf_config_t` from:
+  - platform wiring (`gpio`, pull mode, active level)
+  - core timing policy (`debounce_count`, `long_press_ms`)
+
+### Why
+- Keeps button semantic timing under core-owned policy while `_idf` remains the source adapter for `sdkconfig` values.
+
+## 2026-03-10 - Config ownership slice: core config contract moved to core_blinky
+### Changes
+- Introduced core-owned config contract header:
+  - `components/core_blinky/led_core_config.h`
+- Updated `_idf` mapper to populate that core-defined contract instead of defining core config types in `_idf`.
+
+### Why
+- Clarifies ownership: `_idf` maps framework values, while core defines semantic config contracts.
+
+## 2026-03-10 - Config ownership slice: startup wave selection tokenized
+### Changes
+- Reworked startup policy input from direct wave enum to a core-owned startup selector token.
+- `_idf` now maps Kconfig start-wave choice to selector token values (not `led_wave_t` values).
+- Core startup policy maps selector token to concrete `led_wave_t`.
+
+### Why
+- Reduces framework knowledge of domain waveform enumeration details.
+- Keeps startup behavior semantics owned by core policy.
+
+## 2026-03-10 - Config ownership slice: startup Kconfig decoupled from waveform names
+### Changes
+- Replaced wave-specific Kconfig choice (`BLINKY_START_WAVE_*`) with generic token:
+  - `BLINKY_STARTUP_SELECTOR` (0..5)
+- Updated `_idf` mapper to pass selector token directly to core startup policy input.
+
+### Why
+- Removes waveform-name coupling from Kconfig/framework configuration surface.
+- Keeps framework as a value source, with startup interpretation remaining core-owned.
+
+## 2026-03-10 - Config ownership slice: startup selection removed from Kconfig
+### Changes
+- Removed startup selection symbols from `components/blinky_idf/Kconfig`.
+- Updated `_idf` mapper to inject `LED_STARTUP_SELECT_DEFAULT` only.
+- Startup waveform choice is now purely core policy (default + future runtime source), not framework config.
+
+### Why
+- Fully removes startup-wave semantic configuration from framework/Kconfig.
+- Keeps startup behavior ownership in core, with `_idf` only passing inputs and wiring outputs.
+## 2026-03-11 - Critical review branch kickoff
+### Branch
+- `review/findings-hardening-2026-03-11`
+
+### Context
+Requested a full critical review pass before further feature work.
+
+### Changes
+- Added critical findings register and remediation plan:
+  - `docs/reviews/CRITICAL_REVIEW_2026-03-11.md`
+- Captured seven findings across lifecycle, startup ordering, config hardening, and test depth.
+- Defined remediation in four focused slices with explicit closure criteria.
+
+### Notes
+- High-severity lifecycle/startup issues are prioritized ahead of new feature additions.
+
+## 2026-03-11 - Critical review slice 1: non-singleton lifecycle + start modes
+### Context
+Addressed first hardening slice for lifecycle ownership and explicit restart semantics.
+
+### Changes
+- Converted consumer task ownership from file-static singleton to per-context fields on `sm_led_ctx_t`.
+- Added explicit start modes:
+  - `LED_SM_START_FRESH`
+  - `LED_SM_START_RESUME`
+- Updated `led_sm_start(...)` API to accept lifecycle mode and return success/failure.
+- `led_sm_init(...)` now starts using explicit fresh mode.
+- Added targeted lifecycle tests in `test_led_sm_idf.c`:
+  - fresh start resets runtime and emits boot event
+  - resume start preserves runtime and does not emit boot event
+  - start idempotence check on resume path
+
+### Verification
+- Unit-test-app build passes with targets:
+  - `core_sm`, `core_blinky`, `blinky_idf`, `blinky_interfaces`
+
+## 2026-03-11 - Critical review slice 2: startup ordering race hardening
+### Context
+Addressed startup ordering race between boot-pattern LED writes and async consumer output path.
+
+### Changes
+- Reordered fresh-start flow in `led_sm_start(...)`:
+  - run runtime fresh init
+  - run boot pattern
+  - start consumer task
+  - enqueue boot event
+- Removed duplicate runtime reinit in `led_sm_init(...)` so fresh-start owns initialization sequencing.
+
+### Why
+- Prevents consumer-driven LED output from interleaving with synchronous startup pattern writes.
+
+### Verification
+- Unit-test-app build passes with targets:
+  - `core_sm`, `core_blinky`, `blinky_idf`, `blinky_interfaces`
+- On-device Unity run checkpoint:
+  - `82 Tests 0 Failures 0 Ignored`
+
+## 2026-03-11 - Critical review slice 3a: platform timing normalization
+### Context
+Addressed config normalization risk for platform-owned timing values.
+
+### Changes
+- Added mapper-side normalization in `idf_build_platform_config(...)`:
+  - `BLINKY_PRODUCER_POLL_MS` -> minimum `1 ms`
+  - `BLINKY_BOOT_PATTERN_MS` -> minimum `1 ms`
+- Added Kconfig UI guardrails:
+  - `BLINKY_PRODUCER_POLL_MS` range: `1..1000`
+  - `BLINKY_BOOT_PATTERN_MS` range: `1..2000`
+- Added targeted mapper clamp tests:
+  - `components/blinky_idf/test/test_led_config_idf.c`
+  - validates min clamp, max clamp, and in-range pass-through behavior
+
+### Why
+- Keeps normalization at boundary (not call-sites), consistent with ownership rules.
+- Prevents zero/invalid delays from causing tight-loop behavior or collapsed boot timing.
+
+## 2026-03-11 - Critical review slice 4 decision: null-contract policy
+### Context
+CR-006 identified inconsistent null-safety behavior across module surfaces and mixed strict/defensive handling in some core APIs.
+
+### Decision
+- This is an architectural decision at module-boundary level, not a local style preference.
+- `core_*` APIs will use strict/fail-fast contracts for required pointers and invariants.
+- `blinky_interfaces` and `blinky_idf` APIs will remain defensive and return status on invalid arguments/state.
+- Optional pointers must be documented explicitly in headers.
+- Lifecycle APIs should validate state transitions, not only pointer presence.
+
+### Next implementation targets
+- Normalize `led_runtime_*` contract behavior to remove mixed partial null handling.
+- Add/update header contract notes (`required` vs `optional`) on affected APIs.
+- Add targeted tests for CR-007 lifecycle and log-adapter depth items.
+
+## 2026-03-11 - Critical review slice 4 implementation: contract alignment + test hardening
+### Summary
+- Implemented the slice 4 policy decision and closed CR-006/CR-007 implementation scope.
+
+### Changes
+- Core contract alignment:
+  - enforced strict required-pointer assertions in core runtime/model/policy/menu/button/consumer APIs
+  - removed mixed partial-null handling patterns in core APIs
+  - documented required vs optional pointer contracts in core headers
+- Async lifecycle test hardening (`test_led_sm_idf.c`):
+  - added start failure path test by forcing consumer task create to return null
+  - added post-stop enqueue behavior test (no dispatch until resumed + notified)
+- Log adapter test hardening (`test_blinky_log_adapter_idf.c`):
+  - added min-level filtering test
+  - added structured formatting test for domain/event/message + typed key-values
+  - added log-write test seam to capture emitted line/tag/level in unit tests
+
+### Verification
+- Unit-test-app build passes with targets:
+  - `core_blinky`, `blinky_idf`, `blinky_interfaces`
+- command used:
+  - `idf.py -C $IDF_PATH/tools/unit-test-app -B $PWD/build/unit-test-app -D EXTRA_COMPONENT_DIRS=$PWD/components -D SDKCONFIG=$PWD/build/unit-test-app/sdkconfig -D "SDKCONFIG_DEFAULTS=$IDF_PATH/tools/unit-test-app/sdkconfig.defaults;$PWD/test/unit-test-app.sdkconfig.defaults" -D CCACHE_ENABLE=1 -T core_blinky -T blinky_idf -T blinky_interfaces build`
+
+### Commit
+- `643f9bf`
+
 ## 2026-03-11 - Logging boundary slice 2: portable contract added
 ### Summary
 - Added a portable structured logging contract in `blinky_interfaces`:
@@ -1268,17 +636,657 @@ Started a dedicated branch to address the remaining config/default ownership amb
 - App build passes.
 - Unit-test-app build passes.
 
-## 2026-03-10 - Config ownership slice: mapper boundary introduced
+## 2026-03-12 - CI/CD implementation plan (sliced)
+### Context
+Delivery policy has been expanded in `docs/DELIVERY_WORKFLOW.md`. Next step is implementation with low-risk slices so we get fast feedback without blocking on HIL infrastructure.
+
+### Scope guardrails
+- Keep first rollout cloud-only for hardware-independent checks.
+- Treat HIL as a staged/manual gate until self-hosted runner is stable.
+- Keep each slice shippable and reviewable in a single focused PR when possible.
+
+### Implementation slices
+1. Slice 1 - Workflow scaffolding
+   - Add `.github/workflows/ci.yml` with trigger skeleton only.
+   - Add `.github/workflows/release.yml` with tag trigger skeleton only.
+   - Add `.github/workflows/hil-smoke.yml` as `workflow_dispatch` + `self-hosted` stub.
+   - Acceptance: workflows parse and appear in GitHub Actions without running risky jobs.
+
+2. Slice 2 - Cloud app build gate
+   - Implement ESP-IDF setup on `ubuntu-latest`.
+   - Add `idf.py set-target esp32c6` and `idf.py -D CCACHE_ENABLE=1 build`.
+   - Wire to `pull_request` and `push` on `develop`/`master`.
+   - Acceptance: PRs show a required app build check.
+
+3. Slice 3 - Unit-test-app build gate
+   - Add unit-test-app build command with current component targets:
+     - `core_sm`, `core_blinky`, `blinky_idf`, `blinky_interfaces`
+   - Keep this as compile/integration validation (no on-device execution in cloud).
+   - Acceptance: PRs show separate required test-build check.
+
+4. Slice 4 - Release automation
+   - On tag push `v*`, build release artifacts and publish GitHub Release.
+   - Attach binaries/checksums and generated release notes.
+   - Mark `-rc` tags as pre-release.
+   - Acceptance: creating `vX.Y.Z` or `vX.Y.Z-rc.N` produces correct release output.
+
+5. Slice 5 - HIL manual smoke path
+   - Implement self-hosted flash + serial startup smoke script.
+   - Upload serial logs on failure.
+   - Keep trigger manual (`workflow_dispatch`) and non-required.
+   - Acceptance: one successful end-to-end manual HIL run is recorded.
+
+6. Slice 6 - Branch protections and policy enforcement
+   - Make cloud checks required on `develop` and `master`.
+   - Keep HIL optional until flake rate is acceptable.
+   - Add README badges/links to workflow status and policy doc.
+   - Acceptance: merge blocked when required checks fail.
+
+### Out of scope for initial rollout
+- Full scripted interaction testing of menu/button behavior in cloud.
+- Mandatory HIL gate before runner reliability is proven.
+- Packaging/deploy integration beyond GitHub Releases.
+
+## 2026-03-12 - CI/CD slice 1 implemented: workflow scaffolding
 ### Changes
-- Added explicit `_idf` mapper functions:
-  - `idf_build_platform_config(...)`
-  - `idf_build_core_config(...)`
-- Added mapper-backed config contracts in `components/blinky_idf/led_config_idf.*`.
-- Routed `led_sm_init(...)` and producer delay path through mapped config values with no behavior change.
+- Added workflow scaffold files:
+  - `.github/workflows/ci.yml`
+  - `.github/workflows/release.yml`
+  - `.github/workflows/hil-smoke.yml`
+- Added safe placeholder jobs only (no ESP-IDF setup, no flash, no artifact publishing yet).
+- Configured triggers:
+  - `ci.yml`: `pull_request` + `push` on `develop` and `master`
+  - `release.yml`: `push` on tags matching `v*`
+  - `hil-smoke.yml`: `workflow_dispatch` only
+
+### Notes
+- HIL workflow is intentionally disabled (`if: false`) while self-hosted runner infrastructure is being prepared.
+- Next slice is cloud app build gate (`idf.py set-target esp32c6` + `idf.py build`).
+
+## 2026-03-12 - CI/CD slice 2 implemented: cloud app build gate
+### Changes
+- Updated `.github/workflows/ci.yml` to replace placeholder scaffold job with an app build job.
+- Added checkout step (`actions/checkout@v4`) with submodules enabled.
+- Added ESP-IDF build step via `espressif/esp-idf-ci-action@v1`:
+  - `idf.py set-target esp32c6`
+  - `idf.py -D CCACHE_ENABLE=1 build`
+
+### Notes
+- Trigger scope remains:
+  - `pull_request` on `develop`, `master`
+  - `push` on `develop`, `master`
+- Slice 3 will add a separate unit-test-app build gate.
+
+## 2026-03-12 - CI/CD slice 2 follow-up: first-run failure remediation
+### Context
+First GitHub Actions run failed in `blinky_idf` on missing `driver/gpio.h` dependency resolution under newer ESP-IDF layout.
+
+### Changes
+- Updated CI workflow hardening:
+  - `actions/checkout@v5`
+  - pinned ESP-IDF version in CI action (`v5.5.2`) to match local development baseline and avoid unplanned `-dev` toolchain drift.
+- Reverted attempted `esp_driver_gpio` requirement after validation showed it is unavailable in pinned IDF line used by CI gate.
+
+### Notes
+- Kept `driver` requirement for Slice 2 compatibility under pinned CI toolchain.
+- IDF 6 component migration can be handled later as a dedicated compatibility slice.
+
+## 2026-03-13 - CLI naming alignment pass
+### Context
+As CLI control-plane scaffolding was added, naming drift appeared between older `led_*` mapping/factory terms and app-layer event plumbing.
+
+### Changes
+- Renamed `led_event_factory.*` -> `app_event_factory.*`.
+- Renamed `led_cli_command_map.*` -> `app_cli_command_map.*`.
+- Updated references and tests to use new app-layer naming consistently.
+
+### Notes
+- `blinky_cli_command_t` remains intentionally domain-scoped (`blinky_`), while mapping/factory modules stay app-plumbing scoped (`app_`).
+
+### Commit(s)
+- `e106714`, `8b90e69`, `ec2a923`
+
+## 2026-03-13 - CLI control-plane kickoff (planned v0.2.0)
+### Context
+Next feature direction is a user-facing CLI that mirrors button-driven behavior and provides a reusable control surface for future transport/provisioning paths (for example BT mesh/Wi-Fi) and platform portability (ESP32 + nRF52).
+
+### Version intent
+- Target release for this feature line: `v0.2.0` (new observable feature surface).
+
+### Scope guardrails
+- Keep architecture split aligned with existing boundaries:
+  - core: parsing-independent command model + behavior mapping contracts
+  - platform (`_idf`): console/UART transport and adapter wiring
+- CLI v1 should first mirror existing button/menu behavior before adding broader config commands.
+- NVS-backed settings are planned as follow-on within CLI feature track (not required for first command loop).
+- Future control surfaces are likely to extend beyond local serial CLI:
+  - possible wireless provisioning path
+  - possible MQTT control path
+  - possible mesh-oriented command/control path
+- Slice 4 planning must account for that expansion so CLI/config work does not overfit a UART-only or "virtual button only" model.
+
+### Slice summary
+- [x] Slice 1: CLI contracts and event-mapping foundation
+  - Goal: define the portable command contract and map CLI intent into the app event path without tying the surface to ESP-IDF transport details.
+  - Includes: `blinky_interfaces` command contract, core command mapping, CLI event-factory path, and the naming alignment from legacy `led_*` app-plumbing names to `app_*`.
+  - Commit(s): `feaa3c6`, `e106714`, `8b90e69`
+- [x] Slice 2: IDF CLI adapter
+  - Goal: add the first concrete ESP-IDF transport adapter so CLI text input can enter the existing app event flow.
+  - Includes: UART0 line-reader adapter wiring in `_idf`, non-blocking reads, parser bridge hookup, and Kconfig controls for CLI enablement and RX buffer sizing.
+  - Commit(s): `28e5cfb`
+- [x] Slice 3: CLI command-set parity and console bring-up
+  - Goal: reach useful v1 parity with button/menu behavior and make the console path reliable enough for repeatable on-device smoke validation.
+  - Includes: parser extraction into `core_blinky`, command vocabulary for `run`/`pause`/menu/status/help, smoke helper tooling, USB Serial/JTAG console support, input echo/edit behavior, and runtime-state gating correction for explicit menu commands.
+  - Commit(s): `64cb69e`, `5fd5ee1`, `17e4e19`, `6809c24`, `2ad0ba6`, `59aaca2`, `60ba9e9`, `b9ec755`, `9e36dc8`
+- [x] Slice 4: CLI/persistence foundation
+  - Goal: define a transport-friendly split between runtime-control commands and persistence/config concerns, then scaffold the first persistence path behind explicit storage contracts.
+  - Includes: command-intent routing decision, app settings contract, `_idf` NVS-backed store scaffold, and the first migrated persisted settings for startup and logging preferences.
+  - Commit(s): `9a3437d`, `59d5a94`, `845a020`, `97ce003`, `8f1fc19`, `b85d5e6`
+  - Sub-slices:
+    - [x] Slice 4a: command-intent path decision and LED-domain routing cleanup
+      - Notes: CLI now routes explicit blinky command intent and the LED domain owns current-state acceptance/ignore behavior instead of forcing CLI to masquerade as raw button input.
+      - Commit(s): `9a3437d`, `59d5a94`, `845a020`
+    - [x] Slice 4b: persistence contract scaffold
+      - Notes: introduced `app_settings_t` plus the storage boundary contract (`load` / `save` / `reset`) with scaffold-first payload/default/validation coverage.
+      - Commit(s): `97ce003`
+    - [x] Slice 4c: `_idf` settings store scaffold and first migrated settings
+      - Notes: added NVS-backed store plumbing in `_idf`, dedicated app-owned partition usage, and first-pass persisted settings for `boot_pattern`, `log_intensity`, `log_level`, and `startup_wave`.
+      - Commit(s): `8f1fc19`, `b85d5e6`
+    - [x] Slice 4d: CLI config commands
+      - Goal: expose a minimal config command surface for persisted startup/logging preferences without forcing config operations through the LED runtime command lane.
+      - Planned items:
+        - define the config-command contract and parser path separate from blinky runtime commands
+          - [x] top-level help surface:
+            - `help`
+            - `help config`
+          - [x] config read commands:
+            - `config show`
+            - `config show startup`
+            - `config show logging`
+          - [x] config write commands:
+            - `config startup wave <square|saw_up|saw_down|triangle|sine>`
+            - `config boot-pattern <on|off>`
+            - `config log intensity <on|off>`
+            - `config log level <error|warn|info|debug>`
+          - [x] persistence/lifecycle commands:
+            - `config save`
+            - `config reset`
+        - completed: implement the top-level help/config-help surface so the new config command family is discoverable from the existing CLI entrypoint
+        - completed: implement the read path for the contracted `config show` commands, including focused `startup` and `logging` views if that stays proportionate
+        - completed: implement the first write path for the contracted startup/logging setters, keeping the initial landed surface intentionally small if needed
+        - completed: implement `config save` against the settings-store-backed persistence path
+        - completed: implement `config reset` so persisted settings return to default-backed values cleanly
+        - completed: add unit coverage for config parse behavior, command handling/dispatch, and targeted persistence-path validation
+      - Notes: keep startup mode out of this slice until it has a concrete modeled representation; do not introduce a generic key/value grammar or broad hardware/timing/perf config surface here.
+      - Validation follow-through landed in Slice 4e without requiring an artificial extra commit boundary.
+      - Commit(s): `TBD`
+    - [x] Slice 4e: persistence validation and HIL follow-through
+      - Notes: completed merge/default-rule coverage, adapter validation, and on-device config-command validation for read/write/save/reset behavior with observed NVS writes.
+      - Validation:
+        - targeted unit-test-app run: `127 / 0 / 0`
+        - on-device app validation: `help`, `help config`, `config show`, `config show startup`, `config show logging`, setter commands, `config save`, and `config reset` behaved as expected
+      - Commit(s): `TBD`
+- [ ] Slice 5: docs and release prep for `v0.2.0`
+  - Goal: close the loop on user-facing docs and release framing once config-command scope is stable.
+  - Includes: README/devlog/architecture alignment for the CLI+persistence surface and release-prep cleanup.
+
+### Slice 4A draft decision memo
+#### Problem statement
+Persistence/config commands are not a clean fit for the current "CLI as named button/control adapter" path. Runtime-control commands such as `run`, `pause`, `menu enter`, `menu next`, and `menu exit` map reasonably onto existing runtime semantics, but commands such as `config save`, `config reset`, provisioning actions, or future network-driven control do not.
+
+#### Options considered
+1. Keep all CLI intents flowing through the existing runtime/button-style event path.
+   - Pros: minimal new plumbing
+   - Cons: overfits semantic/config intents onto runtime events; likely to get awkward for save/reset/provisioning
+2. Keep one physical CLI adapter, but split command handling into two intent paths.
+   - runtime-control commands -> existing app/runtime event path
+   - config/operational commands -> app-shell / `_idf` command path with storage boundary
+   - Pros: preserves current runtime behavior model while creating room for persistence and future transports
+   - Cons: introduces a second command-handling lane that must be documented clearly
+3. Add a dedicated CLI state machine now.
+   - Pros: maximal flexibility for future multi-step command workflows
+   - Cons: likely premature for current scope; adds complexity before command/config boundary decisions are settled
+
+#### Current recommendation
+- Choose Option 2, but refine it further:
+  - CLI/router should classify command domain, not own LED behavior mapping
+  - `led_sm` should remain the owner of blinky runtime behavior/state transitions
+  - runtime-control commands should be forwarded to the LED domain as explicit blinky commands, not as disguised button events
+  - persistence/config/provisioning intents should not be forced through the same button-style event model
+  - persistence/storage orchestration should live in app-shell / `_idf` boundaries, with core defining contracts where semantics belong in core
+
+#### Why this recommendation fits future work
+- Leaves room for serial CLI today without baking in UART-only assumptions.
+- Scales better if provisioning is later exposed through CLI, wireless setup flows, MQTT, or mesh control.
+- Avoids teaching the runtime state machine about storage and operational concerns that are not inherently waveform/menu behavior.
+
+#### Refined command-intent path for Slice 4A
+- Keep LED runtime states small and behavioral:
+  - `running`
+  - `paused`
+  - `menu`
+- Do not expand LED states into command names such as `run`, `pause`, `menu enter`, `menu next`, or `menu exit`.
+- Introduce explicit blinky command intent separate from button input semantics:
+  - `RUN`
+  - `PAUSE`
+  - `MENU_ENTER`
+  - `MENU_NEXT`
+  - `MENU_EXIT`
+- Let the LED domain interpret those commands against current runtime state and decide whether they are:
+  - applied
+  - ignored
+  - invalid
+- Treat button input and CLI as separate producers of LED-domain intent rather than forcing CLI to masquerade as raw button input.
+
+#### Separation-of-concerns rule
+- CLI/router decides only:
+  - which domain a command belongs to (`blinky`, `config`, `diagnostic`, future provisioning/network)
+  - whether the command should be routed to a domain owner
+- LED domain decides:
+  - what a blinky command means in the current LED/menu state
+  - whether that command is appropriate right now
+  - what internal transition/action should result
+- Non-blinky commands should route to non-LED owners and should not require `led_sm` awareness.
+
+#### Planned output of Slice 4A
+- An explicit architecture note describing the command-intent split:
+  - domain routing in CLI/app shell
+  - LED-domain command interpretation in `led_sm` or adjacent LED-domain controller
+- A persistence/config contract candidate for Slice 4B.
+- A small initial config-command surface proposal for Slice 4D.
+
+#### Slice 4A implementation checklist
+
+| Status | Item |
+|---|---|
+| Done | Refactor current CLI flow without adding any new commands. |
+| Done | Preserve the existing user-visible command set: `help`, `status`, `run`, `pause`, `menu enter`, `menu next`, `menu exit`. |
+| Done | Introduce an explicit blinky command intent contract separate from button/raw blinky events. |
+| Done | Update CLI/app-shell routing so CLI identifies blinky-domain commands without mapping them directly to button events. |
+| Done | Update LED-domain handling so blinky commands are interpreted by the LED domain against current runtime state (`running`, `paused`, `menu`). |
+| Done | Keep button input as a separate producer path; do not force CLI to masquerade as raw button input. |
+| Done | Update parser/command tests to reflect command-intent routing rather than direct CLI-to-button mapping assumptions. |
+| Done | Add LED-domain command interpretation tests for current-state handling. |
+| Done | Preserve negative-path coverage for invalid command/state combinations. |
+| Done | Re-run app build and unit-test-app build after the refactor. |
+| Done | Re-run on-device CLI smoke validation after the refactor. |
+
+#### Persistence/config inventory candidate for Slice 4B
+Notes:
+- Distinguish live runtime state from persisted user preference.
+- A possible persisted setting is instead startup behavior preference, for example:
+  - start in `running`
+  - start in `paused`
+- Likewise, "pause behavior" is a separate policy question:
+  - whether paused forces LED off
+  - or freezes current brightness
+  - that should not be conflated with startup mode or current runtime state
+
+| Item / symbol | Current source | Current owner/boundary | Persistence candidacy | Notes |
+|---|---|---|---|---|
+| `BLINKY_LED_GPIO` | Kconfig / `sdkconfig` | `_idf` platform wiring | stay in `Kconfig` | Board/hardware wiring |
+| `BLINKY_BTN_GPIO` | Kconfig / `sdkconfig` | `_idf` platform wiring | stay in `Kconfig` | Board/hardware wiring |
+| `BLINKY_BTN_ACTIVE_LOW` | Kconfig / `sdkconfig` | `_idf` electrical interface | stay in `Kconfig` | Hardware/electrical behavior |
+| `BLINKY_BTN_PULL_*` | Kconfig / `sdkconfig` | `_idf` electrical interface | stay in `Kconfig` | Hardware/electrical behavior |
+| `BLINKY_PWM_FREQ_HZ` | Kconfig / `sdkconfig` | `_idf` LEDC/platform setup | stay in `Kconfig` | Peripheral setup |
+| `BLINKY_PRODUCER_POLL_MS` | Kconfig / `sdkconfig` | `_idf` scheduler cadence | stay in `Kconfig` | Platform/task timing |
+| `BLINKY_CLI_ENABLE` | Kconfig / `sdkconfig` | `_idf` transport wiring | stay in `Kconfig` | Build/deployment choice |
+| `BLINKY_CLI_UART_RX_BUF_SIZE` | Kconfig / `sdkconfig` | `_idf` transport wiring | stay in `Kconfig` | Build/runtime buffer sizing, not user-facing |
+| `BLINKY_BOOT_PATTERN` | Kconfig / `sdkconfig` | `_idf` platform/UI behavior | first-pass NVS candidate | User-facing startup preference |
+| `BLINKY_BOOT_PATTERN_MS` | Kconfig / `sdkconfig` | `_idf` platform/UI behavior | maybe NVS later | Likely keep build-time initially |
+| `BLINKY_LOG_INTENSITY` | Kconfig / `sdkconfig` | `_idf` logging policy | first-pass NVS candidate | Operational preference |
+| `BLINKY_LOG_MIN_LEVEL_*` | Kconfig / `sdkconfig` | `_idf` logging policy | first-pass NVS candidate | Operational preference |
+| `BLINKY_WAVE_PERIOD_MS` | Kconfig -> core config | `core_blinky` model policy | maybe NVS | User-facing if waveform tuning becomes a feature |
+| `BLINKY_MODEL_POLL_MS` | Kconfig -> core config | `core_blinky` model cadence | maybe NVS later | More advanced tuning knob; not first-pass |
+| `BLINKY_SINE_STEPS_MAX` | Kconfig -> core config | `core_blinky` quality/perf policy | maybe NVS later | Advanced tuning; probably not first-pass |
+| `BLINKY_SAW_STEP_PCT` | Kconfig -> core config | `core_blinky` waveform shape policy | maybe NVS later | Advanced tuning; probably not first-pass |
+| `BLINKY_DEBOUNCE_COUNT` | Kconfig -> core config | `core_blinky` button timing policy | stay in `Kconfig` | Not a user-facing operational preference |
+| `BLINKY_LONG_PRESS_MS` | Kconfig -> core config | `core_blinky` button timing policy | stay in `Kconfig` | Not a user-facing operational preference |
+| Startup wave preference | Core default today | `core_blinky` startup policy | first-pass NVS candidate | Strong user-facing preference |
+| Startup mode preference (`running` vs `paused`) | Not yet modeled | LED-domain startup policy | first-pass NVS candidate | Separate from live runtime state |
+| Pause output behavior (`LED off` vs `freeze brightness`) | Deferred policy decision | LED-domain pause policy | decide before NVS | Policy choice, not current-state persistence |
+
+#### Provisional first-pass NVS surface
+- `startup wave preference`
+- `startup mode preference` (`running` vs `paused`)
+- `boot pattern`
+- `log intensity`
+- `log min level`
+
+#### Slice 4B scaffold decision
+Before moving any real config items into persistence, scaffold the boundary with simple test data:
+- core owns the persisted payload shape and default/validation rules
+- interfaces own the storage contract (`load` / `save` / `reset`)
+- `_idf` will later own the NVS-backed implementation
+
+Initial `_idf` NVS backing direction:
+- dedicated app-owned partition
+- one namespace
+- unencrypted for now
+- simple typed keys
+- add more partitions later only when reset/security/lifecycle needs diverge
+
+Initial placeholder payload:
+- `schema_version`
+- `boot_pattern_enabled`
+- `test_counter`
+- `test_mode_enabled`
+
+Why this comes first:
+- validates the persistence architecture without coupling early mistakes to real user-facing config
+- keeps Slice 4B focused on storage correctness before policy migration
+- gives us a schema/version foothold for future migration handling
+
+#### Slice 4B first migrated setting
+- `boot_pattern_enabled`, `log_intensity_enabled`, `log_min_level`, and `startup_selector` are the first real settings moved onto the app settings boundary.
+- Effective defaults still come from the existing `_idf` config path plus current core startup default (`BLINKY_BOOT_PATTERN`, `BLINKY_LOG_INTENSITY`, `BLINKY_LOG_MIN_LEVEL_*`, and `led_core_config.startup.selector`).
+- If no persisted settings exist yet, startup seeds the settings store from that current default layer.
+- If persisted settings exist, startup applies the stored settings overrides before the boot pattern is shown and before runtime logging behavior begins.
+- `BLINKY_BOOT_PATTERN_MS` remains Kconfig-backed for now.
+- startup wave now persists through `startup_wave`
+- startup mode is still deferred until it has a concrete modeled representation
+
+#### Slice 4B migrated key set
+- `schema_ver`
+- `boot_pattern`
+- `log_intensity`
+- `log_level`
+- `startup_wave`
+- `test_count`
+- `test_mode`
+
+#### Slice 4B schema note
+- Added [docs/PERSISTENCE_SCHEMA.md](/workspaces/blinky_c6/docs/PERSISTENCE_SCHEMA.md) as the working schema/version reference for NVS-backed settings.
+- Current behavior on missing or invalid persisted data is to reseed from current defaults.
+
+#### Explicit non-goals for first-pass NVS
+- hardware wiring/electrical values
+- task/transport buffer sizing
+- debounce/long-press timing
+- broad waveform tuning/perf knobs unless a user-facing requirement emerges
+
+#### Small initial config-command surface proposal for Slice 4D
+Goals:
+- Keep the first config surface small, explicit, and easy to validate on-device.
+- Prefer commands that expose the first-pass NVS items without opening a broad generic settings language yet.
+
+Proposed read-only commands:
+- `config show`
+  - dumps persisted/effective config summary
+- `config show startup`
+  - shows startup wave, startup mode, and boot-pattern enable
+- `config show logging`
+  - shows log intensity and min log level
+
+Proposed mutating commands:
+- `config startup wave <square|saw_up|saw_down|triangle|sine>`
+- `config startup mode <running|paused>`
+- `config boot-pattern <on|off>`
+- `config log intensity <on|off>`
+- `config log level <error|warn|info|debug>`
+
+Proposed persistence/lifecycle commands:
+- `config save`
+- `config reset`
+
+Deferred from initial config command surface:
+- free-form key/value command grammar
+- direct editing of timing/performance knobs
+- GPIO/electrical/platform transport settings
+- provisioning/network commands
+
+Command-surface note:
+- `config reset` should reset persisted config/preferences, not live runtime state.
+- `config show` should present both effective values and, when useful, whether they came from defaults or persisted overrides.
+
+### Commit(s)
+- `6092009`, `9a3437d`, `59d5a94`, `845a020`, `97ce003`, `8f1fc19`, `b85d5e6`
+
+## 2026-03-13 - CI/CD slice 2 follow-up: app_main link failure remediation
+### Context
+CI app build failed at link stage with `undefined reference to app_main`.
+
+### Changes
+- Removed conditional compilation guard around `app_main` in `main/main.c`.
+- `app_main` is now always compiled for this application target.
+
+### Notes
+- This avoids configuration-dependent omission of the entry symbol in cloud builds.
+
+## 2026-03-13 - CI/CD slice 3 implemented: unit-test-app build gate
+### Changes
+- Extended `.github/workflows/ci.yml` with a separate `unit-test-app-build` job.
+- Added ESP-IDF unit-test-app build commands in CI for component integration validation:
+  - `core_sm`
+  - `core_blinky`
+  - `blinky_idf`
+  - `blinky_interfaces`
+- Kept cloud scope build-only (no on-device Unity execution).
+
+### Notes
+- CI now reports two cloud gates on PR/push:
+  - `App Build (ESP-IDF)`
+  - `Unit Test App Build (ESP-IDF)`
+
+## 2026-03-13 - CI/CD slice 4 implemented: release automation
+### Changes
+- Replaced `.github/workflows/release.yml` scaffold with full tag-driven release workflow.
+- Added artifact build job on `push` tags `v*`:
+  - app build with pinned ESP-IDF `v5.5.2`
+  - collected release files:
+    - `blinky_c6.bin`
+    - `blinky_c6.elf`
+    - `bootloader.bin`
+    - `partition-table.bin`
+    - `flasher_args.json`
+    - optional `blinky_c6.map`
+  - generated `sha256sums.txt`
+- Added publish job:
+  - downloads artifacts from prior job
+  - creates GitHub Release with generated release notes
+  - marks tags containing `-rc.` as pre-release
+
+### Notes
+- Release workflow is tag-driven by design; verification requires pushing a test tag.
+
+## 2026-03-13 - CI/CD slice 4 validation: end-to-end release test
+### Changes
+- Pushed temporary validation tag: `v0.1.1-rc.0-test` (from `develop` head).
+- Confirmed release workflow execution and artifact publication.
+- Verified 9 release assets were generated (firmware, bootloader, partition table, metadata, checksums, and source archives).
+- Removed temporary release tag locally and on origin after validation.
+
+### Notes
+- Slice 4 acceptance criteria satisfied: tag-driven artifact build and release publishing works in GitHub Actions.
+
+## 2026-03-13 - CI/CD slice 5 implemented: manual self-hosted HIL smoke path
+### Changes
+- Replaced disabled HIL scaffold with executable manual workflow in `.github/workflows/hil-smoke.yml`.
+- Added `workflow_dispatch` inputs:
+  - `serial_port`
+  - `startup_pattern`
+  - `monitor_timeout_seconds`
+- Added self-hosted smoke sequence:
+  - checkout
+  - preflight `idf.py` check
+  - build (`idf.py set-target esp32c6 build`)
+  - flash (`idf.py -p <port> flash`)
+  - monitor capture with timeout
+  - startup pattern validation (`grep -E`)
+- Added log artifact upload (`actions/upload-artifact@v4`) with `if: always()`.
+
+### Notes
+- This gate remains manual and non-required until runner reliability is characterized.
+- Next operational step is one successful manual HIL run record on the self-hosted runner.
+
+## 2026-03-13 - CI/CD slice 5 validation attempt: runner provisioning gap
+### Context
+Manual `HIL Smoke` dispatch was attempted from GitHub Actions after merge.
+
+### Result
+- Workflow queued successfully.
+- Job remained pending with `Requested labels: self-hosted`.
+- No self-hosted runner was registered/online, so no HIL execution occurred.
+
+### Notes
+- This is an infrastructure readiness blocker, not a workflow-definition failure.
+- Next step is to provision and register at least one self-hosted runner, then rerun the same manual smoke workflow.
+
+## 2026-03-13 - Runner provisioning scaffold added (containerized)
+### Changes
+- Added in-repo runner scaffold under `infra/runner/`:
+  - `Dockerfile`
+  - `entrypoint.sh`
+  - `docker-compose.yml`
+  - `.env.example`
+  - `README.md`
+- Added local secret ignore for runner token file:
+  - `infra/runner/.env` in `.gitignore`
+
+### Notes
+- This keeps runner provisioning reproducible without coupling to the daily dev container.
+- Next step is operational bring-up: register runner token, start compose stack, verify runner online, rerun `HIL Smoke`.
+
+## 2026-03-13 - Runner scaffold follow-up: preload ESP-IDF environment
+### Context
+Initial HIL run on self-hosted runner failed preflight (`command -v idf.py`) because runner process environment did not include ESP-IDF exported paths.
+
+### Changes
+- Updated `infra/runner/entrypoint.sh` to source `/opt/esp/idf/export.sh` before starting runner listener.
+- Updated runner README notes to document default `idf.py` availability.
+
+## 2026-03-13 - Runner scaffold follow-up: serial device permission mapping
+### Context
+HIL smoke run reached flash step but failed with:
+- `Invalid value for --port: Path '/dev/ttyACM0' is not readable.`
+
+### Changes
+- Updated `infra/runner/docker-compose.yml` to add serial group mapping via `group_add`.
+- Added `HIL_SERIAL_GID` to `.env.example`.
+- Updated runner README with host command to capture device gid and troubleshooting note.
+
+### Notes
+- Runner container needs host serial device gid mapped so `runner` user can access `/dev/ttyACM0`.
+
+## 2026-03-13 - HIL smoke follow-up: startup pattern validation hardening
+### Context
+After port/flash access was fixed, HIL run failed at startup-pattern validation due log-format/pattern mismatch.
+
+### Changes
+- Updated default `startup_pattern` in `.github/workflows/hil-smoke.yml` to include structured runtime logs.
+- Added ANSI/control-sequence stripping from monitor output before pattern matching.
+- Added monitor log tail output in validation step for faster diagnosis on future failures.
+
+## 2026-03-13 - Runner scaffold follow-up: persistent registration state (proper fix)
+### Context
+Runner restarts/rebuilds could repeatedly trigger `config.sh --replace` and transient session conflicts because only `_work` was persisted.
+
+### Changes
+- Updated runner architecture to persist full runner home state:
+  - `infra/runner/docker-compose.yml` now mounts `runner-home` to `/home/runner/actions-runner`.
+- Updated `infra/runner/Dockerfile`:
+  - keeps a template runner install at `/opt/actions-runner-template`
+  - runner home is initialized at runtime from template when volume is fresh
+- Updated `infra/runner/entrypoint.sh`:
+  - root pre-phase sets ownership for mounted runner home
+  - runner bootstrap copies template files only when needed
+  - `GH_RUNNER_TOKEN` required only for first registration (when `.runner` is absent)
+- Updated runner README with one-time migration/reset guidance.
+
+### Notes
+- This eliminates routine re-registration churn and reduces startup session conflicts.
+
+## 2026-03-13 - Runner operational note: GitHub session timeout behavior
+### Observation
+- After stopping the runner container, GitHub may continue showing the runner as `Online/Idle` for a short period before transitioning to `Offline`.
+- Restarting the container during this interval can produce temporary:
+  - `A session for this runner already exists`
+
+### Conclusion
+- This is normal GitHub runner session timeout behavior, not a runner implementation defect.
+- Operational guidance: for clean reconnect logs, wait until GitHub marks runner `Offline` before restart.
+
+## 2026-03-13 - CI/CD slice 6 implemented: policy enforcement updates
+### Changes
+- Updated `docs/DELIVERY_WORKFLOW.md` with explicit required cloud check names:
+  - `App Build (ESP-IDF)`
+  - `Unit Test App Build (ESP-IDF)`
+- Added release-time gate policy:
+  - `HIL Smoke` must pass manually on target release commit before creating `v*` tags.
+- Updated `README.md` with CI/release/HIL workflow badges and release policy note.
+
+### Operator actions (GitHub settings)
+- Apply branch protection rules in GitHub UI:
+  - `develop`: require cloud checks + PR reviews
+  - `master`: require cloud checks + PR reviews + no direct push
+- Keep `HIL Smoke` non-required in branch protection until stability is sufficient for required-gate promotion.
+
+## 2026-03-13 - HIL smoke follow-up: serial diagnostics and flash fallback
+### Context
+HIL runs intermittently failed at flash with `/dev/ttyACM0` unreadable, while ad-hoc container checks appeared valid.
+
+### Changes
+- Added explicit serial diagnostics step in `.github/workflows/hil-smoke.yml`:
+  - `whoami`, `id`, `groups`
+  - `ls -l` and `stat` on selected serial device
+  - readability check output
+- Added flash log capture (`hil-logs/flash.log`) for post-failure analysis.
+- Reworked flash fallback to avoid running `idf.py` as root:
+  - if serial device is unreadable, use `sudo` only to repair port permissions (`chmod a+rw`)
+  - then execute `idf.py flash` as the normal runner user.
+- Updated runner image user setup to add `runner` to `dialout` group explicitly.
+
+## 2026-03-13 - HIL smoke follow-up: non-interactive monitor TTY workaround
+### Context
+HIL run reached monitor phase but failed with:
+- `Monitor requires standard input to be attached to TTY.`
+
+### Changes
+- Updated monitor capture in `.github/workflows/hil-smoke.yml` to run through `script` (pty wrapper):
+  - `script -q -c \"idf.py ... monitor\" /dev/null`
+- Kept timeout + cleaned-log pipeline unchanged.
+
+## 2026-03-14 - CLI menu command semantics corrected
+### Context
+CLI v1 originally mirrored physical button semantics by mapping named commands onto existing short/long press events. That was sufficient for initial bring-up, but it exposed an operational mismatch once the CLI surface included explicit menu commands such as `menu enter` and `menu exit`.
+
+### Finding
+- `menu enter` and `menu exit` both mapped to the same long-press app event.
+- Adapter-side dispatch policy only gated `run`, `pause`, and `run pause toggle`.
+- As a result, `menu exit` was still accepted while `running` or `paused`, then interpreted by runtime policy as a long press, which entered the menu instead of exiting it.
+- Root cause: the CLI surface had grown beyond a pure "virtual button" model, but command validity rules had not been updated to match the more explicit command vocabulary.
+
+### Changes
+- Added a temporary shared CLI state-gating helper:
+  - `app_cli_command_map_is_allowed_in_state(...)`
+- Centralized command validity rules in core app-plumbing while CLI v1 still mapped commands directly onto short/long press app events.
+- Updated the IDF CLI adapter to use the shared helper instead of partial local checks.
+- Added command-map tests covering runtime-state gating for menu commands.
 
 ### Why
-- Keeps `sdkconfig` as source-of-truth in `_idf` while making ownership boundaries explicit.
-- Establishes the handoff point where core-owned semantics can be fed by framework-sourced values.
+- This preserves a single runtime/menu state machine as the behavioral source of truth while making the CLI adapter semantics match the named commands users actually type.
+- The fix is intentionally a state-conditioned adapter rule, not a new CLI state machine.
+- A future cleanup may introduce explicit semantic app events for `menu enter` / `menu exit` / `run` / `pause`, but that is not required to make CLI v1 correct and predictable.
+
+### Superseded by later Slice 4A work
+- The state-gating helper above was an intermediate corrective step.
+- Slice 4A is now refactoring this path so CLI routes explicit blinky command intents and the LED domain decides whether those commands apply in the current runtime state.
+
+### Verification
+- `idf.py -D CCACHE_ENABLE=1 build` pass
+- unit-test-app targeted build for `core_blinky` + `blinky_idf` pass
+- on-device app validation pass
+- on-device unit-test-app validation pass
+- Unity result: `100 / 0 / 0`
+
+### Follow-up note
+- Future CI/CD improvement should land in `.github/workflows/hil-smoke.yml`, not runner container plumbing:
+  - add `tools/hil/cli_smoke.py`
+  - add automated Unity execution/report capture on hardware
+  - upload richer CLI/Unity artifacts on failure
+
+### Commit(s)
+- `b9ec755`, `9e36dc8`
 
 ## 2026-03-14 - Runtime pause freeze root cause documented
 ### Changes
@@ -1292,53 +1300,3 @@ Started a dedicated branch to address the remaining config/default ownership amb
 - The freeze symptom was not a button debouncing failure; it was an output-ordering bug during runtime state transitions.
 - Sine mode made the issue easier to hit because it frequently emits brightness writes, so a short press could collide with an in-flight brightness update on the same step.
 - Documenting the exact cause makes it easier to recognize this class of bug later: state transitions must invalidate previously computed output from the old state.
-
-## 2026-03-10 - Config ownership slice: button timing remapped to core config
-### Changes
-- Updated mapper contracts so button timing is no longer carried in platform config.
-- `idf_build_core_config(...)` now owns normalized `button_timing` construction.
-- `led_sm_init(...)` now composes `button_input_adapter_idf_config_t` from:
-  - platform wiring (`gpio`, pull mode, active level)
-  - core timing policy (`debounce_count`, `long_press_ms`)
-
-### Why
-- Keeps button semantic timing under core-owned policy while `_idf` remains the source adapter for `sdkconfig` values.
-
-## 2026-03-10 - Config ownership slice: core config contract moved to core_blinky
-### Changes
-- Introduced core-owned config contract header:
-  - `components/core_blinky/led_core_config.h`
-- Updated `_idf` mapper to populate that core-defined contract instead of defining core config types in `_idf`.
-
-### Why
-- Clarifies ownership: `_idf` maps framework values, while core defines semantic config contracts.
-
-## 2026-03-10 - Config ownership slice: startup wave selection tokenized
-### Changes
-- Reworked startup policy input from direct wave enum to a core-owned startup selector token.
-- `_idf` now maps Kconfig start-wave choice to selector token values (not `led_wave_t` values).
-- Core startup policy maps selector token to concrete `led_wave_t`.
-
-### Why
-- Reduces framework knowledge of domain waveform enumeration details.
-- Keeps startup behavior semantics owned by core policy.
-
-## 2026-03-10 - Config ownership slice: startup Kconfig decoupled from waveform names
-### Changes
-- Replaced wave-specific Kconfig choice (`BLINKY_START_WAVE_*`) with generic token:
-  - `BLINKY_STARTUP_SELECTOR` (0..5)
-- Updated `_idf` mapper to pass selector token directly to core startup policy input.
-
-### Why
-- Removes waveform-name coupling from Kconfig/framework configuration surface.
-- Keeps framework as a value source, with startup interpretation remaining core-owned.
-
-## 2026-03-10 - Config ownership slice: startup selection removed from Kconfig
-### Changes
-- Removed startup selection symbols from `components/blinky_idf/Kconfig`.
-- Updated `_idf` mapper to inject `LED_STARTUP_SELECT_DEFAULT` only.
-- Startup waveform choice is now purely core policy (default + future runtime source), not framework config.
-
-### Why
-- Fully removes startup-wave semantic configuration from framework/Kconfig.
-- Keeps startup behavior ownership in core, with `_idf` only passing inputs and wiring outputs.

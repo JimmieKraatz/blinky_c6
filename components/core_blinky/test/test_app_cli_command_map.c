@@ -40,9 +40,12 @@ TEST_CASE("cli command map treats help and status as non-dispatch commands", "[a
     blinky_control_command_t cmd = BLINKY_CONTROL_CMD_MENU_ENTER;
     TEST_ASSERT_FALSE(app_cli_command_map_to_blinky_command(BLINKY_CLI_CMD_HELP, &cmd));
     TEST_ASSERT_EQUAL(BLINKY_CONTROL_CMD_NONE, cmd);
+    TEST_ASSERT_FALSE(app_cli_command_map_to_blinky_command(BLINKY_CLI_CMD_HELP_CONFIG, &cmd));
+    TEST_ASSERT_EQUAL(BLINKY_CONTROL_CMD_NONE, cmd);
     TEST_ASSERT_FALSE(app_cli_command_map_to_blinky_command(BLINKY_CLI_CMD_STATUS, &cmd));
     TEST_ASSERT_EQUAL(BLINKY_CONTROL_CMD_NONE, cmd);
     TEST_ASSERT_FALSE(app_cli_command_map_is_dispatchable(BLINKY_CLI_CMD_HELP));
+    TEST_ASSERT_FALSE(app_cli_command_map_is_dispatchable(BLINKY_CLI_CMD_HELP_CONFIG));
     TEST_ASSERT_FALSE(app_cli_command_map_is_dispatchable(BLINKY_CLI_CMD_STATUS));
 }
 

@@ -12,6 +12,7 @@ TEST_CASE("idf settings store saves and loads boot pattern with placeholder sett
         .boot_pattern_enabled = true,
         .log_intensity_enabled = false,
         .log_min_level = BLINKY_LOG_LEVEL_INFO,
+        .startup_selector = LED_STARTUP_SELECT_SINE,
     };
 
     app_settings_defaults(&saved, &defaults);
@@ -20,6 +21,7 @@ TEST_CASE("idf settings store saves and loads boot pattern with placeholder sett
     saved.boot_pattern_enabled = false;
     saved.log_intensity_enabled = true;
     saved.log_min_level = BLINKY_LOG_LEVEL_DEBUG;
+    saved.startup_selector = LED_STARTUP_SELECT_TRIANGLE;
 
     TEST_ASSERT_EQUAL(ESP_OK,
                       app_settings_store_idf_init(&store,
@@ -36,6 +38,7 @@ TEST_CASE("idf settings store saves and loads boot pattern with placeholder sett
     TEST_ASSERT_EQUAL(saved.boot_pattern_enabled, loaded.boot_pattern_enabled);
     TEST_ASSERT_EQUAL(saved.log_intensity_enabled, loaded.log_intensity_enabled);
     TEST_ASSERT_EQUAL_UINT32((uint32_t)saved.log_min_level, (uint32_t)loaded.log_min_level);
+    TEST_ASSERT_EQUAL_UINT32((uint32_t)saved.startup_selector, (uint32_t)loaded.startup_selector);
     TEST_ASSERT_EQUAL_UINT32(saved.test_counter, loaded.test_counter);
     TEST_ASSERT_EQUAL(saved.test_mode_enabled, loaded.test_mode_enabled);
 }

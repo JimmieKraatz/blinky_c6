@@ -5,6 +5,7 @@
 TEST_CASE("cli parser maps primary commands", "[app_cli_parse]")
 {
     TEST_ASSERT_EQUAL(BLINKY_CLI_CMD_HELP, app_cli_parse_line("help"));
+    TEST_ASSERT_EQUAL(BLINKY_CLI_CMD_HELP_CONFIG, app_cli_parse_line("help config"));
     TEST_ASSERT_EQUAL(BLINKY_CLI_CMD_STATUS, app_cli_parse_line("status"));
     TEST_ASSERT_EQUAL(BLINKY_CLI_CMD_RUN, app_cli_parse_line("run"));
     TEST_ASSERT_EQUAL(BLINKY_CLI_CMD_PAUSE, app_cli_parse_line("pause"));
@@ -16,6 +17,7 @@ TEST_CASE("cli parser maps primary commands", "[app_cli_parse]")
 TEST_CASE("cli parser normalizes case and spacing", "[app_cli_parse]")
 {
     TEST_ASSERT_EQUAL(BLINKY_CLI_CMD_HELP, app_cli_parse_line("  HeLP "));
+    TEST_ASSERT_EQUAL(BLINKY_CLI_CMD_HELP_CONFIG, app_cli_parse_line(" Help   Config "));
     TEST_ASSERT_EQUAL(BLINKY_CLI_CMD_MENU_NEXT, app_cli_parse_line(" MENU   NEXT "));
     TEST_ASSERT_EQUAL(BLINKY_CLI_CMD_RUN_PAUSE_TOGGLE, app_cli_parse_line("run   pause   toggle"));
 }
