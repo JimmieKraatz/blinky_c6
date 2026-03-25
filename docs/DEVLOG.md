@@ -829,6 +829,26 @@ Next feature direction is a user-facing CLI that mirrors button-driven behavior 
 - [ ] Slice 5: docs and release prep for `v0.2.0`
   - Goal: close the loop on user-facing docs and release framing once config-command scope is stable.
   - Includes: README/devlog/architecture alignment for the CLI+persistence surface and release-prep cleanup.
+  - Commit(s):
+  - Sub-slices:
+    - [ ] Slice 5a: map current docs and release-facing surfaces
+      - Current docs/release surface map:
+        - `README.md` is still a compact build/test entrypoint, but it does not yet explain the CLI control/config surface, the persistence behavior, or where config-command usage belongs in the operator story.
+        - `docs/ARCHITECTURE.md` reflects the newer command-routing and persistence boundary decisions, but it still carries some older “next slice” planning sections that are no longer the active near-term framing after Slice 4 completion.
+        - `docs/PERSISTENCE_SCHEMA.md` now captures the stored settings layout and reset/reseed semantics, but the top-level docs do not yet consistently point readers to it when discussing config persistence.
+        - `docs/RELEASE_CHECKLIST.md` is structurally aligned with the release workflow, but it has not yet been reviewed against the current `v0.2.0` slice framing or the just-landed CLI/persistence validation surface.
+        - `docs/DEVLOG.md` now records Slice 4 completion and validation, but Slice 5 itself still needs an explicit docs/release cleanup structure before we start changing public-facing docs.
+      - Notes: the main Slice 5 need appears to be alignment and framing rather than large missing documents; the current docs mostly exist, but they do not yet present the CLI+persistence feature line as a clean, coherent outside-reader surface.
+      - Commit(s): `d34863b`
+    - [ ] Slice 5b: define the target docs and release shape for `v0.2.0`
+      - Notes: decide what the README, architecture doc, persistence doc, release checklist, and devlog should each own once the CLI+persistence surface is treated as stable enough for release framing.
+      - Commit(s):
+    - [ ] Slice 5c: apply one focused docs/release alignment pass
+      - Notes: update the owned docs surfaces without reopening settled Slice 4 behavior or broadening the feature scope.
+      - Commit(s):
+    - [ ] Slice 5d: document deferred docs/release follow-up
+      - Notes: record any doc polish or release-process follow-up that is still not worth pulling into the first `v0.2.0` alignment pass.
+      - Commit(s):
 
 ### Slice 4A draft decision memo
 #### Problem statement
