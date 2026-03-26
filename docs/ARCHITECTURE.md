@@ -92,20 +92,20 @@ Defaults/config ownership after extraction slices:
     - `idf_build_platform_config(...)`
     - `idf_build_core_config(...)`
   - `_idf` owns sourcing/mapping only; core contracts are defined in `core_blinky` headers (for example `led_core_config.h`)
-  - `app_settings_store_*` is the storage boundary contract; `_idf` will provide the NVS-backed implementation
+  - `app_settings_store_*` is the storage boundary contract; `_idf` provides the NVS-backed implementation
   - `app_settings_store_idf_*` owns the current NVS-backed implementation in `_idf`
   - FreeRTOS queue/task primitives and wake mechanics
   - adapter init for GPIO/LEDC/button hardware
   - queue storage/lifecycle and dispatcher wiring in `_idf`
 
-### Persistence Boundary (Slice 4B Scaffold)
-The first persistence step is intentionally split into two layers:
+### Persistence Boundary
+The persistence split is intentionally layered this way:
 - `core_blinky` owns the persisted payload shape and semantic defaults through `app_settings_t`
 - `blinky_interfaces` owns the storage contract through `app_settings_store_t` with `load`, `save`, and `reset`
-- `_idf` will later implement that contract on top of a dedicated app-owned NVS partition
+- `_idf` implements that contract on top of a dedicated app-owned NVS partition
 - schema details live in [docs/PERSISTENCE_SCHEMA.md](/workspaces/blinky_c6/docs/PERSISTENCE_SCHEMA.md)
 
-Current scaffold notes:
+Current persisted-settings notes:
 - The payload is still scaffold-first, but it now includes the first real migrated preferences:
   - `schema_version`
   - `boot_pattern_enabled`
@@ -117,7 +117,7 @@ Current scaffold notes:
 - `boot_pattern_enabled`, `log_intensity_enabled`, `log_min_level`, and `startup_selector` seed from the existing default layers and can be overridden from persisted settings at startup.
 - Remaining fields are still plumbing-validation placeholders, not the final migrated config surface.
 
-Current `_idf` implementation direction:
+Current `_idf` implementation:
 - dedicated app-owned NVS partition label: `appcfg`
 - one namespace in the app build: `blinky`
 - unencrypted for now
@@ -153,17 +153,6 @@ Current Kconfig defaults, ownership, and target direction:
 | `BLINKY_LONG_PRESS_MS` | `_idf` source via core config mapper (`button_timing`) | `core_blinky` policy/config | Semantic button timing policy |
 | `BLINKY_PRODUCER_POLL_MS` | `_idf` | `_idf` | Producer loop cadence is scheduler/platform concern |
 | `BLINKY_MODEL_POLL_MS` | `_idf` -> core model | `core_blinky` policy/config | Model cadence is domain behavior policy |
-
-## Next Slice: Lifecycle and Backpressure
-Planned implementation direction:
-1. Add explicit `led_sm_idf` lifecycle boundaries (`start/stop` semantics).
-2. Finalize overflow/backpressure policy (drop behavior + counters).
-3. Add queue/dispatch instrumentation:
-   - max occupancy (high-water mark)
-   - dropped count exposure
-   - optional dispatch latency probes
-4. Keep core semantics unchanged:
-   - `led_event_consumer` + `led_runtime` remain framework-agnostic
 
 ## Configuration
 Menuconfig path: `Component config -> Blinky` (from `components/blinky_idf/Kconfig`).
@@ -209,8 +198,8 @@ Tests are Unity-based and split by ownership:
 
 Unit tests run via ESP-IDF Unit Test App with this repo injected through `EXTRA_COMPONENT_DIRS`.
 
-Recent on-device run (2026-03-10):
-- `72 Tests 0 Failures 0 Ignored`
+Recent on-device run (2026-03-25):
+- `127 Tests 0 Failures 0 Ignored`
 
 Targeted hardening TODO:
 - add explicit assert-contract testing for strict core APIs (for example `led_policy_step(NULL, ...)` assert-fail path) while preserving positive-path non-null coverage.
@@ -222,23 +211,8 @@ Critical hardening tracker:
 ## Repo Hygiene
 - `unity-app/` is local scratch/test harness and intentionally git-ignored.
 
-## Next Intention: Event-Driven Transition
-The next architectural step is moving from the current polling/step-loop orchestration
-to an event-driven model.
-
-Planned direction:
-- Keep adapter boundaries explicit:
-  - input adapters produce semantic app events
-  - output adapters apply domain outputs to hardware
-- Use the HSM in `core_sm` as the primary orchestration mechanism.
-- Define explicit event contracts at module boundaries (button, timer tick, menu actions, control events).
-- Route events through a queue/dispatcher path with portable dispatcher contracts in `blinky_interfaces`
-  and queue/storage mechanics in `blinky_idf`.
-- Preserve current behavior parity while migrating (existing tests remain the guardrail).
-
-## Draft Event Contract
-Initial app-level event list (adjustable as behavior evolves):
-Current implementation status summary:
+## Event Contract Snapshot
+Current app-level event status summary:
 - Implemented in production flow: `APP_EVENT_BOOT`, `APP_EVENT_TICK`, `APP_EVENT_BUTTON_SHORT`, `APP_EVENT_BUTTON_LONG`
 - Declared but not yet wired in production flow: `APP_EVENT_MENU_TIMEOUT`, `APP_EVENT_MODEL_STEP_DUE`, `APP_EVENT_FAULT`, `APP_EVENT_SHUTDOWN`
 
