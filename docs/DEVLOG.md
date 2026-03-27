@@ -5,7 +5,7 @@ This file is a diary of development progress: what changed, why, and what is nex
 For the stable technical view, see `docs/ARCHITECTURE.md`.
 
 ## Logging Conventions
-- Slice naming: use numeric IDs only (`Slice 1`, `Slice 2`, ...). Avoid lettered slices for new entries.
+- Slice naming: use numeric parent slices (`Slice 1`, `Slice 2`, ...) and lettered sub-slices (`Slice 5a`, `Slice 5b`, ...) when that makes the work easier to review.
 - Module naming: prefer `app_` for app-plumbing contracts and `blinky_` for domain behavior; treat older `led_*` orchestrator names as legacy until refactored.
 - For active feature lines, prefer a checklist slice summary with:
   - status checkbox
@@ -826,38 +826,9 @@ Next feature direction is a user-facing CLI that mirrors button-driven behavior 
         - targeted unit-test-app run: `127 / 0 / 0`
         - on-device app validation: `help`, `help config`, `config show`, `config show startup`, `config show logging`, setter commands, `config save`, and `config reset` behaved as expected
       - Commit(s): `13810d9`
-- [ ] Slice 5: docs and release prep for `v0.2.0`
-  - Goal: close the loop on user-facing docs and release framing once config-command scope is stable.
-  - Includes: README/devlog/architecture alignment for the CLI+persistence surface and release-prep cleanup.
-  - Commit(s):
-  - Sub-slices:
-    - [x] Slice 5a: map current docs and release-facing surfaces
-      - Current docs/release surface map:
-        - `README.md` is still a compact build/test entrypoint, but it does not yet explain the CLI control/config surface, the persistence behavior, or where config-command usage belongs in the operator story.
-        - `docs/ARCHITECTURE.md` reflects the newer command-routing and persistence boundary decisions, but it still carries some older “next slice” planning sections that are no longer the active near-term framing after Slice 4 completion.
-        - `docs/PERSISTENCE_SCHEMA.md` now captures the stored settings layout and reset/reseed semantics, but the top-level docs do not yet consistently point readers to it when discussing config persistence.
-        - `docs/RELEASE_CHECKLIST.md` is structurally aligned with the release workflow, but it has not yet been reviewed against the current `v0.2.0` slice framing or the just-landed CLI/persistence validation surface.
-        - `docs/DEVLOG.md` now records Slice 4 completion and validation, but Slice 5 itself still needs an explicit docs/release cleanup structure before we start changing public-facing docs.
-      - Notes: the main Slice 5 need appears to be alignment and framing rather than large missing documents; the current docs mostly exist, but they do not yet present the CLI+persistence feature line as a clean, coherent outside-reader surface.
-      - Commit(s): `d34863b`
-    - [x] Slice 5b: define the target docs and release shape for `v0.2.0`
-      - Target docs/release shape for `v0.2.0`:
-        - `README.md` should become the outside-reader/operator entrypoint for the now-stable CLI+persistence surface: what the app does, how to build/flash/test it, the basic runtime-control commands, the basic config-command family, and where deeper docs live.
-        - `docs/ARCHITECTURE.md` should stay focused on stable structural and ownership boundaries: runtime flow, command-routing split, persistence boundary, config ownership, and module responsibilities. It should not keep carrying stale “next slice” planning text once those slices are complete.
-        - `docs/PERSISTENCE_SCHEMA.md` should remain the canonical home for persisted-settings schema, key layout, seed/reset/reseed semantics, and schema-version notes rather than duplicating that detail in the README.
-        - `docs/RELEASE_CHECKLIST.md` should stay a lean operator-facing release runbook: branch/tag flow, RC/final tag steps, and required validation gates. It should reflect the current release process without re-explaining implementation history or broader workflow rationale.
-        - `docs/DEVLOG.md` should remain the project's time-series development journal for slice history, rationale, validation notes, and follow-through decisions across the life of the project, rather than trying to serve as the quick-start or public feature summary.
-      - Notes: the target shape should make the CLI+persistence feature line easy to understand from the README, easy to reason about structurally from the architecture/schema docs, and easy to release operationally from the release checklist without mixing those roles together again.
-      - Commit(s): `231b2d9`
-    - [x] Slice 5c: apply one focused docs/release alignment pass
-      - Notes: performed a deliberate branch-closeout docs/release coherence pass so the public-facing and stable docs now match the landed CLI control-plane and persistence surface targeted for `v0.2.0`. This pass strengthened the README as the project front door, added succinct “what this is / how to use it / why it matters” framing, clarified the default hardware and button/CLI interaction model, updated architecture wording to match the current persistence implementation and latest on-device test result, and rechecked the release-facing docs for coherence with current branch reality without reopening settled Slice 4 behavior or broadening into a full project documentation rewrite.
-      - Commit(s):
-    - [ ] Slice 5d: normalize the devlog back toward template shape
-      - Notes: bring `docs/DEVLOG.md` back into closer alignment with `scratch_pad/devlog_template.md` by addressing the active-checklist-in-the-middle drift and restoring a clearer chronological working shape without erasing historical context.
-      - Commit(s):
-    - [ ] Slice 5e: document deferred docs/release follow-up
-      - Notes: record any remaining doc polish, release-process follow-up, or coherence cleanup that still is not worth pulling into the first `v0.2.0` branch-closeout pass.
-      - Commit(s):
+
+### Later follow-through
+- The docs/release closeout work for this feature line continues in the newer `2026-03-27` checklist entry below so the active work stays near the bottom of the journal.
 
 ### Slice 4A draft decision memo
 #### Problem statement
@@ -1329,3 +1300,40 @@ CLI v1 originally mirrored physical button semantics by mapping named commands o
 - The freeze symptom was not a button debouncing failure; it was an output-ordering bug during runtime state transitions.
 - Sine mode made the issue easier to hit because it frequently emits brightness writes, so a short press could collide with an in-flight brightness update on the same step.
 - Documenting the exact cause makes it easier to recognize this class of bug later: state transitions must invalidate previously computed output from the old state.
+
+## 2026-03-27 - v0.2.0 docs and release closeout checklist
+### Purpose
+Keep the current docs/release closeout work near the bottom of the journal so the active branch state is easy to re-enter while preserving the older Slice 4 feature-planning material in place.
+
+- [ ] Slice 5: docs and release prep for `v0.2.0`
+  - Goal: close the loop on user-facing docs and release framing once config-command scope is stable.
+  - Includes: README/devlog/architecture alignment for the CLI+persistence surface and release-prep cleanup.
+  - Commit(s):
+  - Sub-slices:
+    - [x] Slice 5a: map current docs and release-facing surfaces
+      - Current docs/release surface map:
+        - `README.md` was still a compact build/test entrypoint, but it did not yet explain the CLI control/config surface, the persistence behavior, or where config-command usage belonged in the operator story.
+        - `docs/ARCHITECTURE.md` reflected the newer command-routing and persistence boundary decisions, but it still carried older “next slice” planning sections that were no longer the active near-term framing after Slice 4 completion.
+        - `docs/PERSISTENCE_SCHEMA.md` captured the stored settings layout and reset/reseed semantics, but the top-level docs did not yet consistently point readers to it when discussing config persistence.
+        - `docs/RELEASE_CHECKLIST.md` was structurally aligned with the release workflow, but it had not yet been reviewed against the current `v0.2.0` slice framing or the just-landed CLI/persistence validation surface.
+        - `docs/DEVLOG.md` recorded Slice 4 completion and validation, but Slice 5 itself still needed an explicit docs/release cleanup structure before public-facing docs were changed.
+      - Notes: the main Slice 5 need appeared to be alignment and framing rather than large missing documents; the current docs mostly existed, but they did not yet present the CLI+persistence feature line as a clean, coherent outside-reader surface.
+      - Commit(s): `d34863b`
+    - [x] Slice 5b: define the target docs and release shape for `v0.2.0`
+      - Target docs/release shape for `v0.2.0`:
+        - `README.md` should become the outside-reader/operator entrypoint for the now-stable CLI+persistence surface: what the app does, how to build/flash/test it, the basic runtime-control commands, the basic config-command family, and where deeper docs live.
+        - `docs/ARCHITECTURE.md` should stay focused on stable structural and ownership boundaries: runtime flow, command-routing split, persistence boundary, config ownership, and module responsibilities. It should not keep carrying stale “next slice” planning text once those slices are complete.
+        - `docs/PERSISTENCE_SCHEMA.md` should remain the canonical home for persisted-settings schema, key layout, seed/reset/reseed semantics, and schema-version notes rather than duplicating that detail in the README.
+        - `docs/RELEASE_CHECKLIST.md` should stay a lean operator-facing release runbook: branch/tag flow, RC/final tag steps, and required validation gates. It should reflect the current release process without re-explaining implementation history or broader workflow rationale.
+        - `docs/DEVLOG.md` should remain the project's time-series development journal for slice history, rationale, validation notes, and follow-through decisions across the life of the project, rather than trying to serve as the quick-start or public feature summary.
+      - Notes: the target shape should make the CLI+persistence feature line easy to understand from the README, easy to reason about structurally from the architecture/schema docs, and easy to release operationally from the release checklist without mixing those roles together again.
+      - Commit(s): `231b2d9`
+    - [x] Slice 5c: apply one focused docs/release alignment pass
+      - Notes: performed a deliberate branch-closeout docs/release coherence pass so the public-facing and stable docs now match the landed CLI control-plane and persistence surface targeted for `v0.2.0`. This pass strengthened the README as the project front door, added succinct “what this is / how to use it / why it matters” framing, clarified the default hardware and button/CLI interaction model, updated architecture wording to match the current persistence implementation and latest on-device test result, and rechecked the release-facing docs for coherence with current branch reality without reopening settled Slice 4 behavior or broadening into a full project documentation rewrite.
+      - Commit(s): `cefd81a`
+    - [x] Slice 5d: normalize the devlog back toward template shape
+      - Notes: moved the active Slice 5 checklist into this newest dated entry and replaced the older in-the-middle copy with a pointer so the current work once again lives near the bottom of the journal without erasing the older Slice 4 planning memo that belongs to the `2026-03-13` feature-kickoff entry.
+      - Commit(s):
+    - [ ] Slice 5e: document deferred docs/release follow-up
+      - Notes: record any remaining doc polish, release-process follow-up, or coherence cleanup that still is not worth pulling into the first `v0.2.0` branch-closeout pass.
+      - Commit(s):
