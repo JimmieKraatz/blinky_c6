@@ -23,21 +23,24 @@ This is a tracking log, not a substitute for recording the deferral decision in 
 
 | Id | Opened | Age Days | Summary | Source | Planned Disposition | Status |
 | --- | --- | ---: | --- | --- | --- | --- |
-| D-2026-03-13-01 | 2026-03-13 | 12 | CI/CD hardware-constrained rollout and HIL gate follow-through | Historical deferred items migrated from `DEVLOG.md` | Future CI/CD follow-up slice | Open |
-| D-2026-03-13-02 | 2026-03-13 | 12 | Dev-ability and reproducibility hardening for in-repo onboarding/build setup | Historical deferred items migrated from `DEVLOG.md` | Future environment hardening slice | Open |
-| D-2026-03-13-03 | 2026-03-13 | 12 | Bootstrap layering split between environment/bootstrap and runtime orchestration | Historical deferred items migrated from `DEVLOG.md` | Future architecture cleanup slice | Open |
-| D-2026-03-13-04 | 2026-03-13 | 12 | Dedicated test-hardening branch for async timing, overflow, and assert-contract coverage | Historical deferred items migrated from `DEVLOG.md` | Future test-hardening branch | Open |
-| D-2026-03-13-05 | 2026-03-13 | 12 | Runtime context ownership follow-up for `app_main` static context workaround | Historical deferred items migrated from `DEVLOG.md` | Future lifecycle ownership slice | Open |
-| D-2026-03-13-06 | 2026-03-13 | 12 | Fault and shutdown semantics contract before adding new platform producers | Historical deferred items migrated from `DEVLOG.md` | Future fault-handling design slice | Open |
-| D-2026-03-13-07 | 2026-03-13 | 12 | Pause behavior policy decision for freeze-brightness vs LED-off semantics | Historical deferred items migrated from `DEVLOG.md` | Future pause-policy decision slice | Open |
-| D-2026-03-13-08 | 2026-03-13 | 12 | Pause output behavior implementation once pause policy is finalized | Historical deferred items migrated from `DEVLOG.md` | Future LED-domain behavior slice after policy decision | Open |
-| D-2026-03-25-01 | 2026-03-25 | 0 | CLI presentation mode and response-formatting follow-up after config-command plumbing stabilizes | Slice 4d CLI config-command discussion | Future CLI presentation slice after plumbing is stable | Open |
-| D-2026-03-25-02 | 2026-03-25 | 0 | Review whether per-setting config read commands should be added alongside grouped `config show` views | Slice 4d read-command validation and CLI discussion | Future CLI UX follow-up after current Slice 4d scope closes | Open |
+| D-2026-03-27-02 | 2026-03-13 | 14 | Development-environment decoupling so native ESP-IDF usage stays first-class and the dev container becomes optional | Narrowed successor to `D-2026-03-13-02` after deferred-log review | Future environment decoupling slice | Open |
+| D-2026-03-13-03 | 2026-03-13 | 14 | Bootstrap layering split between environment/bootstrap and runtime orchestration | Historical deferred items migrated from `DEVLOG.md` | Future architecture cleanup slice | Open |
+| D-2026-03-27-03 | 2026-03-13 | 14 | Assert-contract and async/backpressure test-hardening follow-up after initial queue/runtime coverage landed | Narrowed successor to `D-2026-03-13-04` after deferred-log review | Future test-hardening branch | Open |
+| D-2026-03-13-05 | 2026-03-13 | 14 | Runtime context ownership follow-up for `app_main` static context workaround | Historical deferred items migrated from `DEVLOG.md` | Future lifecycle ownership slice | Open |
+| D-2026-03-13-06 | 2026-03-13 | 14 | Fault and shutdown semantics contract before adding new platform producers | Historical deferred items migrated from `DEVLOG.md` | Future fault-handling design slice | Open |
+| D-2026-03-27-01 | 2026-03-27 | 0 | HIL gate maturation and enforcement follow-through after initial CI/CD rollout | Deferred-log review after Slice 5 docs/release closeout | Future CI/CD/HIL hardening slice | Open |
+| D-2026-03-25-01 | 2026-03-25 | 2 | CLI presentation mode and response-formatting follow-up after config-command plumbing stabilizes | Slice 4d CLI config-command discussion | Future CLI presentation slice after plumbing is stable | Open |
+| D-2026-03-25-02 | 2026-03-25 | 2 | Review whether per-setting config read commands should be added alongside grouped `config show` views | Slice 4d read-command validation and CLI discussion | Future CLI UX follow-up after current Slice 4d scope closes | Open |
 
 ## Closed Items
 
 | Id | Opened | Closed | Age Days | Summary | Source | Disposition | Status |
 | --- | --- | --- | ---: | --- | --- | --- | --- |
+| D-2026-03-13-04 | 2026-03-13 | 2026-03-27 | 14 | Dedicated test-hardening branch for async timing, overflow, and assert-contract coverage | Historical deferred items migrated from `DEVLOG.md` | Partially satisfied by later queue/runtime coverage and overflow instrumentation; remaining scope narrowed into `D-2026-03-27-03` for assert-contract and async/backpressure hardening follow-through. | Closed |
+| D-2026-03-13-02 | 2026-03-13 | 2026-03-27 | 14 | Dev-ability and reproducibility hardening for in-repo onboarding/build setup | Historical deferred items migrated from `DEVLOG.md` | Partially satisfied by later README, workflow, runner, and devcontainer-related improvements; remaining scope narrowed into `D-2026-03-27-02` for development-environment decoupling so native ESP-IDF usage stays first-class and the dev container becomes optional. | Closed |
+| D-2026-03-13-01 | 2026-03-13 | 2026-03-27 | 14 | CI/CD hardware-constrained rollout and HIL gate follow-through | Historical deferred items migrated from `DEVLOG.md` | Closed after CI app build, unit-test-app build, release automation, and manual HIL smoke rollout landed; remaining work narrowed into `D-2026-03-27-01` for HIL gate maturation and enforcement follow-through. | Closed |
+| D-2026-03-13-08 | 2026-03-13 | 2026-03-14 | 1 | Pause output behavior implementation once pause policy is finalized | Historical deferred items migrated from `DEVLOG.md` | Resolved by landed LED-off-on-pause behavior in `d8c1ea9`; regression-hardened in `60ba9e9` with same-step pause output suppression coverage. | Closed |
+| D-2026-03-13-07 | 2026-03-13 | 2026-03-14 | 1 | Pause behavior policy decision for freeze-brightness vs LED-off semantics | Historical deferred items migrated from `DEVLOG.md` | Resolved in practice by `d8c1ea9`, which established paused-state LED-off semantics; later documented and regression-hardened in `60ba9e9`. | Closed |
 
 ## Notes
 

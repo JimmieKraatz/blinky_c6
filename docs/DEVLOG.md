@@ -1305,10 +1305,10 @@ CLI v1 originally mirrored physical button semantics by mapping named commands o
 ### Purpose
 Keep the current docs/release closeout work near the bottom of the journal so the active branch state is easy to re-enter while preserving the older Slice 4 feature-planning material in place.
 
-- [ ] Slice 5: docs and release prep for `v0.2.0`
+- [x] Slice 5: docs and release prep for `v0.2.0`
   - Goal: close the loop on user-facing docs and release framing once config-command scope is stable.
   - Includes: README/devlog/architecture alignment for the CLI+persistence surface and release-prep cleanup.
-  - Commit(s):
+  - Commit(s): `d34863b`, `231b2d9`, `cefd81a`, `b12ede9`
   - Sub-slices:
     - [x] Slice 5a: map current docs and release-facing surfaces
       - Current docs/release surface map:
@@ -1333,7 +1333,7 @@ Keep the current docs/release closeout work near the bottom of the journal so th
       - Commit(s): `cefd81a`
     - [x] Slice 5d: normalize the devlog back toward template shape
       - Notes: moved the active Slice 5 checklist into this newest dated entry and replaced the older in-the-middle copy with a pointer so the current work once again lives near the bottom of the journal without erasing the older Slice 4 planning memo that belongs to the `2026-03-13` feature-kickoff entry.
-      - Commit(s):
-    - [ ] Slice 5e: document deferred docs/release follow-up
-      - Notes: record any remaining doc polish, release-process follow-up, or coherence cleanup that still is not worth pulling into the first `v0.2.0` branch-closeout pass.
+      - Commit(s): `b12ede9`
+    - [x] Slice 5e: document deferred docs/release follow-up
+      - Notes: completed the deferred-log follow-up for the docs/release closeout pass by truthfully narrowing older broad items where this branch and later landed work materially advanced them, while preserving the still-open narrower successors for HIL gate maturation, development-environment decoupling, and assert-contract/async-backpressure hardening. This keeps the branch-closeout pass focused on truthful record cleanup rather than forcing unrelated follow-on work into the first `v0.2.0` release branch.
       - Commit(s):
