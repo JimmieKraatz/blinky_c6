@@ -17,10 +17,6 @@ jobs:
         uses: actions/checkout@v5
         with:
           submodules: recursive
-          fetch-depth: 0
-
-      - name: Set explicit project version from tag
-        run: printf '%s\n' "${GITHUB_REF_NAME}" > version.txt
 
       - name: Build app artifacts
         uses: espressif/esp-idf-ci-action@v1
@@ -29,7 +25,7 @@ jobs:
           target: esp32c6
           path: "."
           command: |
-            idf.py set-target esp32c6 build -D CCACHE_ENABLE=1
+            idf.py build -D CCACHE_ENABLE=1
 
       - name: Collect firmware outputs
         run: |
