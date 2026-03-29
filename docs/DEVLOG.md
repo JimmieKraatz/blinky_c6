@@ -1308,7 +1308,7 @@ Keep the current docs/release closeout work near the bottom of the journal so th
 - [x] Slice 5: docs and release prep for `v0.2.0`
   - Goal: close the loop on user-facing docs and release framing once config-command scope is stable.
   - Includes: README/devlog/architecture alignment for the CLI+persistence surface and release-prep cleanup.
-  - Commit(s): `d34863b`, `231b2d9`, `cefd81a`, `b12ede9`
+  - Commit(s): `d34863b`, `231b2d9`, `cefd81a`, `b12ede9`, `7c7fd92`
   - Sub-slices:
     - [x] Slice 5a: map current docs and release-facing surfaces
       - Current docs/release surface map:
@@ -1336,4 +1336,4 @@ Keep the current docs/release closeout work near the bottom of the journal so th
       - Commit(s): `b12ede9`
     - [x] Slice 5e: document deferred docs/release follow-up
       - Notes: completed the deferred-log follow-up for the docs/release closeout pass by truthfully narrowing older broad items where this branch and later landed work materially advanced them, while preserving the still-open narrower successors for HIL gate maturation, development-environment decoupling, and assert-contract/async-backpressure hardening. This keeps the branch-closeout pass focused on truthful record cleanup rather than forcing unrelated follow-on work into the first `v0.2.0` release branch.
-      - Commit(s):
+      - Commit(s): `7c7fd92`
