@@ -25,7 +25,7 @@ jobs:
           target: esp32c6
           path: "."
           command: |
-            idf.py set-target esp32c6 build -D CCACHE_ENABLE=1
+            idf.py build -D CCACHE_ENABLE=1
 
       - name: Collect firmware outputs
         run: |
