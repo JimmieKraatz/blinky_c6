@@ -31,6 +31,7 @@ This is a tracking log, not a substitute for recording the deferral decision in 
 | D-2026-03-27-01 | 2026-03-27 | 0 | HIL gate maturation and enforcement follow-through after initial CI/CD rollout | Deferred-log review after Slice 5 docs/release closeout | Future CI/CD/HIL hardening slice | Open |
 | D-2026-03-25-01 | 2026-03-25 | 2 | CLI presentation mode and response-formatting follow-up after config-command plumbing stabilizes | Slice 4d CLI config-command discussion | Future CLI presentation slice after plumbing is stable | Open |
 | D-2026-03-25-02 | 2026-03-25 | 2 | Review whether per-setting config read commands should be added alongside grouped `config show` views | Slice 4d read-command validation and CLI discussion | Future CLI UX follow-up after current Slice 4d scope closes | Open |
+| D-2026-03-29-01 | 2026-03-29 | 0 | Clarify in workflow/docs that slice numbering is branch-local and new branches restart at `Slice 1` | Hotfix branch workflow practice during RC release-version fix | Future workflow/docs clarification slice spanning development guide and agent guidance | Open |
 
 ## Closed Items
 

@@ -34,3 +34,4 @@ infra/runner/.env
 
 # Local scratch space
 scratch_pad/
+tmp/
