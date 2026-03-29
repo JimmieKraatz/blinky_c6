@@ -1,6 +1,7 @@
 #include "unity.h"
 
 #include "app_event.h"
+#include "blinky_control_command.h"
 #include "led_event_consumer.h"
 
 static led_model_config_t test_cfg(void)
@@ -43,6 +44,47 @@ TEST_CASE("consumer ignores unsupported event types", "[led_event_consumer]")
                                 &out);
 
     TEST_ASSERT_EQUAL(before, rt.state);
+    TEST_ASSERT_FALSE(out.write_level);
+    TEST_ASSERT_FALSE(out.write_brightness);
+}
+
+TEST_CASE("consumer interprets blinky command events in led domain", "[led_event_consumer]")
+{
+    led_runtime_t rt = {0};
+    led_runtime_output_t out = {0};
+    led_model_config_t cfg = test_cfg();
+
+    led_runtime_init(&rt, &cfg, LED_WAVE_SQUARE, 0, &out);
+    TEST_ASSERT_EQUAL(LED_COMMAND_RESULT_APPLIED,
+                      led_event_consumer_dispatch(&rt,
+                                                  &(app_event_t){
+                                                      .type = APP_EVENT_BLINKY_COMMAND,
+                                                      .timestamp_ms = 10,
+                                                      .payload = {.u32 = BLINKY_CONTROL_CMD_PAUSE},
+                                                  },
+                                                  &out));
+
+    TEST_ASSERT_EQUAL(LED_POLICY_PAUSED, rt.state);
+    TEST_ASSERT_TRUE(out.write_level);
+}
+
+TEST_CASE("consumer ignores invalid blinky command for current state", "[led_event_consumer]")
+{
+    led_runtime_t rt = {0};
+    led_runtime_output_t out = {0};
+    led_model_config_t cfg = test_cfg();
+
+    led_runtime_init(&rt, &cfg, LED_WAVE_SQUARE, 0, &out);
+    TEST_ASSERT_EQUAL(LED_COMMAND_RESULT_IGNORED,
+                      led_event_consumer_dispatch(&rt,
+                                                  &(app_event_t){
+                                                      .type = APP_EVENT_BLINKY_COMMAND,
+                                                      .timestamp_ms = 10,
+                                                      .payload = {.u32 = BLINKY_CONTROL_CMD_MENU_EXIT},
+                                                  },
+                                                  &out));
+
+    TEST_ASSERT_EQUAL(LED_POLICY_RUNNING, rt.state);
     TEST_ASSERT_FALSE(out.write_level);
     TEST_ASSERT_FALSE(out.write_brightness);
 }

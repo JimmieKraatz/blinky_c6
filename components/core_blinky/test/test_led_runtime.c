@@ -51,6 +51,21 @@ TEST_CASE("runtime short press toggles running to paused", "[led_runtime]")
     TEST_ASSERT_FALSE(out.level_on);
 }
 
+TEST_CASE("runtime pause suppresses same-step brightness update", "[led_runtime]")
+{
+    led_runtime_t rt = {0};
+    led_runtime_output_t out = {0};
+    led_model_config_t cfg = test_cfg();
+
+    led_runtime_init(&rt, &cfg, LED_WAVE_SINE, 0, &out);
+    led_runtime_step(&rt, 16, BLINKY_EVENT_SHORT_PRESS, &out);
+
+    TEST_ASSERT_EQUAL(LED_POLICY_PAUSED, rt.state);
+    TEST_ASSERT_TRUE(out.write_level);
+    TEST_ASSERT_FALSE(out.level_on);
+    TEST_ASSERT_FALSE(out.write_brightness);
+}
+
 TEST_CASE("runtime menu returns to previous paused state", "[led_runtime]")
 {
     led_runtime_t rt = {0};

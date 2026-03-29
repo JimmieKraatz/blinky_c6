@@ -13,6 +13,9 @@
 #include "button_input_adapter_idf.h"
 #include "blinky_log.h"
 #include "blinky_log_adapter_idf.h"
+#include "app_cli_config_idf.h"
+#include "app_settings_store.h"
+#include "app_settings_store_idf.h"
 #include "led_runtime.h"
 #include "led_output_adapter.h"
 #include "led_output_adapter_idf.h"
@@ -37,6 +40,11 @@ typedef struct {
     led_output_adapter_idf_t led_output_idf;
     blinky_log_sink_t log_sink;
     blinky_log_adapter_idf_t log_idf;
+    app_settings_store_t settings_store;
+    app_settings_store_idf_t settings_store_idf;
+    app_settings_t active_settings;
+    app_settings_defaults_t settings_defaults;
+    app_cli_config_idf_t cli_config;
     led_runtime_t runtime;
     led_platform_config_t platform_cfg;
     led_core_config_t core_cfg;
