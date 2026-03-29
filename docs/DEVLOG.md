@@ -1342,12 +1342,12 @@ Keep the current docs/release closeout work near the bottom of the journal so th
 ### Purpose
 Capture the release-path hotfix needed after `v0.2.0-rc.1` showed that the built firmware version string was not being derived deterministically from the release tag in CI.
 
-- [ ] Slice 1: stabilize release version tagging in CI
+- [x] Slice 1: stabilize release version tagging in CI
   - Goal: make RC/final release builds report the pushed tag as the app version instead of relying on unstable auto-derived git state.
   - Includes: release workflow version wiring only; do not broaden into general CI redesign during the `v0.2.0` release path.
-  - Commit(s):
+  - Commit(s): `2b40df6`
   - Sub-slices:
-    - [ ] Slice 1a: make release builds set explicit project version from the pushed tag
+    - [x] Slice 1a: make release builds set explicit project version from the pushed tag
       - Notes: `v0.2.0-rc.1` booted as `v0.2.0-rc.1-dirty`, which is close but still not acceptable for release identity. The intended hotfix is to have the release workflow write `version.txt` from `${GITHUB_REF_NAME}` before the build so RC and final artifacts carry deterministic app version strings.
       - Deferred follow-up: logged `D-2026-03-29-01` to clarify in the workflow/docs that slice numbering is branch-local and new branches restart at `Slice 1`; that rule gap was noticed during this hotfix branch practice but is out of scope for the release-version fix itself.
-      - Commit(s):
+      - Commit(s): `2b40df6`
