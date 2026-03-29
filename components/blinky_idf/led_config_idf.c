@@ -9,6 +9,8 @@
 #define BLINKY_PRODUCER_POLL_MS_MAX ((blinky_time_ms_t)1000U)
 #define BLINKY_BOOT_PATTERN_MS_MIN  ((blinky_time_ms_t)1U)
 #define BLINKY_BOOT_PATTERN_MS_MAX  ((blinky_time_ms_t)2000U)
+#define BLINKY_SETTINGS_PARTITION   "appcfg"
+#define BLINKY_SETTINGS_NAMESPACE   "blinky"
 
 /* Keep these bounds aligned with Kconfig ranges:
  * - BLINKY_PRODUCER_POLL_MS range lower-bound
@@ -86,6 +88,8 @@ void idf_build_platform_config(led_platform_config_t *cfg)
         .boot_pattern_enabled = CONFIG_BLINKY_BOOT_PATTERN,
         .log_intensity_enabled = log_intensity_enabled,
         .log_min_level = log_min_level,
+        .settings_partition_label = BLINKY_SETTINGS_PARTITION,
+        .settings_namespace = BLINKY_SETTINGS_NAMESPACE,
     };
 }
 

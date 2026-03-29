@@ -1,5 +1,6 @@
 idf_component_register(
     SRCS
+        "app_settings.c"
         "led_model.c"
         "menu_logic.c"
         "led_policy.c"
@@ -7,7 +8,10 @@ idf_component_register(
         "button_logic.c"
         "button_policy.c"
         "led_event_consumer.c"
-        "led_event_factory.c"
+        "led_command_dispatch.c"
+        "app_event_factory.c"
+        "app_cli_command_map.c"
+        "app_cli_parse.c"
         "led_event_map.c"
         "led_startup_policy.c"
     INCLUDE_DIRS "."

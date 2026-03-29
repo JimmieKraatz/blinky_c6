@@ -1,0 +1,256 @@
+#include "app_cli_adapter_idf.h"
+
+#include <ctype.h>
+#include <stdbool.h>
+
+#include "sdkconfig.h"
+
+#include "driver/uart.h"
+#if CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG
+#include "driver/usb_serial_jtag.h"
+#endif
+#include "esp_err.h"
+#include "esp_log.h"
+
+#include "app_event_factory.h"
+#include "app_cli_command_map.h"
+#include "app_cli_config_idf.h"
+#include "app_cli_parse.h"
+
+#define CLI_LINE_MAX_CHARS 96U
+#define CLI_READ_BUDGET    64U
+
+typedef struct {
+    bool ready;
+    char line[CLI_LINE_MAX_CHARS];
+    size_t len;
+} app_cli_adapter_state_t;
+
+static app_cli_adapter_state_t s_cli = {0};
+static const char *TAG = "blinky_cli";
+
+static void cli_echo_bytes(const char *data, size_t len)
+{
+    if (!data || len == 0U) {
+        return;
+    }
+#if CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG
+    (void)usb_serial_jtag_write_bytes(data, len, 0);
+#else
+    (void)uart_write_bytes(UART_NUM_0, data, len);
+#endif
+}
+
+static void cli_echo_char(char ch)
+{
+    cli_echo_bytes(&ch, 1U);
+}
+
+static const char *runtime_state_name(led_policy_state_t state)
+{
+    switch (state) {
+    case LED_POLICY_RUNNING:
+        return "running";
+    case LED_POLICY_PAUSED:
+        return "paused";
+    case LED_POLICY_MENU:
+        return "menu";
+    default:
+        return "unknown";
+    }
+}
+
+static const char *command_name(blinky_cli_command_t cmd)
+{
+    switch (cmd) {
+    case BLINKY_CLI_CMD_HELP:
+        return "help";
+    case BLINKY_CLI_CMD_HELP_CONFIG:
+        return "help_config";
+    case BLINKY_CLI_CMD_STATUS:
+        return "status";
+    case BLINKY_CLI_CMD_RUN:
+        return "run";
+    case BLINKY_CLI_CMD_PAUSE:
+        return "pause";
+    case BLINKY_CLI_CMD_RUN_PAUSE_TOGGLE:
+        return "run_pause_toggle";
+    case BLINKY_CLI_CMD_MENU_ENTER:
+        return "menu_enter";
+    case BLINKY_CLI_CMD_MENU_NEXT:
+        return "menu_next";
+    case BLINKY_CLI_CMD_MENU_EXIT:
+        return "menu_exit";
+    case BLINKY_CLI_CMD_NONE:
+    default:
+        return "none";
+    }
+}
+
+static void cli_report(void *ctx, blinky_log_level_t level, const char *line)
+{
+    const char *tag = ctx ? (const char *)ctx : TAG;
+    if (!line) {
+        return;
+    }
+
+    switch (level) {
+    case BLINKY_LOG_LEVEL_ERROR:
+        ESP_LOGE(tag, "%s", line);
+        break;
+    case BLINKY_LOG_LEVEL_WARN:
+        ESP_LOGW(tag, "%s", line);
+        break;
+    case BLINKY_LOG_LEVEL_DEBUG:
+    case BLINKY_LOG_LEVEL_INFO:
+    default:
+        ESP_LOGI(tag, "%s", line);
+        break;
+    }
+}
+
+static void handle_line(sm_led_ctx_t *ctx, const char *line)
+{
+    if (!ctx || !line) {
+        return;
+    }
+    bool has_non_space = false;
+    for (size_t i = 0U; line[i] != '\0'; ++i) {
+        if (!isspace((unsigned char)line[i])) {
+            has_non_space = true;
+            break;
+        }
+    }
+    if (!has_non_space) {
+        return;
+    }
+
+    blinky_config_command_t config_cmd = {0};
+    if (app_cli_parse_config_command(line, &config_cmd)) {
+        ctx->cli_config.report = cli_report;
+        ctx->cli_config.report_ctx = (void *)TAG;
+        (void)app_cli_config_idf_handle(&ctx->cli_config, &config_cmd);
+        return;
+    }
+
+    const blinky_cli_command_t cmd = app_cli_parse_line(line);
+    switch (cmd) {
+    case BLINKY_CLI_CMD_HELP:
+        ESP_LOGI(TAG, "commands: help, help config, status, run, pause, menu enter, menu next, menu exit, config ...");
+        return;
+    case BLINKY_CLI_CMD_HELP_CONFIG:
+        ESP_LOGI(TAG,
+                 "config commands: config show, config show startup, config show logging, config startup wave <square|saw_up|saw_down|triangle|sine>, config boot-pattern <on|off>, config log intensity <on|off>, config log level <error|warn|info|debug>, config save, config reset");
+        return;
+    case BLINKY_CLI_CMD_STATUS:
+        ESP_LOGI(TAG, "status: started=%s, state=%s, dropped=%lu",
+                 ctx->started ? "true" : "false",
+                 runtime_state_name(ctx->runtime.state),
+                 (unsigned long)app_dispatcher_dropped(&ctx->dispatcher));
+        return;
+    case BLINKY_CLI_CMD_NONE:
+        ESP_LOGW(TAG, "unknown command: '%s'", line);
+        return;
+    default:
+        break;
+    }
+
+    if (!app_cli_command_map_is_dispatchable(cmd)) {
+        ESP_LOGI(TAG, "command ignored in state=%s: '%s'", runtime_state_name(ctx->runtime.state), line);
+        return;
+    }
+
+    ESP_LOGI(TAG, "cmd dispatch: %s", command_name(cmd));
+
+    const blinky_time_ms_t now = button_input_adapter_now_ms(&ctx->input);
+    const app_event_t ev = app_event_factory_from_cli_command(cmd, now);
+    if (ev.type == APP_EVENT_NONE) {
+        return;
+    }
+
+    if (!led_sm_enqueue_event(ctx, &ev)) {
+        ESP_LOGW(TAG, "failed to enqueue command '%s'", line);
+    }
+}
+
+void app_cli_adapter_idf_init(sm_led_ctx_t *ctx)
+{
+    (void)ctx;
+#if CONFIG_BLINKY_CLI_ENABLE
+#if CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG
+    usb_serial_jtag_driver_config_t cfg = USB_SERIAL_JTAG_DRIVER_CONFIG_DEFAULT();
+    cfg.rx_buffer_size = CONFIG_BLINKY_CLI_UART_RX_BUF_SIZE;
+    const esp_err_t err = usb_serial_jtag_driver_install(&cfg);
+    if (err == ESP_OK || err == ESP_ERR_INVALID_STATE) {
+        s_cli.ready = true;
+        s_cli.len = 0U;
+        ESP_LOGI(TAG, "cli adapter ready on USB Serial/JTAG");
+    } else {
+        s_cli.ready = false;
+        ESP_LOGW(TAG, "cli adapter disabled (usb_serial_jtag_driver_install err=0x%x)",
+                 (unsigned)err);
+    }
+#else
+    const esp_err_t err = uart_driver_install(
+        UART_NUM_0, CONFIG_BLINKY_CLI_UART_RX_BUF_SIZE, 0, 0, NULL, 0);
+    if (err == ESP_OK || err == ESP_ERR_INVALID_STATE) {
+        s_cli.ready = true;
+        s_cli.len = 0U;
+        ESP_LOGI(TAG, "cli adapter ready on UART0");
+    } else {
+        s_cli.ready = false;
+        ESP_LOGW(TAG, "cli adapter disabled (uart_driver_install err=0x%x)", (unsigned)err);
+    }
+#endif
+#endif
+}
+
+void app_cli_adapter_idf_step(sm_led_ctx_t *ctx)
+{
+    (void)ctx;
+#if CONFIG_BLINKY_CLI_ENABLE
+    if (!s_cli.ready || !ctx) {
+        return;
+    }
+
+    for (size_t i = 0U; i < CLI_READ_BUDGET; ++i) {
+        uint8_t ch = 0U;
+#if CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG
+        const int got = usb_serial_jtag_read_bytes(&ch, 1, 0);
+#else
+        const int got = uart_read_bytes(UART_NUM_0, &ch, 1, 0);
+#endif
+        if (got <= 0) {
+            break;
+        }
+
+        if (ch == '\r' || ch == '\n') {
+            cli_echo_bytes("\r\n", 2U);
+            if (s_cli.len == 0U) {
+                continue;
+            }
+            s_cli.line[s_cli.len] = '\0';
+            handle_line(ctx, s_cli.line);
+            s_cli.len = 0U;
+            continue;
+        }
+
+        if ((ch == '\b' || ch == 0x7FU) && s_cli.len > 0U) {
+            s_cli.len--;
+            cli_echo_bytes("\b \b", 3U);
+            continue;
+        }
+
+        if (isprint((unsigned char)ch) && s_cli.len + 1U < sizeof(s_cli.line)) {
+            s_cli.line[s_cli.len++] = (char)ch;
+            cli_echo_char((char)ch);
+            continue;
+        }
+
+        if (s_cli.len + 1U >= sizeof(s_cli.line)) {
+            s_cli.len = 0U;
+            ESP_LOGW(TAG, "cli line too long; dropped");
+        }
+    }
+#endif
+}

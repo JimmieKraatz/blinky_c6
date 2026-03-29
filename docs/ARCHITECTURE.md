@@ -29,6 +29,8 @@ Migration map:
   - Short press: pause/resume waveform.
   - Long press (~3 s): enter/exit wave selection menu.
   - In menu: short press cycles wave type (square, saw up/down, triangle, sine).
+- CLI v1 now routes explicit blinky control commands (`run`, `pause`, `menu enter`, `menu next`, `menu exit`) into the LED domain.
+- The LED domain interprets those commands against current runtime state, so command acceptance and ignore behavior live with LED/menu semantics rather than in the CLI adapter.
 
 Default pins:
 - LED output: `GPIO_NUM_14` (PWM, active-low, 5 kHz)
@@ -51,12 +53,14 @@ Implemented flow today (poll producer + async consumer task):
    - maps to one app event (`APP_EVENT_BUTTON_SHORT`, `APP_EVENT_BUTTON_LONG`, or `APP_EVENT_TICK`)
    - enqueues event into `app_event_queue`
    - notifies consumer task on successful enqueue
+   - also polls CLI transport and enqueues `APP_EVENT_BLINKY_COMMAND` for runtime-control commands
 4. `app_dispatcher` (`blinky_interfaces`)
    - runs in consumer task context
    - drains queued events from source ops
    - invokes consumer callback per event
 5. `led_event_consumer` (`core_blinky`)
-   - maps app events to runtime semantic events
+   - maps button/tick app events to runtime semantic events
+   - dispatches `APP_EVENT_BLINKY_COMMAND` through LED-domain command interpretation
    - calls `led_runtime_step`
 6. Output application (`blinky_idf`)
    - applies runtime output intents via LED output adapter
@@ -75,7 +79,10 @@ Notes:
 ## Core/Framework Ownership (Current)
 Defaults/config ownership after extraction slices:
 - Core-facing policy/config:
-  - `led_event_factory_*` builds boot/input semantic events (`core_blinky`)
+  - `app_event_factory_*` builds boot/input semantic events (`core_blinky`)
+  - `app_cli_command_map_*` maps CLI command intent to LED-domain command intent (`core_blinky`)
+  - `led_command_dispatch_*` interprets semantic blinky commands against current runtime state (`core_blinky`)
+  - `app_settings_*` defines the placeholder persisted-settings payload and default/validation rules for Slice 4B bring-up (`core_blinky`)
   - `led_startup_policy_*` selects startup waveform from core config (`core_blinky`)
   - `button_policy_timing_*` normalizes debounce/long-press timing policy (`core_blinky`)
   - `led_event_map_*` event semantic mapping (`core_blinky`)
@@ -85,9 +92,44 @@ Defaults/config ownership after extraction slices:
     - `idf_build_platform_config(...)`
     - `idf_build_core_config(...)`
   - `_idf` owns sourcing/mapping only; core contracts are defined in `core_blinky` headers (for example `led_core_config.h`)
+  - `app_settings_store_*` is the storage boundary contract; `_idf` provides the NVS-backed implementation
+  - `app_settings_store_idf_*` owns the current NVS-backed implementation in `_idf`
   - FreeRTOS queue/task primitives and wake mechanics
   - adapter init for GPIO/LEDC/button hardware
   - queue storage/lifecycle and dispatcher wiring in `_idf`
+
+### Persistence Boundary
+The persistence split is intentionally layered this way:
+- `core_blinky` owns the persisted payload shape and semantic defaults through `app_settings_t`
+- `blinky_interfaces` owns the storage contract through `app_settings_store_t` with `load`, `save`, and `reset`
+- `_idf` implements that contract on top of a dedicated app-owned NVS partition
+- schema details live in [docs/PERSISTENCE_SCHEMA.md](/workspaces/blinky_c6/docs/PERSISTENCE_SCHEMA.md)
+
+Current persisted-settings notes:
+- The payload is still scaffold-first, but it now includes the first real migrated preferences:
+  - `schema_version`
+  - `boot_pattern_enabled`
+  - `log_intensity_enabled`
+  - `log_min_level`
+  - `startup_selector`
+  - `test_counter`
+  - `test_mode_enabled`
+- `boot_pattern_enabled`, `log_intensity_enabled`, `log_min_level`, and `startup_selector` seed from the existing default layers and can be overridden from persisted settings at startup.
+- Remaining fields are still plumbing-validation placeholders, not the final migrated config surface.
+
+Current `_idf` implementation:
+- dedicated app-owned NVS partition label: `appcfg`
+- one namespace in the app build: `blinky`
+- unencrypted for now
+- simple typed keys:
+  - `schema_ver`
+  - `boot_pattern`
+  - `log_intensity`
+  - `log_level`
+  - `startup_wave`
+  - `test_count`
+  - `test_mode`
+- unit-test-app adapter tests currently exercise the same store API against the default `nvs` partition with a test namespace so the contract can be validated without changing the upstream unit-test-app partition layout
 
 ### Config Ownership Decision Table
 Current Kconfig defaults, ownership, and target direction:
@@ -99,10 +141,11 @@ Current Kconfig defaults, ownership, and target direction:
 | `BLINKY_BTN_ACTIVE_LOW` | `_idf` | `_idf` | Electrical interface behavior |
 | `BLINKY_BTN_PULL_*` | `_idf` | `_idf` | GPIO electrical configuration |
 | `BLINKY_PWM_FREQ_HZ` | `_idf` | `_idf` | LEDC/peripheral setup |
-| `BLINKY_BOOT_PATTERN` | `_idf` | `_idf` | Platform/UI indication behavior |
+| `BLINKY_BOOT_PATTERN` | `_idf` default + app settings override | `_idf` app-settings-backed platform preference | Platform/UI indication behavior |
 | `BLINKY_BOOT_PATTERN_MS` | `_idf` | `_idf` | Platform/UI timing |
-| `BLINKY_LOG_INTENSITY` | `_idf` | `_idf` | Platform logging gate for `_idf` sink adapter |
-| `BLINKY_LOG_MIN_LEVEL_*` | `_idf` | `_idf` | Platform logging verbosity policy for sink adapter |
+| `BLINKY_LOG_INTENSITY` | `_idf` default + app settings override | `_idf` app-settings-backed logging preference | Platform logging gate for `_idf` sink adapter |
+| `BLINKY_LOG_MIN_LEVEL_*` | `_idf` default + app settings override | `_idf` app-settings-backed logging preference | Platform logging verbosity policy for sink adapter |
+| Startup wave selector | core default + app settings override | `core_blinky` app-settings-backed startup preference | Core-owned startup behavior selection |
 | `BLINKY_WAVE_PERIOD_MS` | `_idf` -> core model | `core_blinky` policy/config | Domain waveform behavior |
 | `BLINKY_SINE_STEPS_MAX` | `_idf` -> core model | `core_blinky` policy/config | Domain quality/perf policy |
 | `BLINKY_SAW_STEP_PCT` | `_idf` -> core model | `core_blinky` policy/config | Domain waveform shape policy |
@@ -110,17 +153,6 @@ Current Kconfig defaults, ownership, and target direction:
 | `BLINKY_LONG_PRESS_MS` | `_idf` source via core config mapper (`button_timing`) | `core_blinky` policy/config | Semantic button timing policy |
 | `BLINKY_PRODUCER_POLL_MS` | `_idf` | `_idf` | Producer loop cadence is scheduler/platform concern |
 | `BLINKY_MODEL_POLL_MS` | `_idf` -> core model | `core_blinky` policy/config | Model cadence is domain behavior policy |
-
-## Next Slice: Lifecycle and Backpressure
-Planned implementation direction:
-1. Add explicit `led_sm_idf` lifecycle boundaries (`start/stop` semantics).
-2. Finalize overflow/backpressure policy (drop behavior + counters).
-3. Add queue/dispatch instrumentation:
-   - max occupancy (high-water mark)
-   - dropped count exposure
-   - optional dispatch latency probes
-4. Keep core semantics unchanged:
-   - `led_event_consumer` + `led_runtime` remain framework-agnostic
 
 ## Configuration
 Menuconfig path: `Component config -> Blinky` (from `components/blinky_idf/Kconfig`).
@@ -166,8 +198,8 @@ Tests are Unity-based and split by ownership:
 
 Unit tests run via ESP-IDF Unit Test App with this repo injected through `EXTRA_COMPONENT_DIRS`.
 
-Recent on-device run (2026-03-10):
-- `72 Tests 0 Failures 0 Ignored`
+Recent on-device run (2026-03-25):
+- `127 Tests 0 Failures 0 Ignored`
 
 Targeted hardening TODO:
 - add explicit assert-contract testing for strict core APIs (for example `led_policy_step(NULL, ...)` assert-fail path) while preserving positive-path non-null coverage.
@@ -179,23 +211,8 @@ Critical hardening tracker:
 ## Repo Hygiene
 - `unity-app/` is local scratch/test harness and intentionally git-ignored.
 
-## Next Intention: Event-Driven Transition
-The next architectural step is moving from the current polling/step-loop orchestration
-to an event-driven model.
-
-Planned direction:
-- Keep adapter boundaries explicit:
-  - input adapters produce semantic app events
-  - output adapters apply domain outputs to hardware
-- Use the HSM in `core_sm` as the primary orchestration mechanism.
-- Define explicit event contracts at module boundaries (button, timer tick, menu actions, control events).
-- Route events through a queue/dispatcher path with portable dispatcher contracts in `blinky_interfaces`
-  and queue/storage mechanics in `blinky_idf`.
-- Preserve current behavior parity while migrating (existing tests remain the guardrail).
-
-## Draft Event Contract
-Initial app-level event list (adjustable as behavior evolves):
-Current implementation status summary:
+## Event Contract Snapshot
+Current app-level event status summary:
 - Implemented in production flow: `APP_EVENT_BOOT`, `APP_EVENT_TICK`, `APP_EVENT_BUTTON_SHORT`, `APP_EVENT_BUTTON_LONG`
 - Declared but not yet wired in production flow: `APP_EVENT_MENU_TIMEOUT`, `APP_EVENT_MODEL_STEP_DUE`, `APP_EVENT_FAULT`, `APP_EVENT_SHUTDOWN`
 
@@ -259,6 +276,7 @@ Dispatcher shape (text diagram):
   - button input adapter -> `APP_EVENT_BUTTON_SHORT` / `APP_EVENT_BUTTON_LONG`
   - tick source -> `APP_EVENT_TICK`
   - boot path -> `APP_EVENT_BOOT`
+  - CLI adapter (UART line reader) -> command parse -> command/state gate -> command map -> semantic app event
 - Queue (`blinky_idf`):
   - static ring buffer of `app_event_t`
   - FIFO push/pop
@@ -283,6 +301,7 @@ Struct ownership:
 
 Boundary rules:
 - `_idf` may create/queue events, but should not encode core transition policy.
+- `_idf` may reject a CLI command when core-owned command/state rules say its named semantics are invalid in the current runtime state.
 - core may interpret events, but should not include platform headers or queue internals.
 - payloads must remain POD/fixed-size; no dynamic allocation in dispatch path.
 

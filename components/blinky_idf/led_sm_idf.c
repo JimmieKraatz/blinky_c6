@@ -9,7 +9,9 @@
 #include "led_config_idf.h"
 #include "led_sm_idf.h"
 #include "led_event_consumer.h"
-#include "led_event_factory.h"
+#include "app_event_factory.h"
+#include "app_cli_adapter_idf.h"
+#include "app_settings_store_idf.h"
 #include "led_startup_policy.h"
 
 static inline void led_write(sm_led_ctx_t *ctx, bool on)
@@ -55,6 +57,24 @@ static const char *log_level_name(blinky_log_level_t level)
     }
 }
 
+static const char *startup_selector_name(led_startup_selector_t selector)
+{
+    switch (selector) {
+    case LED_STARTUP_SELECT_SQUARE:
+        return "SQUARE";
+    case LED_STARTUP_SELECT_SAW_UP:
+        return "SAW_UP";
+    case LED_STARTUP_SELECT_SAW_DOWN:
+        return "SAW_DOWN";
+    case LED_STARTUP_SELECT_TRIANGLE:
+        return "TRIANGLE";
+    case LED_STARTUP_SELECT_SINE:
+    case LED_STARTUP_SELECT_DEFAULT:
+    default:
+        return "SINE";
+    }
+}
+
 static void log_boot_identity(sm_led_ctx_t *ctx)
 {
     if (!ctx) {
@@ -77,6 +97,112 @@ static void log_boot_identity(sm_led_ctx_t *ctx)
         .kv_count = 4,
     };
     blinky_log_emit(&ctx->log_sink, &record);
+}
+
+static void log_settings_probe(sm_led_ctx_t *ctx,
+                               blinky_log_level_t level,
+                               const char *message,
+                               const char *source,
+                               const app_settings_t *cfg)
+{
+    if (!ctx) {
+        return;
+    }
+
+    blinky_log_kv_t kvs[7] = {
+        blinky_log_kv_str("source", source ? source : ""),
+        blinky_log_kv_uint("schema_ver", cfg ? cfg->schema_version : 0U),
+        blinky_log_kv_uint("boot_pattern", (cfg && cfg->boot_pattern_enabled) ? 1U : 0U),
+        blinky_log_kv_uint("log_intensity", (cfg && cfg->log_intensity_enabled) ? 1U : 0U),
+        blinky_log_kv_str("log_level", cfg ? log_level_name(cfg->log_min_level) : ""),
+        blinky_log_kv_str("startup_wave", cfg ? startup_selector_name(cfg->startup_selector) : ""),
+        blinky_log_kv_uint("test_count", cfg ? cfg->test_counter : 0U),
+    };
+    const blinky_log_record_t record = {
+        .level = level,
+        .domain = "settings",
+        .event = "probe",
+        .message = message,
+        .kvs = kvs,
+        .kv_count = 7,
+    };
+    blinky_log_emit(&ctx->log_sink, &record);
+}
+
+static app_settings_defaults_t app_settings_platform_defaults(const sm_led_ctx_t *ctx)
+{
+    return (app_settings_defaults_t){
+        .boot_pattern_enabled = ctx ? ctx->platform_cfg.boot_pattern_enabled : false,
+        .log_intensity_enabled = ctx ? ctx->platform_cfg.log_intensity_enabled : false,
+        .log_min_level = ctx ? ctx->platform_cfg.log_min_level : BLINKY_LOG_LEVEL_INFO,
+        .startup_selector = ctx ? ctx->core_cfg.startup.selector : LED_STARTUP_SELECT_DEFAULT,
+    };
+}
+
+static void app_settings_apply_overrides(sm_led_ctx_t *ctx, const app_settings_t *cfg)
+{
+    if (!ctx || !cfg) {
+        return;
+    }
+
+    ctx->platform_cfg.boot_pattern_enabled = cfg->boot_pattern_enabled;
+    ctx->platform_cfg.log_intensity_enabled = cfg->log_intensity_enabled;
+    ctx->platform_cfg.log_min_level = cfg->log_min_level;
+    ctx->core_cfg.startup.selector = cfg->startup_selector;
+    ctx->log_idf.min_level = cfg->log_min_level;
+}
+
+static void app_settings_set_active(sm_led_ctx_t *ctx, const app_settings_t *cfg)
+{
+    if (!ctx || !cfg) {
+        return;
+    }
+
+    ctx->active_settings = *cfg;
+    app_settings_apply_overrides(ctx, cfg);
+}
+
+static void app_settings_probe(sm_led_ctx_t *ctx)
+{
+    if (!ctx || !ctx->settings_store.ops || !ctx->settings_store.ops->load ||
+        !ctx->settings_store.ops->save) {
+        return;
+    }
+
+    app_settings_t cfg = {0};
+    app_settings_store_status_t status = ctx->settings_store.ops->load(ctx->settings_store.ctx, &cfg);
+    if (status == APP_SETTINGS_STORE_OK) {
+        app_settings_set_active(ctx, &cfg);
+        log_settings_probe(ctx, BLINKY_LOG_LEVEL_INFO, "loaded persisted settings", "persisted", &cfg);
+        return;
+    }
+
+    if (status != APP_SETTINGS_STORE_ERR_NOT_FOUND && status != APP_SETTINGS_STORE_ERR_INVALID_DATA) {
+        log_settings_probe(ctx, BLINKY_LOG_LEVEL_WARN, "persisted settings load failed", "error", NULL);
+        return;
+    }
+
+    if (status == APP_SETTINGS_STORE_ERR_INVALID_DATA && ctx->settings_store.ops->reset) {
+        (void)ctx->settings_store.ops->reset(ctx->settings_store.ctx);
+    }
+
+    app_settings_defaults(&cfg, &ctx->settings_defaults);
+    status = ctx->settings_store.ops->save(ctx->settings_store.ctx, &cfg);
+    if (status != APP_SETTINGS_STORE_OK) {
+        app_settings_set_active(ctx, &cfg);
+        log_settings_probe(ctx, BLINKY_LOG_LEVEL_WARN, "persisted settings seed failed", "seed", &cfg);
+        return;
+    }
+
+    status = ctx->settings_store.ops->load(ctx->settings_store.ctx, &cfg);
+    if (status != APP_SETTINGS_STORE_OK) {
+        app_settings_set_active(ctx, &cfg);
+        log_settings_probe(ctx, BLINKY_LOG_LEVEL_WARN, "persisted settings verify failed", "seed", NULL);
+        return;
+    }
+
+    app_settings_set_active(ctx, &cfg);
+    log_settings_probe(ctx, BLINKY_LOG_LEVEL_INFO, "seeded persisted settings", "seed", &cfg);
 }
 
 static void dispatch_event(void *ctx, const app_event_t *ev)
@@ -144,10 +270,17 @@ static void led_runtime_reinitialize(sm_led_ctx_t *ctx)
     apply_runtime_output(ctx, &out);
 }
 
+static void cli_config_apply(void *ctx, const app_settings_t *cfg)
+{
+    app_settings_set_active((sm_led_ctx_t *)ctx, cfg);
+}
+
 void led_sm_init(sm_led_ctx_t *ctx)
 {
     idf_build_platform_config(&ctx->platform_cfg);
     idf_build_core_config(&ctx->core_cfg);
+    ctx->settings_defaults = app_settings_platform_defaults(ctx);
+    app_settings_defaults(&ctx->active_settings, &ctx->settings_defaults);
 
     ESP_ERROR_CHECK(led_output_adapter_idf_init(
         &ctx->led_output,
@@ -172,6 +305,24 @@ void led_sm_init(sm_led_ctx_t *ctx)
             .timing = ctx->core_cfg.button_timing,
         });
 
+    (void)app_settings_store_idf_init(
+        &ctx->settings_store,
+        &ctx->settings_store_idf,
+        &(app_settings_store_idf_config_t){
+            .partition_label = ctx->platform_cfg.settings_partition_label,
+            .namespace_name = ctx->platform_cfg.settings_namespace,
+        });
+    app_settings_probe(ctx);
+    app_cli_config_idf_init(
+        &ctx->cli_config,
+        &ctx->settings_store,
+        &ctx->settings_defaults,
+        &ctx->active_settings,
+        NULL,
+        NULL,
+        cli_config_apply,
+        ctx);
+
     led_runtime_set_log_sink(&ctx->runtime, &ctx->log_sink);
 
     app_event_queue_init(&ctx->queue);
@@ -183,6 +334,7 @@ void led_sm_init(sm_led_ctx_t *ctx)
         &ctx->queue,
         dispatch_event,
         ctx);
+    app_cli_adapter_idf_init(ctx);
     ctx->started = false;
     (void)led_sm_start(ctx, LED_SM_START_FRESH);
 }
@@ -199,6 +351,7 @@ void led_sm_step(sm_led_ctx_t *ctx)
 {
     vTaskDelay(pdMS_TO_TICKS(ctx->platform_cfg.producer_poll_ms));
     led_sm_producer_step(ctx);
+    app_cli_adapter_idf_step(ctx);
 }
 
 bool led_sm_start(sm_led_ctx_t *ctx, led_sm_start_mode_t mode)
@@ -230,7 +383,7 @@ bool led_sm_start(sm_led_ctx_t *ctx, led_sm_start_mode_t mode)
 
     if (mode == LED_SM_START_FRESH) {
         /* Seed boot into the same producer/consumer pipeline used at runtime. */
-        app_event_t boot = led_event_factory_boot(button_input_adapter_now_ms(&ctx->input));
+        app_event_t boot = app_event_factory_boot(button_input_adapter_now_ms(&ctx->input));
         (void)led_sm_enqueue_event(ctx, &boot);
     }
     ctx->started = true;
