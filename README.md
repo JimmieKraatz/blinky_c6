@@ -78,12 +78,6 @@ Config changes are applied immediately in-memory and can be persisted to NVS wit
 
 ### Requirements
 - ESP-IDF installed and activated (e.g. `export.sh` on Linux/macOS)
-- Target configured for ESP32-C6
-
-### Configure Target
-```bash
-idf.py set-target esp32c6
-```
 
 ### Build
 ```bash
@@ -92,9 +86,9 @@ idf.py -D CCACHE_ENABLE=1 build
 
 ### Flash and Monitor
 ```bash
-idf.py -p /dev/ttyUSB0 flash monitor
+idf.py -p <your-active-port> flash monitor
 ```
-Replace the port with your device (`/dev/ttyACM0` on Linux, `COMx` on Windows).
+Replace `<your-active-port>` with the serial device currently assigned to your board (for example `/dev/ttyACM0`, `/dev/ttyUSB0`, or `COMx`).
 
 After the monitor opens, type `help` or `help config` to discover the available command surfaces.
 
