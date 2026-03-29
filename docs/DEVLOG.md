@@ -1356,9 +1356,9 @@ Capture the release-path hotfix needed after `v0.2.0-rc.1` showed that the built
 ### Purpose
 Capture the corrected release-path hotfix after verifying that the real RC failure mode was not stale source merge or reported version text, but the release workflow regenerating `sdkconfig` via `idf.py set-target esp32c6` and thereby changing behavior-critical settings such as console routing and default intensity logging.
 
-- [ ] Slice 1: make release builds honor committed config state
+- [x] Slice 1: make release builds honor committed config state
   - Goal: ensure RC/final artifacts build from the committed `master` config surface instead of mutating it during release CI.
   - Includes: release workflow correction only; undo the earlier version-tag workaround if it is no longer needed once the committed config is built directly.
   - Notes: local validation showed that `idf.py set-target esp32c6 build ...` recreates `sdkconfig` even when the target is already `esp32c6`, and the regenerated config flips exactly the settings that matched the broken RC behavior (`USB_SERIAL_JTAG` console moving to `UART0` and `BLINKY_LOG_INTENSITY` changing from off to on). The corrected fix is therefore to build the committed project state directly in release CI rather than re-targeting it first.
   - Validation check: the next RC/release must be checked for the same workflow problem by confirming that the flashed artifact keeps the expected console route and default boot logging behavior from committed `master`.
-  - Commit(s):
+  - Commit(s): `ba2bbbc`
